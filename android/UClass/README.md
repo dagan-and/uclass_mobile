@@ -1,3 +1,0 @@
-# UClass
-
-UClass Android
