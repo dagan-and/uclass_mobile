@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="isTablet">true</bool>
+
+    <declare-styleable name="BasicButtonView">
+        <attr name="bvType" format="enum">
+            <enum name="filled" value="0" />
+            <enum name="tinted" value="1" />
+            <enum name="cancel" value="2" />
+            <enum name="delete" value="3" />
+            <enum name="logout" value="4" />
+        </attr>
+        <attr name="bvShape" format="enum">
+            <enum name="rect" value="0" />
+        </attr>
+        <attr name="bvTextSize" format="float"/>
+        <attr name="bvRadius" format="integer"/>
+    </declare-styleable>
+
+    <declare-styleable name="BasicSwitchView">
+        <attr name="svText" format="string"/>
+        <attr name="svTextSize" format="float"/>
+        <attr name="svCheck" format="boolean"/>
+        <attr name="svEnable" format="boolean"/>
+        <attr name="svClickExpand" format="boolean"/>
+        <attr name="svPadding" format="integer"/>
+    </declare-styleable>
+
+    <declare-styleable name="BasicRadio">
+        <attr name="brPadding" format="integer"/>
+    </declare-styleable>
+
+    <declare-styleable name="BasicCheckBoxView">
+        <attr name="cvText" format="string"/>
+        <attr name="cvTextSize" format="float"/>
+        <attr name="cvCheck" format="boolean"/>
+        <attr name="cvEnable" format="boolean"/>
+        <attr name="cvClickExpand" format="boolean"/>
+        <attr name="cvPadding" format="integer"/>
+    </declare-styleable>
+
+    <declare-styleable name="LoopingViewPager">
+        <attr name="isInfinite" format="boolean" />
+        <attr name="autoScroll" format="boolean" />
+        <attr name="wrap_content" format="boolean" />
+        <attr name="scrollInterval" format="integer"/>
+        <attr name="viewpagerAspectRatio" format="float"/>
+        <attr name="itemAspectRatio" format="float"/>
+    </declare-styleable>
+
+    <declare-styleable name="CustomShapePagerIndicator">
+        <attr name="indicator_spacing" format="dimension"/>
+    </declare-styleable>
+
+</resources>

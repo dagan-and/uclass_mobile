@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_id">id</string>
+    <string name="app_name">UClass</string>
+    <string name="view_pager_bottom_sheet_behavior" translatable="false">biz.laenger.android.vpbs.ViewPagerBottomSheetBehavior</string>
+    <string name="permission_check_mic">필수 권한을 허용해주셔야 진행 가능합니다. 마이크 접근 권한을 필수로 허용해주세요.</string>
+    <string name="permission_check_alarm">필수 권한을 허용해주셔야 진행 가능합니다. 알림 접근 권한을 필수로 허용해주세요.</string>
+    <string name="permission_check_phone">%s 사용을 위해 전화 접근 권한을 필수로 허용해 주세요.</string>
+    <string name="permission_check_account">%s 사용을 위해 주소록 접근 권한을 필수로 허용해 주세요.</string>
+    <string name="msg_force_update_app">새로운 버전의 %s 앱이 출시되었습니다.</string>
+    <string name="msg_update_app">새로운 버전의 %s 앱이 출시되었습니다. 업데이트를 진행하시겠습니까?</string>
+
+    <!-- 네이버 로그인 -->
+    <string name="naver_client_id">oufNfbD28qY5eVSS93r5</string>
+    <string name="naver_client_secret">tykNG6qXDa</string>
+    <string name="naver_client_name">UClass</string>
+
+</resources>

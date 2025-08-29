@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mainColor">#4f63d2</color>
+    <color name="splash_status_color">#FFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="main_status_color">#F7FAFC</color>
+    <color name="voice_status_color">#1a1e35</color>
+    <color name="web_status_color">#F4F4F4</color>
+    <color name="voice_fail_status_color">#663462</color>
+    <color name="voice_re_ask_status_color">#233486</color>
+    <color name="voice_loading_status_color">#4573b6</color>
+    <color name="text_color_base">#282828</color>
+    <color name="text_color_base2">#1a1e27</color>
+    <color name="text_color_base3">#0f0f0f</color>
+    <color name="text_color_base4">#050045</color>
+    <color name="text_color_base5">#4f4f4f</color>
+    <color name="text_color_gray">#8a8b9a</color>
+    <color name="text_color_gray2">#7d8590</color>
+    <color name="text_color_gray3">#757575</color>
+    <color name="text_color_gray4">#cdcdcd</color>
+    <color name="text_color_gray5">#80333333</color>
+    <color name="text_color_gray6">#b4b4b4</color>
+    <color name="text_color_gray7">#767676</color>
+    <color name="text_color_gray8">#b3ffffff</color>
+    <color name="text_color_alert">#e52929</color>
+    <color name="text_color_8a8b9a">#8A8B9a</color>
+    <color name="text_color_121213">#121213</color>
+    <color name="text_hint">#cdcdcd</color>
+    <color name="text_color_permission_gray">#9A9BA7</color>
+    <color name="button_highlight_on">@color/mainColor</color>
+    <color name="button_highlight_off">#dddddd</color>
+    <color name="dqv_iris">#00A2DE</color>
+    <color name="dqv_iris_d">#0f4c77</color>
+    <color name="dqv_iris_85">#7D88F2</color>
+    <color name="dqv_iris_60">#97A0F5</color>
+    <color name="dqv_iris_dim">#1a4C52E8</color>
+    <color name="text_30">#9A9BA7</color>
+    <color name="loading_dim">#52000000</color>
+    <color name="line">#eaebf0</color>
+    <color name="line2">#eeeeee</color>
+    <color name="line3">#12333333</color>
+    <color name="line4">#33333333</color>
+    <color name="line5">#12333333</color>
+    <color name="line6">#f4f4f4</color>
+    <color name="line7">#dddddd</color>
+    <color name="line8">#f7f7f7</color>
+    <color name="line9">#eaeaea</color>
+    <color name="line10">#d9d9d9</color>
+    <color name="dialog_dim">#b3ffffff</color>
+    <color name="dialog_dim_black">#4D000000</color>
+    <color name="blur_dim">#80FFFFFF</color>
+    <color name="voice_bg_color">#f7fafc</color>
+    <color name="card_bg_color">#CCFFFFFF</color>
+    <color name="toast_bg_color">#b3333333</color>
+    <color name="speaker_bg_color">#b3333333</color>
+    <color name="toast_highlight">#44cde7</color>
+    <color name="speaker_off">#4D757575</color>
+    <color name="dqv_highlight">#4f63d2</color>
+    <color name="basic_textcolor_press">#3300aeea</color>
+    <color name="coach_mark_dim">#b3333333</color>
+    <color name="text_adapter_highlight">#00A2DE</color>
+    <color name="item_highlight">#f9fdfe</color>
+
+    <!-- gradient -->
+    <color name="gradient_main_start_color">#f7fafc</color>
+    <color name="gradient_main_end_color">#e3edfe</color>
+    <color name="gradient_main_center_color">#e7eff4</color>
+
+    <color name="dqv_text_base">#333333</color>
+    <color name="dqv_text_gray">#adadad</color>
+    <color name="dqv_text_gray2">#757575</color>
+    <color name="dqv_text_gray3">#dddddd</color>
+    <color name="dqv_text_gray4">#999999</color>"
+    <color name="dqv_text_disable">#80333333</color>
+    <color name="dqv_text_highlight">#0f4c77</color>
+    <color name="dqv_text_highlight2">#1baeea</color>
+    <color name="dqv_point_color">#4f63d2</color>
+    <color name="dqv_point_color_press">#3d4eaa</color>
+
+    <drawable name="main_status_drawable">#FFFFFF</drawable>
+    <drawable name="transparent">#00000000</drawable>
+    <drawable name="card_bg_color">#88FFFFFF</drawable>
+    <drawable name="basic_text_none">#ffffff</drawable>
+    <drawable name="basic_text_press">#1200A2DE</drawable>
+
+    <!-- UI Component -->
+    <color name="button_cancel_idle">#eaeaea</color>
+    <color name="button_cancel_idle_text">#767676</color>
+    <color name="button_cancel_press">#e0e0e0</color>
+    <color name="button_cancel_press_text">#767676</color>
+    <color name="button_cancel_disable">#E8E9F1</color>
+    <color name="button_cancel_disable_text">#757784</color>
+    <color name="button_delete_idle">#DD5263</color>
+    <color name="button_delete_press">#ED6273</color>
+    <color name="button_delete_disable">#EB909B</color>
+    <color name="button_logout_idle">#f6f7fa</color>
+    <color name="button_logout_press">#fafbff</color>
+    <color name="button_logout_disable">#fefefe</color>
+    <color name="button_filled_idle">@color/dqv_point_color</color>
+    <color name="button_filled_press">@color/dqv_point_color_press</color>
+    <color name="button_filled_disable">#767676</color>
+    <color name="button_filled_disable_text">#80ffffff</color>
+    <color name="button_tinted_idle">#ffffff</color>
+    <color name="button_tinted_idle_stroke">@color/dqv_point_color</color>
+    <color name="button_tinted_idle_text">@color/dqv_point_color</color>
+    <color name="button_tinted_press">#ffffff</color>
+    <color name="button_tinted_press_stroke">@color/dqv_point_color_press</color>
+    <color name="button_tinted_press_text">@color/dqv_point_color_press</color>
+    <color name="button_tinted_disable">#eeeeee</color>
+    <color name="button_tinted_disable_text">#cdcdcd</color>
+
+
+    <color name="key_pad_press">#EEEEEE</color>
+    <color name="dqv_blue_100">#E3EDFE</color>
+    <color name="dqv_blue_150">#D2E2FD</color>
+    <color name="dqv_blue_200">#C6DBFE</color>
+    <color name="dqv_blue_300">#AAC9FD</color>
+    <color name="dqv_blue_400">#8EB7FC</color>
+    <color name="dqv_blue_500">#71A5FC</color>
+    <color name="dqv_blue_600">#5593FB</color>
+    <color name="dqv_blue_700">#3981FA</color>
+    <color name="dqv_blue_800">#1C6FFA</color>
+    <color name="dqv_blue_900">#005DF9</color>
+
+    <color name="dqv_deep_blue_100">#E4E8F5</color>
+    <color name="dqv_deep_blue_200">#CAD1EC</color>
+    <color name="dqv_deep_blue_300">#AFBAE2</color>
+    <color name="dqv_deep_blue_400">#95A3D8</color>
+    <color name="dqv_deep_blue_500">#7A8BCF</color>
+    <color name="dqv_deep_blue_600">#6074C5</color>
+    <color name="dqv_deep_blue_700">#455DBB</color>
+    <color name="dqv_deep_blue_800">#2B46B2</color>
+    <color name="dqv_deep_blue_900">#102FA8</color>
+
+    <color name="dqv_yellow">#fdefc0</color>
+
+</resources>

@@ -1,0 +1,64 @@
+<resources>
+
+    <style name="com_loading_dialog" parent="android:Theme.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+
+    <style name="default_font_com_dlg_msg">
+        <item name="android:textSize">18dp</item>
+        <item name="android:textColor">@color/text_color_base</item>
+    </style>
+
+    <style name="default_font_com_dlg_positive_btn">
+        <item name="android:textSize">16dp</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="default_font_com_dlg_negative_btn">
+        <item name="android:textSize">16dp</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="font_13dp_888888">
+        <item name="android:textSize">13dp</item>
+        <item name="android:textColor">@color/text_color_base</item>
+    </style>
+
+    <style name="font_13dp_ffffff">
+        <item name="android:textSize">13dp</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="font_14dp_base">
+        <item name="android:textSize">14dp</item>
+        <item name="android:textColor">@color/text_color_base</item>
+    </style>
+
+    <style name="font_12dp_alert">
+        <item name="android:textSize">12dp</item>
+        <item name="android:textColor">@color/text_color_alert</item>
+    </style>
+
+    <style name="font_12dp_theme">
+        <item name="android:textSize">12dp</item>
+        <item name="android:textColor">@color/dqv_iris</item>
+    </style>
+
+    <style name="font_main_recommend_title_theme">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/text_color_base2</item>
+    </style>
+
+    <style name="font_main_recommend_item_theme">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/text_color_base2</item>
+    </style>
+
+    <style name="recommend_category_tab_text">
+        <item name="android:gravity">center_horizontal</item>
+        <item name="android:textSize">18sp</item>
+    </style>
+
+</resources>

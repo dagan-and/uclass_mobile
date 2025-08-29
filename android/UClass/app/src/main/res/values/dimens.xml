@@ -1,0 +1,23 @@
+<resources>
+
+    <dimen name="skeleton_margin">500dp</dimen>
+    <dimen name="service_icon_size">56dp</dimen>
+
+    <!-- Button Margin -->
+    <dimen name="side_space_large_button">36dp</dimen>
+    <dimen name="side_space_small_button">24dp</dimen>
+    <dimen name="bottom_space_large_button">20dp</dimen>
+    <dimen name="distance_button">16dp</dimen>
+
+
+    <!-- View Margin -->
+    <dimen name="full_screen_side_margin">40dp</dimen>
+    <dimen name="main_bottom_sheet_top_padding">6dp</dimen>
+    <dimen name="main_bottom_sheet_peek_height">108dp</dimen>
+    <dimen name="call_view_side_margin">16dp</dimen>
+    <dimen name="default_side_padding">24dp</dimen>
+    <dimen name="recommend_view_side_margin">16dp</dimen>
+    <dimen name="bottom_sheet_side_padding">36dp</dimen>
+    <dimen name="default_item_height">56dp</dimen>
+    <dimen name="service_icon_padding">20dp</dimen>
+</resources>

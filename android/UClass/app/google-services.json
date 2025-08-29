@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "789447997540",
+    "project_id": "uclass-f4b75",
+    "storage_bucket": "uclass-f4b75.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:789447997540:android:af7bec185ee4f552554771",
+        "android_client_info": {
+          "package_name": "com.ubase.uclass"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNs56MqA4yubOQJKMJWUM0dT4nmu4DQyo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,25 @@
+# Uncomment the next line to define a global platform for your project
+# platform :ios, '9.0'
+
+target 'uclass' do
+  # Comment the next line if you don't want to use dynamic frameworks
+  use_frameworks!
+
+  # Pods for uclass
+  pod 'Alamofire', '~> 5.2'
+  pod 'KakaoSDKCommon'      #카카오 공통
+  pod 'KakaoSDKUser'        #카카오 로그인
+  pod 'KakaoSDKAuth'        #카카오 사용자 인증
+  pod 'NidThirdPartyLogin'  #네이버 로그인
+
+
+  target 'uclassTests' do
+    inherit! :search_paths
+    # Pods for testing
+  end
+
+  target 'uclassUITests' do
+    # Pods for testing
+  end
+
+end
