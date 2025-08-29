@@ -1,0 +1,73 @@
+# ==============================
+# Android / Gradle
+# ==============================
+
+# Gradle build
+.gradle/
+build/
+
+# Local configuration
+local.properties
+
+# IDE files
+*.iml
+.idea/workspace.xml
+.idea/libraries
+.idea/caches/
+.idea/modules.xml
+.idea/.name
+
+# Kotlin / Java
+*.class
+*.jar
+*.war
+*.ear
+
+# Log files
+*.log
+
+# ==============================
+# iOS / Xcode
+# ==============================
+
+# Xcode build
+build/
+DerivedData/
+
+# User-specific files
+*.xcuserdata
+*.moved-aside
+*.xcscmblueprint
+
+# CocoaPods
+Pods/
+
+# Swift Package Manager
+.build/
+Packages/
+.swiftpm/
+
+# Xcode project files to ignore
+*.xcworkspace
+*.xcodeproj/project.xcworkspace/xcuserdata
+
+# iOS device logs
+*.dSYM
+
+# ==============================
+# Flutter / Dart (if applicable)
+# ==============================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# ==============================
+# General
+# ==============================
+*.DS_Store
+*.swp
+*.swo
