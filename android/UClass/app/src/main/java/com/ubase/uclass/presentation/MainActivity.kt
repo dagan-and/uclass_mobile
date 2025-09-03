@@ -2,6 +2,8 @@ package com.ubase.uclass.presentation
 
 import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,6 +13,9 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.kakao.sdk.auth.AuthApiManager
+import com.ubase.uclass.network.NetworkAPI
+import com.ubase.uclass.network.NetworkAPIManager
 import com.ubase.uclass.presentation.view.MainApp
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.util.AppUtil
@@ -35,6 +40,10 @@ class MainActivity : ComponentActivity() {
 
         AppUtil.setWhiteStatusBareMode(this)
 
+        // NetworkAPI 초기화 (앱에서 한 번만 실행)
+        if (!NetworkAPI.isInitialized()) {
+            NetworkAPI.initialize()
+        }
 
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition {
@@ -117,6 +126,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        NetworkAPI.shutdown()
+        NetworkAPIManager.clearAllCallbacks()
         webViewManager.destroy()
         loginSuccessCallback = null
         loginFailureCallback = null

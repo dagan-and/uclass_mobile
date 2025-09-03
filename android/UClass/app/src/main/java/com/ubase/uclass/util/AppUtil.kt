@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.text.TextUtils
 import android.util.DisplayMetrics
 import android.view.View
 import android.view.WindowInsets
@@ -207,6 +206,30 @@ object AppUtil {
             wm.defaultDisplay.getMetrics(displayMetrics)
             displayMetrics.heightPixels
         }
+    }
+
+    /**
+     * Exception 로그 가져오기
+     */
+    fun getExceptionLog(e: java.lang.Exception): String {
+        var msg = e.javaClass.toString() + "[ " + e.message + " ]" + " >>> "
+        val traceElements = e.stackTrace
+        for (traceElement in traceElements) {
+            msg += traceElement.toString() + "\n"
+        }
+        return msg
+    }
+
+    /**
+     * Exception 로그 가져오기
+     */
+    fun getExceptionLog(e: Throwable): String {
+        var msg = e.javaClass.toString() + "[ " + e.message + " ]" + " >>> "
+        val traceElements = e.stackTrace
+        for (traceElement in traceElements) {
+            msg += traceElement.toString() + "\n"
+        }
+        return msg
     }
 
     /**

@@ -2,6 +2,9 @@
 Alias : prnss
 Password : google000!@
 
+IOS 푸시키 파일
+AuthKey_7LD9CJ9K98.p8
+
 
 카카오 연동 정보
 키 : cc0faae5b1dd0468f0440656b12b8601

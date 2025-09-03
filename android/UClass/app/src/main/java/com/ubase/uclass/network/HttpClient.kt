@@ -4,133 +4,161 @@ import android.text.TextUtils
 import android.util.Log
 import com.ubase.uclass.util.Constants
 import okhttp3.*
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
 
-class HttpClient private constructor(builder: Builder) {
-
-    val call: Call
+class HttpClient private constructor(private val call: Call) {
 
     class Builder {
-        val okhttpBuilder: OkHttpClient.Builder = OkHttpClient.Builder()
-        var cookie: CookieJar? = null
-        var url: String = ""
-        var addJWTToken: Boolean = true
-        var jsonData: String = ""
-        var isPost: Boolean = true
-        var isLogging: Boolean = false
-        var requestBody: RequestBody? = null
-        var setParameter: HashMap<String, String>? = null
-        var setHeader: HashMap<String, String>? = null
-        var timeout: Int = 15
-        var cache: HashMap<String, String>? = null
-    }
+        private val okhttpBuilder = OkHttpClient.Builder()
+        private var cookie: CookieJar? = null
+        private var url: String = ""
+        private var addJWTToken: Boolean = true
+        private var jsonData: String = ""
+        private var isPost: Boolean = true
+        private var isLogging: Boolean = false
+        private var requestBody: RequestBody? = null
+        private var parameters: HashMap<String, String>? = null
+        private var headers: HashMap<String, String>? = null
+        private var timeout: Int = 15
+        private var logListener: NetworkAPI.LogListener? = null
 
-    init {
-        // Timeout 설정
-        builder.okhttpBuilder.apply {
-            connectTimeout(builder.timeout.toLong(), TimeUnit.SECONDS)
-            readTimeout(builder.timeout.toLong(), TimeUnit.SECONDS)
-            writeTimeout(builder.timeout.toLong(), TimeUnit.SECONDS)
-            callTimeout(builder.timeout.toLong(), TimeUnit.SECONDS)
-            retryOnConnectionFailure(false)
+        fun setCookie(cookie: CookieJar) = apply {
+            this.cookie = cookie
         }
 
-        val request = Request.Builder()
-        var body: RequestBody? = null
-
-        // 쿠키, Session 설정
-        builder.cookie?.let {
-            builder.okhttpBuilder.cookieJar(it)
+        fun setUrl(url: String) = apply {
+            this.url = url
         }
 
-        // 디버그 빌드면 Header만 로그 생성
-        // 로그를 사용하면 Body까지 로그 생성
-        if (Constants.isDebug) {
-            val level = if (builder.isLogging) {
-                HttpLoggingInterceptor.Level.BODY
-            } else {
-                HttpLoggingInterceptor.Level.HEADERS
-            }
-            builder.okhttpBuilder.addInterceptor(httpLoggingInterceptor(level))
+        fun addJWTToken(addToken: Boolean) = apply {
+            this.addJWTToken = addToken
         }
 
-        val okHttpClient = builder.okhttpBuilder.build()
-        request.url(builder.url)
-
-        // Header에 JWT 토큰을 추가
-        if (builder.addJWTToken && !TextUtils.isEmpty(Constants.jwtToken)) {
-            request.addHeader("JWT_TOKEN", Constants.jwtToken)
-            request.addHeader("Authorization", Constants.jwtToken)
-        } else {
-            request.addHeader("JWT_TOKEN", "")
-        }
-        request.addHeader("User-Agent", "AOS")
-
-        // 추가 설정한 Header가 있으면 설정
-        builder.setHeader?.forEach { (key, value) ->
-            request.addHeader(key, value)
+        fun setJsonData(data: String) = apply {
+            this.jsonData = data
         }
 
-        // JSON을 Body에 추가
-        if (!TextUtils.isEmpty(builder.jsonData)) {
-            body = builder.jsonData.toRequestBody("application/json".toMediaType())
+        fun isPost(isPost: Boolean) = apply {
+            this.isPost = isPost
         }
 
-        // Body를 생성자에서 전달받으면 전달받은 Body로 재설정
-        builder.requestBody?.let {
-            body = it
+        fun enableLogging(isLogging: Boolean) = apply {
+            this.isLogging = isLogging
         }
 
-        // POST 또는 GET 요청 처리
-        if (builder.isPost && body != null) {
-            request.post(body!!)
-        } else {
-            val urlBuilder = builder.url.toHttpUrl().newBuilder()
+        fun setBody(body: RequestBody) = apply {
+            this.requestBody = body
+        }
 
-            // 파라미터 추가
-            builder.setParameter?.forEach { (key, value) ->
-                urlBuilder.addQueryParameter(key, value)
+        fun setParameters(parameters: HashMap<String, String>) = apply {
+            this.parameters = parameters
+        }
+
+        fun setHeaders(headers: HashMap<String, String>) = apply {
+            this.headers = headers
+        }
+
+        fun setTimeout(timeout: Int) = apply {
+            this.timeout = timeout
+        }
+
+        fun setLogListener(logListener: NetworkAPI.LogListener) = apply {
+            this.logListener = logListener
+        }
+
+        fun build(): HttpClient {
+            // OkHttp 클라이언트 설정
+            okhttpBuilder.apply {
+                connectTimeout(timeout.toLong(), TimeUnit.SECONDS)
+                readTimeout(timeout.toLong(), TimeUnit.SECONDS)
+                writeTimeout(timeout.toLong(), TimeUnit.SECONDS)
+                callTimeout(timeout.toLong(), TimeUnit.SECONDS)
+                retryOnConnectionFailure(false)
             }
 
-            // 캐시 처리
-            builder.cache?.let { cache ->
-                val fullUrl = urlBuilder.build().toString()
-                cache[fullUrl]?.let { etag ->
-                    if (etag.isNotEmpty()) {
-                        request.addHeader("If-None-Match", etag)
-                    }
+            // 쿠키 설정
+            cookie?.let { okhttpBuilder.cookieJar(it) }
+
+            // 로깅 설정
+            if (Constants.isDebug) {
+                val loggingLevel = if (isLogging) {
+                    HttpLoggingInterceptor.Level.BODY
+                } else {
+                    HttpLoggingInterceptor.Level.HEADERS
                 }
+
+                val interceptor = if (logListener != null) {
+                    createLoggingInterceptor(loggingLevel, logListener!!)
+                } else {
+                    createLoggingInterceptor(loggingLevel)
+                }
+                okhttpBuilder.addInterceptor(interceptor)
             }
 
-            request.url(urlBuilder.build())
-            request.get()
+            val okHttpClient = okhttpBuilder.build()
+            val requestBuilder = Request.Builder().url(url)
+
+            // JWT 토큰 헤더 추가
+            if (addJWTToken && !TextUtils.isEmpty(Constants.jwtToken)) {
+                requestBuilder.addHeader("JWT_TOKEN", Constants.jwtToken ?: "")
+                requestBuilder.addHeader("Authorization", Constants.jwtToken ?: "")
+            } else {
+                requestBuilder.addHeader("JWT_TOKEN", "")
+            }
+            requestBuilder.addHeader("User-Agent", "AOS")
+
+            // 추가 헤더 설정
+            headers?.forEach { (key, value) ->
+                requestBuilder.addHeader(key, value)
+            }
+
+            // 요청 바디 설정
+            var body: RequestBody? = null
+
+            if (!TextUtils.isEmpty(jsonData)) {
+                body = jsonData.toRequestBody("application/json".toMediaType())
+            }
+
+            requestBody?.let { body = it }
+
+            // POST/GET 요청 설정
+            if (isPost && body != null) {
+                requestBuilder.post(body!!)
+            } else {
+                val urlBuilder = url.toHttpUrlOrNull()?.newBuilder()
+                    ?: throw IllegalArgumentException("Invalid URL: $url")
+
+                parameters?.forEach { (key, value) ->
+                    urlBuilder.addQueryParameter(key, value)
+                }
+
+                requestBuilder.url(urlBuilder.build()).get()
+            }
+
+            val call = okHttpClient.newCall(requestBuilder.build())
+            return HttpClient(call)
         }
 
-        call = okHttpClient.newCall(request.build())
+        private fun createLoggingInterceptor(level: HttpLoggingInterceptor.Level): HttpLoggingInterceptor {
+            return HttpLoggingInterceptor { message ->
+                Log.d("UCLASS_API", message)
+            }.setLevel(level)
+        }
+
+        private fun createLoggingInterceptor(
+            level: HttpLoggingInterceptor.Level,
+            logListener: NetworkAPI.LogListener
+        ): HttpLoggingInterceptor {
+            return HttpLoggingInterceptor { message ->
+                Log.d("UCLASS_API", message)
+                logListener.onLog(message)
+            }.setLevel(level)
+        }
     }
 
-    private fun httpLoggingInterceptor(level: HttpLoggingInterceptor.Level): HttpLoggingInterceptor {
-        val interceptor = HttpLoggingInterceptor { message ->
-            Log.d("UCLASS_API", message)
-        }
-        return interceptor.setLevel(level)
-    }
+    fun getCall(): Call = call
 }
-
-// 사용 예시
-/*
-val httpClient = HttpClient.Builder()
-    .setUrl("https://api.example.com/data")
-    .addJWTToken(true)
-    .setJsonData("{\"key\":\"value\"}")
-    .isPost(true)
-    .isLogging(true)
-    .setTimeout(30)
-    .build()
-
-val call = httpClient.call
-*/

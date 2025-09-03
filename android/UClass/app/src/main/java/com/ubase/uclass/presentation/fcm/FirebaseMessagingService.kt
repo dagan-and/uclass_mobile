@@ -57,7 +57,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 replaceExtras(temp)
             }
         } catch (e : Exception) {
-            Log.e("AICFO Firebase", e.localizedMessage!!)
+            Log.e("Firebase", e.localizedMessage!!)
         }
         super.handleIntent(intent)
     }
@@ -92,7 +92,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                     CHANNEL_NAME,
                     NotificationManager.IMPORTANCE_HIGH
                 )
-                channel.description = "AICFO"
+                channel.description = CHANNEL_ID
                 channel.setShowBadge(false)
                 notificationManager.createNotificationChannel(channel)
             }
@@ -106,26 +106,9 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             var title: String = ""
             var body: String = ""
 
-            try {
-                val extras = message.toIntent().extras
-                if (extras != null) {
-                    for (key in extras.keySet()) {
-                        val value = extras[key]
-                        if(key.contains("_key") && value != null) {
-                            title = value.toString()
-                        }
-                        if(key.contains("_d") && value != null) {
-                            body = value.toString()
-                        }
-                    }
-                }
-            } catch (e : Exception) {
-                Logger.error(e)
-            }
-
-            if(message.data.containsKey("_key") && message.data.containsKey("_d")) {
-                title = message.data["_key"]!!
-                body = message.data["_d"]!!
+            if(message.data.containsKey("title") && message.data.containsKey("body")) {
+                title = message.data["title"]!!
+                body = message.data["body"]!!
             }
             if(message.notification != null) {
                 title = message.notification!!.title!!
@@ -150,7 +133,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 .setContentText(body)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setContentIntent(pendingIntent)
-                .setSmallIcon(R.drawable.img_cfo_noti)
+                .setSmallIcon(R.mipmap.ic_launcher)
                 .setColor(ContextCompat.getColor(this, R.color.black))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setDefaults(Notification.DEFAULT_ALL)

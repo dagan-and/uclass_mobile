@@ -4,18 +4,50 @@ struct SNSLoginView: View {
     @StateObject private var kakaoLoginManager = KakaoLoginManager()
     @StateObject private var appleLoginManager = AppleLoginManager()
     @StateObject private var naverLoginManager = NaverLoginManager()
+    @StateObject private var networkViewModel = NetworkViewModel(identifier: "SNSLogin")
     @EnvironmentObject var webViewManager: WebViewManager
     
     @State private var navigateToMain = false
     @State private var showLoadingView = false
     
+    private func startAuthentication() {
+        networkViewModel.callAuthInitStore(
+            onSuccess: { result in
+                var messageText = "응답을 받았습니다."
+                       
+                       // result를 문자열로 변환
+                       if let result = result {
+                           if let jsonData = try? JSONSerialization.data(withJSONObject: result, options: .prettyPrinted),
+                              let jsonString = String(data: jsonData, encoding: .utf8) {
+                               messageText = jsonString
+                           } else {
+                               messageText = "\(result)"
+                           }
+                       }
+                       
+                       AlertHelper.shared.showAlert(
+                           title: "API 성공",
+                           message: messageText
+                       ) {
+                           Logger.dev("AuthInitStore success confirmed")
+                       }
+            },
+            onError: { error in
+                AlertHelper.shared.showErrorAlert(
+                    title: "API ERROR",
+                    message: error
+                ) {
+                    // 확인 버튼 클릭 시 실행할 코드
+                    Logger.dev("Confirm")
+                }
+            }
+        )
+    }
+    
     var body: some View {
         NavigationView {
             ZStack {
-                if showLoadingView {
-                    WebViewLoadingView()
-                        .environmentObject(webViewManager)
-                } else if navigateToMain {
+                if navigateToMain {
                     MainTabView()
                         .environmentObject(webViewManager)
                 } else {
@@ -27,16 +59,21 @@ struct SNSLoginView: View {
         .navigationViewStyle(StackNavigationViewStyle())
         .onChange(of: kakaoLoginManager.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
-                startWebViewLoading()
+                startAuthentication()
             }
         }
         .onChange(of: appleLoginManager.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
-                startWebViewLoading()
+                startAuthentication()
             }
         }
         .onChange(of: naverLoginManager.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
+                startAuthentication()
+            }
+        }
+        .onChange(of: networkViewModel.isCompleted) { isCompleted in
+            if isCompleted {
                 startWebViewLoading()
             }
         }
@@ -51,148 +88,143 @@ struct SNSLoginView: View {
     }
     
     private var loginContentView: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        ZStack {
+            Color.white.ignoresSafeArea()
             
-            // 로고 및 제목 영역
-            VStack(spacing: 24) {
-                // 로그인 아이콘
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.blue)
+            VStack(spacing: 0) {
+                Spacer()
+                    .frame(height: 100)
                 
-                VStack(spacing: 8) {
+                // 앱 아이콘 영역
+                VStack(spacing: 0) {
+                    // 앱 아이콘 (UCLASS 로고)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(red: 0.2, green: 0.7, blue: 0.6))
+                            .frame(width: 100, height: 100)
+                        
+                        VStack(spacing: 4) {
+                            Image(systemName: "graduationcap.fill")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundColor(.white)
+                            
+                            Text("UCLASS")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    
+                    Spacer()
+                        .frame(height: 40)
+                    
+                    // 타이틀 텍스트
                     Text("간편 로그인")
-                        .font(.title)
+                        .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.black)
-                        .fontWeight(.bold)
+                    
+                    Spacer()
+                        .frame(height: 12)
                     
                     Text("소셜 계정으로 간편하게 로그인하세요")
-                        .font(.body)
-                        .foregroundColor(.black)
-                        .multilineTextAlignment(.center)
-                }
-            }
-            
-            Spacer()
-            
-            // 로그인 버튼들
-            VStack(spacing: 16) {
-                // 카카오 로그인 버튼
-                LoginButton(
-                    title: "카카오로 로그인",
-                    backgroundColor: Color(red: 1.0, green: 0.9, blue: 0.0),
-                    textColor: .black,
-                    icon: "bubble.left.fill",
-                    isLoading: kakaoLoginManager.isLoading
-                ) {
-                    kakaoLoginManager.startKakaoLogin()
+                        .font(.system(size: 16))
+                        .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
                 }
                 
-                // 네이버 로그인 버튼
-                LoginButton(
-                    title: "네이버로 로그인",
-                    backgroundColor: Color(red: 0.0, green: 0.7, blue: 0.0),
-                    textColor: .white,
-                    icon: "n.circle.fill",
-                    isLoading: naverLoginManager.isLoading
-                ) {
-                    naverLoginManager.startNaverLogin()
+                Spacer()
+                
+                // 로딩 중일 때 또는 로그인 버튼들
+                if networkViewModel.isLoading || showLoadingView {
+                    // 로딩 상태 (버튼 영역만 교체)
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.0, green: 0.48, blue: 1.0)))
+                            .scaleEffect(1.0)
+                        
+                        Text("앱을 준비하고 있습니다...")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+                    }
+                    .padding(.horizontal, 32)
+                } else {
+                    // 로그인 버튼들
+                    VStack(spacing: 16) {
+                        // 카카오 로그인 버튼
+                        SNSLoginButton(
+                            title: "카카오 로그인",
+                            backgroundColor: Color(red: 254.0/255.0, green: 229.0/255.0, blue: 0.0/255.0),
+                            textColor: .black,
+                            isLoading: kakaoLoginManager.isLoading
+                        ) {
+                            kakaoLoginManager.startKakaoLogin()
+                        }
+                        
+                        // 네이버 로그인 버튼
+                        SNSLoginButton(
+                            title: "네이버 로그인",
+                            backgroundColor: Color(red: 3.0/255.0, green: 199.0/255.0, blue: 90.0/255.0),
+                            textColor: .white,
+                            isLoading: naverLoginManager.isLoading
+                        ) {
+                            naverLoginManager.startNaverLogin()
+                        }
+                        
+                        // 구글 로그인 버튼 (Apple 대신)
+                        SNSLoginButton(
+                            title: "구글 로그인",
+                            backgroundColor: .black,
+                            textColor: .white,
+                            isLoading: appleLoginManager.isLoading
+                        ) {
+                            appleLoginManager.startAppleLogin()
+                        }
+                    }
+                    .padding(.horizontal, 32)
                 }
                 
-                // Apple 로그인 버튼
-                LoginButton(
-                    title: "Apple로 로그인",
-                    backgroundColor: .black,
-                    textColor: .white,
-                    icon: "applelogo",
-                    isLoading: appleLoginManager.isLoading
-                ) {
-                    appleLoginManager.startAppleLogin()
-                }
+                Spacer()
+                    .frame(height: 80)
             }
-            .padding(.horizontal, 32)
-            
-            Spacer()
-                .frame(height: 60)
-        }
-        .padding()
-        .background(Color.white)
-        .alert("오류", isPresented: .constant(hasError)) {
-            Button("확인", role: .cancel) {
-                clearErrors()
-            }
-        } message: {
-            Text(errorMessage)
         }
     }
     
-    private var hasError: Bool {
-        return kakaoLoginManager.errorMessage != nil ||
-               appleLoginManager.errorMessage != nil ||
-               naverLoginManager.errorMessage != nil
-    }
-    
-    private var errorMessage: String {
-        return kakaoLoginManager.errorMessage ??
-               appleLoginManager.errorMessage ??
-               naverLoginManager.errorMessage ??
-               ""
-    }
-    
-    private func clearErrors() {
-        kakaoLoginManager.errorMessage = nil
-        appleLoginManager.errorMessage = nil
-        naverLoginManager.errorMessage = nil
-    }
     
     private func startWebViewLoading() {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            showLoadingView = true
-        }
+        showLoadingView = true
         
-        // 웹뷰 로딩 시작 (네이버 URL로 설정)
+        // 웹뷰 로딩 시작
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             webViewManager.preloadWebView(url: "https://www.naver.com")
         }
     }
 }
 
-struct LoginButton: View {
+struct SNSLoginButton: View {
     let title: String
     let backgroundColor: Color
     let textColor: Color
-    let icon: String
     let isLoading: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack {
+                Spacer()
+                
                 if isLoading {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: textColor))
                         .scaleEffect(0.8)
                 } else {
-                    Image(systemName: icon)
-                        .font(.system(size: 20))
+                    Text(title)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(textColor)
                 }
-                
-                Text(title)
-                    .font(.system(size: 16, weight: .medium))
                 
                 Spacer()
             }
-            .foregroundColor(textColor)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity)
+            .frame(height: 56)
             .background(backgroundColor)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-            )
+            .cornerRadius(28) // 더 둥근 모서리
         }
         .disabled(isLoading)
         .opacity(isLoading ? 0.8 : 1.0)

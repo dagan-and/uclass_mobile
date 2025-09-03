@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.ubase.uclass.network.NetworkAPI
+import com.ubase.uclass.network.NetworkAPIManager
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.presentation.web.WebViewScreen
 
@@ -27,54 +29,72 @@ fun MainApp(
     var isLoggedIn by remember { mutableStateOf(false) }
     var isWebViewLoading by remember { mutableStateOf(false) }
     var loginSuccess by remember { mutableStateOf(false) }
+    var isAPIInitialized by remember { mutableStateOf(false) }
+
+    // NetworkAPI 콜백 등록
+    DisposableEffect(Unit) {
+        val callbackId = "MainApp_${System.currentTimeMillis()}"
+
+        NetworkAPIManager.registerCallback(callbackId, object : NetworkAPIManager.NetworkCallback {
+            override fun onResult(code: Int, result: Any?) {
+                if (code == NetworkAPIManager.ResponseCode.API_AUTH_INIT_STORE) {
+                    isAPIInitialized = true
+                }
+            }
+        })
+
+        onDispose {
+            NetworkAPIManager.unregisterCallback(callbackId)
+        }
+    }
+
+    // 로그인 성공 후 공통 처리 함수
+    val handleLoginSuccess = {
+        loginSuccess = true
+        isWebViewLoading = true
+        webViewManager.preloadWebView()
+
+        // NetworkAPI.authInitStore 호출
+        NetworkAPI.authInitStore("1.0.0")
+    }
+
+    // 로그인 실패 후 공통 처리 함수
+    val handleLoginFailure = {
+        isWebViewLoading = false
+        loginSuccess = false
+    }
+
+    // API 초기화 완료 및 웹뷰 로딩 완료 시 메인 화면으로 전환
+    LaunchedEffect(isAPIInitialized, webViewManager.isWebViewLoaded.value, loginSuccess) {
+        if (isAPIInitialized && webViewManager.isWebViewLoaded.value && loginSuccess) {
+            isLoggedIn = true
+            isWebViewLoading = false
+        }
+    }
 
     if (!isLoggedIn) {
         // 로그인 화면 표시
         SNSLoginScreen(
             onKakaoLogin = {
-                isWebViewLoading = true
-                webViewManager.preloadWebView()
                 onKakaoLogin(
-                    { loginSuccess = true },
-                    {
-                        isWebViewLoading = false
-                        loginSuccess = false
-                    }
+                    { handleLoginSuccess() },
+                    { handleLoginFailure() }
                 )
             },
             onNaverLogin = {
-                isWebViewLoading = true
-                webViewManager.preloadWebView()
                 onNaverLogin(
-                    { loginSuccess = true },
-                    {
-                        isWebViewLoading = false
-                        loginSuccess = false
-                    }
+                    { handleLoginSuccess() },
+                    { handleLoginFailure() }
                 )
             },
             onGoogleLogin = {
-                isWebViewLoading = true
-                webViewManager.preloadWebView()
                 onGoogleLogin(
-                    { loginSuccess = true },
-                    {
-                        isWebViewLoading = false
-                        loginSuccess = false
-                    }
+                    { handleLoginSuccess() },
+                    { handleLoginFailure() }
                 )
             },
             isLoading = isWebViewLoading
         )
-
-        // 로그인 성공 및 웹뷰 로딩 상태 감지
-        LaunchedEffect(webViewManager.isWebViewLoaded.value, loginSuccess, isWebViewLoading) {
-            if (loginSuccess && isWebViewLoading && webViewManager.isWebViewLoaded.value) {
-                // 로그인 성공 + 웹뷰 로딩 완료 시 메인 화면으로 전환
-                isLoggedIn = true
-                isWebViewLoading = false
-            }
-        }
     } else {
         // 메인 앱 화면
         MainContent(webViewManager = webViewManager)
