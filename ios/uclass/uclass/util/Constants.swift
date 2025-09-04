@@ -3,6 +3,6 @@
  */
 struct Constants {
     static var baseURL = "https://cloudbranchq-dev.aiwebcash.co.kr/adm"
-    static var isDebug = true
+    static var isDebug = false
     static var jwtToken: String? = nil
 }

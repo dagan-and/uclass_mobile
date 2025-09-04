@@ -11,6 +11,15 @@ class AppleLoginManager: NSObject, ObservableObject {
     
     private var currentNonce: String?
     
+    // SNS 토큰 및 타입 정보
+    var snsType: String {
+        return "apple"
+    }
+    
+    var snsToken: String {
+        return userInfo?.identityToken ?? ""
+    }
+    
     override init() {
         super.init()
     }
@@ -34,6 +43,21 @@ class AppleLoginManager: NSObject, ObservableObject {
         authorizationController.performRequests()
     }
     
+    // 로그인 정보 저장
+    private func saveLoginInfo() {
+        guard let userInfo = userInfo else { return }
+        
+        UserDefaultsManager.saveLoginInfo(
+            snsType: snsType,
+            snsToken: snsToken,
+            userId: userInfo.userId,
+            email: userInfo.email,
+            name: userInfo.displayName
+        )
+        
+        Logger.dev("Apple 로그인 정보 저장 완료")
+        UserDefaultsManager.printSavedLoginInfo()
+    }
     
     // MARK: - Private Helper Methods
     
@@ -109,10 +133,15 @@ extension AppleLoginManager: ASAuthorizationControllerDelegate {
                 self.userInfo = userInfo
                 self.isLoggedIn = true
                 
-                print("Apple 로그인 성공!")
-                print("User ID: \(userId)")
-                print("Email: \(email ?? "제공되지 않음")")
-                print("Full Name: \(fullName?.givenName ?? "") \(fullName?.familyName ?? "")")
+                // 로그인 정보 저장
+                self.saveLoginInfo()
+                
+                Logger.dev("Apple 로그인 성공!")
+                Logger.dev("Apple 로그인 성공!")
+                Logger.dev("User ID: \(userId)")
+                Logger.dev("Email: \(email ?? "제공되지 않음")")
+                Logger.dev("Full Name: \(fullName?.givenName ?? "") \(fullName?.familyName ?? "")")
+                Logger.dev("Identity Token: \(self.snsToken)")
                 
             }
         }
@@ -125,26 +154,26 @@ extension AppleLoginManager: ASAuthorizationControllerDelegate {
             if let authError = error as? ASAuthorizationError {
                 switch authError.code {
                 case .canceled:
-                    print("Apple 로그인 취소됨")
+                    Logger.dev("Apple 로그인 취소됨")
                     self.errorMessage = "로그인이 취소되었습니다."
                 case .failed:
-                    print("Apple 로그인 실패: \(authError.localizedDescription)")
+                    Logger.dev("Apple 로그인 실패: \(authError.localizedDescription)")
                     self.errorMessage = "로그인에 실패했습니다."
                 case .invalidResponse:
-                    print("Apple 로그인 응답이 유효하지 않음")
+                    Logger.dev("Apple 로그인 응답이 유효하지 않음")
                     self.errorMessage = "잘못된 응답입니다."
                 case .notHandled:
-                    print("Apple 로그인이 처리되지 않음")
+                    Logger.dev("Apple 로그인이 처리되지 않음")
                     self.errorMessage = "로그인이 처리되지 않았습니다."
                 case .unknown:
-                    print("Apple 로그인 알 수 없는 오류")
+                    Logger.dev("Apple 로그인 알 수 없는 오류")
                     self.errorMessage = "알 수 없는 오류가 발생했습니다."
                 default:
-                    print("Apple 로그인 기타 오류: \(authError.localizedDescription)")
+                    Logger.dev("Apple 로그인 기타 오류: \(authError.localizedDescription)")
                     self.errorMessage = authError.localizedDescription
                 }
             } else {
-                print("Apple 로그인 일반 오류: \(error.localizedDescription)")
+                Logger.dev("Apple 로그인 일반 오류: \(error.localizedDescription)")
                 self.errorMessage = error.localizedDescription
             }
         }

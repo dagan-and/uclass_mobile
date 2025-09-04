@@ -41,7 +41,10 @@ class App : Application() {
         setupLifecycleObserver()
 
         //앱 빌드 설정
-        Logger.setEnable(true)
+        if(BuildConfig.FLAVOR.contains("dev")) {
+            Logger.setEnable(true)
+            Constants.isDebug = true
+        }
 
 
         //SNS 로그인 초기화값

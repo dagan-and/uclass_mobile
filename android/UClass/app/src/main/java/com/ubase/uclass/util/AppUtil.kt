@@ -33,6 +33,14 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.util.*
 
+// 사용자 정보를 담는 데이터 클래스들
+data class LoginUserInfo(
+    val snsType: String,
+    val userId: String,
+    val email: String,
+    val name: String,
+    val profileImageUrl: String? = null
+)
 
 object AppUtil {
 
@@ -45,7 +53,7 @@ object AppUtil {
     }
 
     /**
-     * 디바이스가 테블릿 인지 체크
+     * 디바이스가 태블릿 인지 체크
      */
     fun isTabletDevice(context: Activity): Boolean {
         val tabletSize: Boolean = context.getResources().getBoolean(R.bool.isTablet)
@@ -142,7 +150,6 @@ object AppUtil {
         }
     }
 
-
     /**
      * 전체화면 모드 설정
      */
@@ -235,8 +242,8 @@ object AppUtil {
     /**
      * 암호화된 로그인 정보가 저장 되어있는지
      */
-    fun isSavedLoginInfo() : Boolean {
-        return true
+    fun isSavedLoginInfo(context: Context) : Boolean {
+        return PreferenceManager.canAutoLogin(context)
     }
 
     //푸시 인텐트 설정
@@ -267,24 +274,70 @@ object AppUtil {
     //카카오 로그인
     fun loginWithKakaoTalk(
         context: Context,
-        onSuccess: (String) -> Unit,
+        onSuccess: (LoginUserInfo) -> Unit,
         onFailure: (Throwable) -> Unit,
     ) {
         UserApiClient.instance.loginWithKakaoTalk(context) { token, error ->
             if (error != null) {
+                // 카카오톡 로그인 실패 시 카카오 계정으로 로그인 시도
+                loginWithKakaoAccount(context, onSuccess, onFailure)
+            } else if (token != null) {
+                // 사용자 정보 가져오기
+                fetchKakaoUserInfo(context, onSuccess, onFailure)
+            }
+        }
+    }
+
+    private fun loginWithKakaoAccount(
+        context: Context,
+        onSuccess: (LoginUserInfo) -> Unit,
+        onFailure: (Throwable) -> Unit
+    ) {
+        UserApiClient.instance.loginWithKakaoAccount(context) { token, error ->
+            if (error != null) {
                 onFailure(error)
             } else if (token != null) {
-                UserApiClient.instance.me { user, error ->
-                    if (error != null) {
-                        onFailure(error)
-                    } else if (user != null) {
-                        val kakaoId = user.id
-                        val nickname = user.kakaoAccount?.profile?.nickname
-                        val email = user.kakaoAccount?.email
-                        val profileImage = user.kakaoAccount?.profile?.profileImageUrl
-                        onSuccess("ID: $kakaoId, Nickname: $nickname, Email: $email, ProfileImage: $profileImage")
-                    }
-                }
+                fetchKakaoUserInfo(context, onSuccess, onFailure)
+            }
+        }
+    }
+
+    private fun fetchKakaoUserInfo(
+        context: Context,
+        onSuccess: (LoginUserInfo) -> Unit,
+        onFailure: (Throwable) -> Unit
+    ) {
+        UserApiClient.instance.me { user, error ->
+            if (error != null) {
+                onFailure(error)
+            } else if (user != null) {
+                val kakaoId = user.id.toString()
+                val nickname = user.kakaoAccount?.profile?.nickname ?: ""
+                val email = user.kakaoAccount?.email ?: ""
+                val profileImage = user.kakaoAccount?.profile?.profileImageUrl
+
+
+                val userInfo = LoginUserInfo(
+                    snsType = "kakao",
+                    userId = kakaoId,
+                    email = email,
+                    name = nickname,
+                    profileImageUrl = profileImage
+                )
+
+                // 로그인 정보 저장
+                PreferenceManager.saveLoginInfo(
+                    context = context,
+                    snsType = "kakao",
+                    userId = kakaoId,
+                    email = email,
+                    name = nickname
+                )
+
+                Logger.info("## 카카오 로그인 성공 및 정보 저장 완료")
+                PreferenceManager.printSavedLoginInfo(context)
+
+                onSuccess(userInfo)
             }
         }
     }
@@ -294,7 +347,7 @@ object AppUtil {
      */
     fun loginWithNaver(
         context: Context,
-        onSuccess: (String) -> Unit,
+        onSuccess: (LoginUserInfo) -> Unit,
         onFailure: (Throwable) -> Unit
     ) {
         val oAuthLoginCallback = object : OAuthLoginCallback {
@@ -303,14 +356,32 @@ object AppUtil {
                 NidOAuthLogin().callProfileApi(object : NidProfileCallback<NidProfileResponse> {
                     override fun onSuccess(result: NidProfileResponse) {
                         val profile = result.profile
-                        val naverId = profile?.id
-                        val name = profile?.name
-                        val email = profile?.email
+                        val naverId = profile?.id ?: ""
+                        val name = profile?.name ?: ""
+                        val email = profile?.email ?: ""
                         val profileImage = profile?.profileImage
-                        val nickname = profile?.nickname
-                        val mobile = profile?.mobile
+                        val nickname = profile?.nickname ?: ""
 
-                        val userInfo = "ID: $naverId, Name: $name, Email: $email, Nickname: $nickname, Mobile: $mobile, ProfileImage: $profileImage"
+                        val userInfo = LoginUserInfo(
+                            snsType = "naver",
+                            userId = naverId,
+                            email = email,
+                            name = if (name.isNotEmpty()) name else nickname,
+                            profileImageUrl = profileImage
+                        )
+
+                        // 로그인 정보 저장
+                        PreferenceManager.saveLoginInfo(
+                            context = context,
+                            snsType = "naver",
+                            userId = naverId,
+                            email = email,
+                            name = if (name.isNotEmpty()) name else nickname
+                        )
+
+                        Logger.info("## 네이버 로그인 성공 및 정보 저장 완료")
+                        PreferenceManager.printSavedLoginInfo(context)
+
                         onSuccess(userInfo)
                     }
 
@@ -335,7 +406,6 @@ object AppUtil {
 
         NaverIdLoginSDK.authenticate(context, oAuthLoginCallback)
     }
-
 
     /**
      * 구글 로그인 클라이언트 생성
@@ -369,26 +439,65 @@ object AppUtil {
      * Activity의 onActivityResult에서 호출
      */
     fun handleGoogleSignInResult(
+        context: Context,
         data: Intent?,
-        onSuccess: (String) -> Unit,
+        onSuccess: (LoginUserInfo) -> Unit,
         onFailure: (Throwable) -> Unit
     ) {
         try {
             val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             val account = task.getResult(ApiException::class.java)
 
-            val googleId = account.id
-            val name = account.displayName
-            val email = account.email
+            val googleId = account.id ?: ""
+            val name = account.displayName ?: ""
+            val email = account.email ?: ""
             val profileImage = account.photoUrl?.toString()
-            val givenName = account.givenName
-            val familyName = account.familyName
 
-            val userInfo = "ID: $googleId, Name: $name, Email: $email, GivenName: $givenName, FamilyName: $familyName, ProfileImage: $profileImage"
+            val userInfo = LoginUserInfo(
+                snsType = "google",
+                userId = googleId,
+                email = email,
+                name = name,
+                profileImageUrl = profileImage
+            )
+
+            // 로그인 정보 저장
+            PreferenceManager.saveLoginInfo(
+                context = context,
+                snsType = "google",
+                userId = googleId,
+                email = email,
+                name = name
+            )
+
+            Logger.info("## 구글 로그인 성공 및 정보 저장 완료")
+            PreferenceManager.printSavedLoginInfo(context)
+
             onSuccess(userInfo)
 
         } catch (e: ApiException) {
             onFailure(Exception("구글 로그인 실패: ${e.message}"))
         }
+    }
+
+    /**
+     * 저장된 로그인 정보로 자동 로그인 시도
+     */
+    fun tryAutoLogin(context: Context): Pair<String, String>? {
+        if (PreferenceManager.canAutoLogin(context)) {
+            val snsType = PreferenceManager.getSNSType(context)
+            val userId = PreferenceManager.getUserId(context)
+            Logger.info("## 자동 로그인 가능: $snsType, userId: $userId")
+            return Pair(snsType, userId)
+        }
+        return null
+    }
+
+    /**
+     * 로그아웃 (저장된 정보 삭제)
+     */
+    fun logout(context: Context) {
+        PreferenceManager.clearLoginInfo(context)
+        Logger.info("## 로그아웃 완료 - 저장된 정보 삭제됨")
     }
 }

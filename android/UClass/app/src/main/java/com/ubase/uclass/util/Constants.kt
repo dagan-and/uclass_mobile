@@ -8,7 +8,7 @@ object Constants {
     var tokenExpired : String = ""
 
     //앱 디버깅 설정
-    var isDebug = true
+    var isDebug = false
 
     //푸시로 실행됐는지 Flag
     var isPushStart : Boolean = false

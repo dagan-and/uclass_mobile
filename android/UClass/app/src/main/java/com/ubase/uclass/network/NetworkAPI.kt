@@ -107,7 +107,7 @@ object NetworkAPI {
     /**
      * 인증 스토어 초기화 API
      */
-    fun authInitStore(version: String) {
+    fun authInitStore(version: String , snsType: String , snsId: String) {
         checkInitialized()
 
         executorService?.execute {

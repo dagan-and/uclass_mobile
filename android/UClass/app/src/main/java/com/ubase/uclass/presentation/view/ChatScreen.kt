@@ -4,12 +4,21 @@ package com.ubase.uclass.presentation.view
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ubase.uclass.presentation.viewmodel.ChatBadgeViewModel
 
 @Composable
-fun DetailScreen() {
+fun ChatScreen(chatBadgeViewModel: ChatBadgeViewModel) {
+
+    // ChatScreen이 나타날 때 채팅 뱃지 끄기
+    LaunchedEffect(Unit) {
+        chatBadgeViewModel.setChatBadge(false)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()

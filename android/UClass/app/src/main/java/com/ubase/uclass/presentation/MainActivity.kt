@@ -10,16 +10,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.kakao.sdk.auth.AuthApiManager
 import com.ubase.uclass.network.NetworkAPI
 import com.ubase.uclass.network.NetworkAPIManager
-import com.ubase.uclass.presentation.view.MainApp
+import com.ubase.uclass.presentation.ui.CustomLoading
+import com.ubase.uclass.presentation.view.MainScreen
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.util.AppUtil
 import com.ubase.uclass.util.Logger
+import com.ubase.uclass.util.PreferenceManager
 
 class MainActivity : ComponentActivity() {
 
@@ -29,6 +29,8 @@ class MainActivity : ComponentActivity() {
     private var loginSuccessCallback: (() -> Unit)? = null
     private var loginFailureCallback: (() -> Unit)? = null
 
+    // 자동 로그인 상태 관리
+    private var isAutoLoginAttempted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,10 +48,14 @@ class MainActivity : ComponentActivity() {
         }
 
         val splashScreen = installSplashScreen()
+
+        // 자동 로그인 체크
+        val autoLoginInfo = AppUtil.tryAutoLogin(this)
+        val shouldKeepSplash = autoLoginInfo != null
+
         splashScreen.setKeepOnScreenCondition {
-            //저장된 로그인 정보가 있다면 로그인 API 실행 후 메인으로 이동
-            //저장된 로그인 정보가 없으면 바로 로그인 페이지로 이동
-            false
+            // 자동 로그인 가능한 경우 스플래시 유지
+            shouldKeepSplash && !isAutoLoginAttempted
         }
 
         webViewManager = WebViewManager(this)
@@ -57,15 +63,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             Box(Modifier.safeDrawingPadding()) {
-                MainApp(
+                MainScreen(
                     onKakaoLogin = { successCallback, failureCallback ->
                         loginSuccessCallback = successCallback
                         loginFailureCallback = failureCallback
 
                         AppUtil.loginWithKakaoTalk(this@MainActivity,
-                            onSuccess = { token ->
-                                Logger.info("## 카카오 로그인 성공. 토큰 : $token")
-                                loginSuccessCallback?.invoke()
+                            onSuccess = { userInfo ->
+                                Logger.info("## 카카오 로그인 성공: ${userInfo.name}")
+                                callAuthInitStore()
                             },
                             onFailure = { error ->
                                 Logger.info("## 카카오 로그인 실패 : $error")
@@ -79,8 +85,8 @@ class MainActivity : ComponentActivity() {
 
                         AppUtil.loginWithNaver(this@MainActivity,
                             onSuccess = { userInfo ->
-                                Logger.info("## 네이버 로그인 성공. 정보 : $userInfo")
-                                loginSuccessCallback?.invoke()
+                                Logger.info("## 네이버 로그인 성공: ${userInfo.name}")
+                                callAuthInitStore()
                             },
                             onFailure = { error ->
                                 Logger.info("## 네이버 로그인 실패 : $error")
@@ -94,10 +100,51 @@ class MainActivity : ComponentActivity() {
 
                         AppUtil.loginWithGoogle(this@MainActivity)
                     },
-                    webViewManager = webViewManager
+                    webViewManager = webViewManager,
+                    autoLoginInfo = autoLoginInfo
                 )
+                CustomLoading()
             }
         }
+
+        // 자동 로그인 시도
+        if (autoLoginInfo != null) {
+            performAutoLogin(autoLoginInfo)
+        }
+    }
+
+    /**
+     * 자동 로그인 수행
+     */
+    private fun performAutoLogin(autoLoginInfo: Pair<String, String>) {
+        Logger.info("## 자동 로그인 시도: ${autoLoginInfo.first}")
+
+        // 약간의 지연 후 자동 로그인 처리 (스플래시 화면 표시 시간 확보)
+        Handler(Looper.getMainLooper()).postDelayed({
+            isAutoLoginAttempted = true
+            callAuthInitStore()
+        }, 1000)
+    }
+
+    /**
+     * authInitStore API 호출 (snsType, userId 포함)
+     */
+    private fun callAuthInitStore() {
+        val snsType = PreferenceManager.getSNSType(this)
+        val userId = PreferenceManager.getUserId(this)
+
+        if (snsType.isEmpty() || userId.isEmpty()) {
+            Logger.info("## SNS 로그인 정보 없음 - API 호출 실패")
+            loginFailureCallback?.invoke()
+            return
+        }
+        loginSuccessCallback?.invoke()
+
+        Logger.info("## authInitStore 호출: snsType=$snsType, userId=$userId")
+
+        // NetworkAPI.authInitStore에 snsType과 userId 전달
+        // 실제 API 시그니처에 맞게 수정 필요
+        NetworkAPI.authInitStore("1.0.0", snsType, userId)
     }
 
     // Google 로그인 결과 처리
@@ -106,10 +153,11 @@ class MainActivity : ComponentActivity() {
 
         if (requestCode == 100) {
             AppUtil.handleGoogleSignInResult(
+                context = this,
                 data = data,
                 onSuccess = { userInfo ->
-                    Logger.info("## 구글 로그인 성공. 정보 : $userInfo")
-                    loginSuccessCallback?.invoke()
+                    Logger.info("## 구글 로그인 성공: ${userInfo.name}")
+                    callAuthInitStore()
                 },
                 onFailure = { error ->
                     Logger.info("## 구글 로그인 실패 : $error")

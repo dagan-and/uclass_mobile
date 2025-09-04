@@ -10,6 +10,15 @@ class KakaoLoginManager: NSObject, ObservableObject {
     @Published var errorMessage: String?
     @Published var isLoading = false
     
+    // SNS 토큰 및 타입 정보
+    var snsType: String {
+        return "kakao"
+    }
+    
+    var snsToken: String {
+        return TokenManager.manager.getToken()?.accessToken ?? ""
+    }
+    
     override init() {
         super.init()
     }
@@ -19,7 +28,7 @@ class KakaoLoginManager: NSObject, ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        print("카카오 로그인 시작")
+        Logger.dev("카카오 로그인 시작")
         
         // 카카오톡 앱이 설치되어 있는지 확인
         if UserApi.isKakaoTalkLoginAvailable() {
@@ -54,19 +63,19 @@ class KakaoLoginManager: NSObject, ObservableObject {
         isLoading = false
         
         if let error = error {
-            print("\(loginType) 로그인 실패: \(error)")
+            Logger.dev("\(loginType) 로그인 실패: \(error)")
             handleLoginError(error)
             
             // 카카오톡 로그인 실패 시 웹 로그인으로 재시도
             if loginType == "카카오톡" {
-                print("웹 로그인으로 재시도")
+                Logger.dev("웹 로그인으로 재시도")
                 loginWithKakaoAccount()
                 return
             }
         } else {
-            print("\(loginType) 로그인 성공")
+            Logger.dev("\(loginType) 로그인 성공")
             if let token = oauthToken {
-                print("Access Token: \(token.accessToken)")
+                Logger.dev("Access Token: \(token.accessToken)")
             }
             fetchUserInfo()
         }
@@ -98,7 +107,7 @@ class KakaoLoginManager: NSObject, ObservableObject {
         UserApi.shared.me { [weak self] (user, error) in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("카카오 사용자 정보 가져오기 실패: \(error)")
+                    Logger.dev("카카오 사용자 정보 가져오기 실패: \(error)")
                     self?.errorMessage = "사용자 정보를 가져오는데 실패했습니다."
                 } else if let user = user {
                     let userInfo = KakaoUserInfo(
@@ -114,17 +123,36 @@ class KakaoLoginManager: NSObject, ObservableObject {
                     self?.userInfo = userInfo
                     self?.isLoggedIn = true
                     
-                    print("=== 카카오 로그인 정보 ===")
-                    print("User ID: \(userInfo.userId)")
-                    print("Nickname: \(userInfo.nickname)")
-                    print("Email: \(userInfo.email)")
-                    print("Profile Image: \(userInfo.profileImageUrl?.absoluteString ?? "없음")")
-                    print("Email Verified: \(userInfo.isEmailVerified)")
-                    print("========================")
-                
+                    // 로그인 정보 저장
+                    self?.saveLoginInfo()
+                    
+                    Logger.dev("=== 카카오 로그인 정보 ===")
+                    Logger.dev("User ID: \(userInfo.userId)")
+                    Logger.dev("Nickname: \(userInfo.nickname)")
+                    Logger.dev("Email: \(userInfo.email)")
+                    Logger.dev("Profile Image: \(userInfo.profileImageUrl?.absoluteString ?? "없음")")
+                    Logger.dev("Email Verified: \(userInfo.isEmailVerified)")
+                    Logger.dev("Access Token: \(self?.snsToken ?? "")")
+                    Logger.dev("========================")
                 }
             }
         }
+    }
+    
+    // 로그인 정보 저장
+    private func saveLoginInfo() {
+        guard let userInfo = userInfo else { return }
+        
+        UserDefaultsManager.saveLoginInfo(
+            snsType: snsType,
+            snsToken: snsToken,
+            userId: userInfo.userId,
+            email: userInfo.email,
+            name: userInfo.displayName
+        )
+        
+        Logger.dev("카카오 로그인 정보 저장 완료")
+        UserDefaultsManager.printSavedLoginInfo()
     }
 }
 

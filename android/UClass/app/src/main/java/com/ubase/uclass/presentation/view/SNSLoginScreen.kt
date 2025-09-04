@@ -1,5 +1,10 @@
 package com.ubase.uclass.presentation.view
 
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -23,7 +28,9 @@ fun SNSLoginScreen(
     onKakaoLogin: () -> Unit,
     onNaverLogin: () -> Unit,
     onGoogleLogin: () -> Unit,
-    isLoading: Boolean = false
+    isLoading: Boolean = false,
+    isAutoLogin: Boolean = false,
+    autoLoginType: String? = null
 ) {
     Box(
         modifier = Modifier
@@ -37,50 +44,46 @@ fun SNSLoginScreen(
                 .padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(100.dp))
-
+            Spacer(modifier = Modifier.weight(1f))
             // 앱 아이콘 영역 (원형 배경)
             Image(
-                painter = painterResource(id = R.mipmap.ic_launcher), // 앱 아이콘 이미지
+                painter = painterResource(id = R.drawable.splash), // 앱 아이콘 이미지
                 contentDescription = "앱 아이콘",
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.5f) // 화면 너비의 50%
+                    .aspectRatio(1f),   // 정사각형 유지
                 contentScale = ContentScale.Fit
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // 타이틀 텍스트
-            Text(
-                text = "간편 로그인",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "소셜 계정으로 간편하게 로그인하세요",
-                fontSize = 16.sp,
-                color = Color(0xFF666666)
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 로딩 중일 때
-            if (isLoading) {
+            // 로딩 중일 때 또는 자동 로그인 중일 때
+            if (isLoading || isAutoLogin) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.height(200.dp), // 로그인 버튼과 동일 높이
+                    verticalArrangement = Arrangement.Center // 아이템 중앙 정렬
                 ) {
-                    CircularProgressIndicator(
-                        color = Color(0xFF007BFF),
-                        modifier = Modifier.size(32.dp)
+                    val infiniteTransition = rememberInfiniteTransition()
+                    val color by infiniteTransition.animateColor(
+                        initialValue = Color(0xFF007BFF),
+                        targetValue = Color(0xFF00CFFF),
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1000),
+                            repeatMode = RepeatMode.Reverse
+                        )
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+
+                    CircularProgressIndicator(
+                        color = color,
+                        modifier = Modifier.size(32.dp),
+                        strokeWidth = 4.dp
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
                     Text(
                         text = "앱을 준비하고 있습니다...",
                         color = Color(0xFF666666),
-                        fontSize = 14.sp
+                        fontSize = 16.sp
                     )
                 }
             } else {
@@ -123,7 +126,7 @@ private fun LoginButtonSection(
             text = "네이버 로그인"
         )
 
-        // Apple/Google 로그인 버튼 (이미지에서는 Apple로 보임)
+        // Google 로그인 버튼
         LoginButton(
             onClick = onGoogleLogin,
             backgroundColor = Color.Black,

@@ -32,12 +32,11 @@ class NetworkViewModel: ObservableObject, NetworkAPIManager.NetworkCallback {
     /**
      * AuthInitStore API 전용 헬퍼 메서드
      */
-    func callAuthInitStore(onSuccess: ((Any?) -> Void)? = nil, onError: ((String) -> Void)? = nil) {
+    func callAuthInitStore(snsType : String , snsToken : String , onSuccess: ((Any?) -> Void)? = nil, onError: ((String) -> Void)? = nil) {
         executeAPI(targetCode: NetworkAPIManager.ResponseCode.API_AUTH_INIT_STORE, onSuccess: onSuccess, onError: onError)
-        
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-        Logger.dev("Calling authInitStore with version: \(version)")
-        NetworkAPI.shared.authInitStore(version: version)
+
+        Logger.dev("snsType::" + snsType + "snsToken" + snsToken)
+        NetworkAPI.shared.authInitStore(version: snsType)
     }
     
     

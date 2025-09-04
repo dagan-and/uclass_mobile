@@ -8,6 +8,15 @@ class NaverLoginManager: NSObject, ObservableObject {
     @Published var errorMessage: String?
     @Published var isLoading = false
     
+    // SNS 토큰 및 타입 정보
+    var snsType: String {
+        return "naver"
+    }
+    
+    var snsToken: String {
+        return NidOAuth.shared.accessToken?.tokenString ?? ""
+    }
+    
     override init() {
         super.init()
         setupNaverLogin()
@@ -25,7 +34,7 @@ class NaverLoginManager: NSObject, ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        print("네이버 로그인 시작")
+        Logger.dev("네이버 로그인 시작")
         
         NidOAuth.shared.requestLogin { [weak self] result in
             DispatchQueue.main.async {
@@ -40,12 +49,12 @@ class NaverLoginManager: NSObject, ObservableObject {
         
         switch result {
         case .success(let loginResult):
-            print("네이버 로그인 성공")
-            print("Access Token: \(loginResult.accessToken.tokenString)")
+            Logger.dev("네이버 로그인 성공")
+            Logger.dev("Access Token: \(loginResult.accessToken.tokenString)")
             fetchUserProfile(accessToken: loginResult.accessToken)
             
         case .failure(let error):
-            print("네이버 로그인 실패: \(error)")
+            Logger.dev("네이버 로그인 실패: \(error)")
             handleLoginError(error)
         }
     }
@@ -55,7 +64,7 @@ class NaverLoginManager: NSObject, ObservableObject {
         // NidError는 Error 프로토콜을 따르므로 localizedDescription을 사용
         self.errorMessage = error.localizedDescription
         
-        print("네이버 로그인 에러: \(error)")
+        Logger.dev("네이버 로그인 에러: \(error)")
     }
     
     // 사용자 프로필 정보 가져오기
@@ -80,25 +89,45 @@ class NaverLoginManager: NSObject, ObservableObject {
                     self?.userInfo = userInfo
                     self?.isLoggedIn = true
                     
-                    print("=== 네이버 로그인 정보 ===")
-                    print("User ID: \(userInfo.userId)")
-                    print("Nickname: \(userInfo.nickname)")
-                    print("Name: \(userInfo.name)")
-                    print("Email: \(userInfo.email)")
-                    print("Profile Image: \(userInfo.profileImageUrl?.absoluteString ?? "없음")")
-                    print("Age: \(userInfo.age)")
-                    print("Gender: \(userInfo.gender)")
-                    print("Birthday: \(userInfo.birthday)")
-                    print("Birth Year: \(userInfo.birthyear)")
-                    print("Mobile: \(userInfo.mobile)")
-                    print("========================")
+                    // 로그인 정보 저장
+                    self?.saveLoginInfo()
+                    
+                    Logger.dev("=== 네이버 로그인 정보 ===")
+                    Logger.dev("User ID: \(userInfo.userId)")
+                    Logger.dev("Nickname: \(userInfo.nickname)")
+                    Logger.dev("Name: \(userInfo.name)")
+                    Logger.dev("Email: \(userInfo.email)")
+                    Logger.dev("Profile Image: \(userInfo.profileImageUrl?.absoluteString ?? "없음")")
+                    Logger.dev("Age: \(userInfo.age)")
+                    Logger.dev("Gender: \(userInfo.gender)")
+                    Logger.dev("Birthday: \(userInfo.birthday)")
+                    Logger.dev("Birth Year: \(userInfo.birthyear)")
+                    Logger.dev("Mobile: \(userInfo.mobile)")
+                    Logger.dev("Access Token: \(self?.snsToken ?? "")")
+                    Logger.dev("========================")
                     
                 case .failure(let error):
-                    print("네이버 사용자 정보 가져오기 실패: \(error)")
+                    Logger.dev("네이버 사용자 정보 가져오기 실패: \(error)")
                     self?.errorMessage = "사용자 정보를 가져오는데 실패했습니다."
                 }
             }
         }
+    }
+    
+    // 로그인 정보 저장
+    private func saveLoginInfo() {
+        guard let userInfo = userInfo else { return }
+        
+        UserDefaultsManager.saveLoginInfo(
+            snsType: snsType,
+            snsToken: snsToken,
+            userId: userInfo.userId,
+            email: userInfo.email,
+            name: userInfo.displayName
+        )
+        
+        Logger.dev("네이버 로그인 정보 저장 완료")
+        UserDefaultsManager.printSavedLoginInfo()
     }
     
     // 로그아웃 (클라이언트 토큰만 삭제)
@@ -109,7 +138,8 @@ class NaverLoginManager: NSObject, ObservableObject {
             self.isLoggedIn = false
             self.userInfo = nil
             self.errorMessage = nil
-            print("네이버 로그아웃 완료")
+            UserDefaultsManager.clearLoginInfo()
+            Logger.dev("네이버 로그아웃 완료")
         }
     }
     
@@ -126,10 +156,11 @@ class NaverLoginManager: NSObject, ObservableObject {
                     self?.isLoggedIn = false
                     self?.userInfo = nil
                     self?.errorMessage = nil
-                    print("네이버 연동 해제 완료")
+                    UserDefaultsManager.clearLoginInfo()
+                    Logger.dev("네이버 연동 해제 완료")
                     
                 case .failure(let error):
-                    print("네이버 연동 해제 실패: \(error)")
+                    Logger.dev("네이버 연동 해제 실패: \(error)")
                     self?.errorMessage = "연동 해제에 실패했습니다."
                 }
             }
@@ -179,13 +210,13 @@ class NaverLoginManager: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let isValid):
-                    print("토큰 유효성: \(isValid)")
+                    Logger.dev("토큰 유효성: \(isValid)")
                     if !isValid {
                         self?.errorMessage = "토큰이 유효하지 않습니다."
                     }
                     
                 case .failure(let error):
-                    print("토큰 검증 실패: \(error)")
+                    Logger.dev("토큰 검증 실패: \(error)")
                     self?.errorMessage = "토큰 검증에 실패했습니다."
                 }
             }

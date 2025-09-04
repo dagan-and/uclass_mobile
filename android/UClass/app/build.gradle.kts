@@ -27,6 +27,17 @@ android {
         multiDexEnabled = true
     }
 
+    flavorDimensions += "type"
+
+    productFlavors {
+        create("dev") {
+            dimension = "type"
+        }
+        create("prod") {
+            dimension = "type"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -49,7 +60,7 @@ android {
         variant.outputs
             .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
             .forEach { output ->
-                val outputFileName = "BranchQ[${variant.flavorName}]-${getDate()}-${variant.versionName}.apk"
+                val outputFileName = "UClass[${variant.flavorName}]-${getDate()}-${variant.versionName}.apk"
                 output.outputFileName = outputFileName
             }
     }
