@@ -46,6 +46,7 @@
             android:name="com.ubase.uclass.presentation.fcm.PushRelayActivity"
             android:configChanges="keyboardHidden|orientation"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.App.Transparent" />
         <service
             android:name="com.ubase.uclass.presentation.fcm.FirebaseMessagingService"

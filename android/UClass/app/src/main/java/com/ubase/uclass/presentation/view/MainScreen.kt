@@ -1,12 +1,14 @@
 package com.ubase.uclass.presentation.view
 
+import android.os.Bundle
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ubase.uclass.network.NetworkAPIManager
-import com.ubase.uclass.presentation.viewmodel.ChatBadgeViewModel
+import com.ubase.uclass.network.ViewCallbackManager
+import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.presentation.web.WebViewScreen
 import com.ubase.uclass.util.Logger
@@ -18,7 +20,8 @@ fun MainScreen(
     onNaverLogin: (successCallback: () -> Unit, failureCallback: () -> Unit) -> Unit,
     onGoogleLogin: (successCallback: () -> Unit, failureCallback: () -> Unit) -> Unit,
     webViewManager: WebViewManager,
-    autoLoginInfo: Pair<String, String>? = null // 자동 로그인 정보 (snsType, userId)
+    autoLoginInfo: Pair<String, String>? = null,
+    initialNavigationTarget: Int? = null
 ) {
     val context = LocalContext.current
 
@@ -28,10 +31,6 @@ fun MainScreen(
     var loginSuccess by remember { mutableStateOf(false) }
     var isAPIInitialized by remember { mutableStateOf(false) }
     var isAutoLogin by remember { mutableStateOf(autoLoginInfo != null) }
-
-    //채팅 뱃지 관리
-    val chatBadgeViewModel: ChatBadgeViewModel = viewModel()
-
 
     // NetworkAPI 콜백 등록
     DisposableEffect(Unit) {
@@ -103,12 +102,10 @@ fun MainScreen(
                 isWebViewLoading = false
             } else {
                 // 웹뷰 로딩 대기 - 최대 5초
-                Logger.info("## 웹뷰 로딩 대기 중...")
                 var waitTime = 0
                 while (waitTime < 5000 && !webViewManager.isWebViewLoaded.value) {
                     delay(500)
                     waitTime += 500
-                    Logger.info("## 웹뷰 로딩 대기: ${waitTime}ms")
                 }
 
                 if (webViewManager.isWebViewLoaded.value) {
@@ -151,14 +148,27 @@ fun MainScreen(
     } else {
         // 메인 앱 화면
         Logger.info("## 메인 화면 렌더링")
-        MainContent(webViewManager = webViewManager , chatBadgeViewModel = chatBadgeViewModel)
+        MainContent(
+            webViewManager = webViewManager,
+            initialNavigationTarget = initialNavigationTarget
+        )
     }
 }
 
 @Composable
-private fun MainContent(webViewManager: WebViewManager ,
-                        chatBadgeViewModel: ChatBadgeViewModel) {
+private fun MainContent(
+    webViewManager: WebViewManager,
+    initialNavigationTarget: Int? = null
+) {
     var selectedTab by remember { mutableStateOf(0) }
+
+    // FCM으로 인한 채팅 화면 이동 처리
+    LaunchedEffect(Unit) {
+        Logger.info("##initialNavigationTarget: $initialNavigationTarget 이동")
+        if (initialNavigationTarget != null) {
+            ViewCallbackManager.notifyResult(NAVIGATION, initialNavigationTarget)
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -171,7 +181,7 @@ private fun MainContent(webViewManager: WebViewManager ,
         ) {
             when (selectedTab) {
                 0 -> WebViewScreen(webViewManager = webViewManager)
-                1 -> ChatScreen(chatBadgeViewModel = chatBadgeViewModel)
+                1 -> ChatScreen()
                 2 -> NotificationScreen()
             }
         }
@@ -180,8 +190,6 @@ private fun MainContent(webViewManager: WebViewManager ,
         MainBottomNavigationBar(
             selectedTab = selectedTab,
             onTabSelected = { selectedTab = it },
-            onChatTabSelected = {  },
-            chatBadgeViewModel = chatBadgeViewModel
         )
     }
 }

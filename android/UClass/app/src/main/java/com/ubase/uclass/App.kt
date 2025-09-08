@@ -108,7 +108,6 @@ class App : Application() {
     }
 
     override fun onTrimMemory(level: Int) {
-        Log.i("UCLASS_INFO","onTrimMemory::$level")
         if(runningActivityCount > 0) {
             super.onTrimMemory(level)
         } else {

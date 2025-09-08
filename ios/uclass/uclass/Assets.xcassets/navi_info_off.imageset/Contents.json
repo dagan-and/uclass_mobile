@@ -1,17 +1,15 @@
 {
   "images" : [
     {
-      "filename" : "navi_icon_chat.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "navi_icon_chat 1.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "navi_icon_chat 2.png",
+      "filename" : "navi_info_off.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

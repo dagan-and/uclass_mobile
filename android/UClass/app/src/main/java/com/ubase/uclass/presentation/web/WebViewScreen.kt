@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ubase.uclass.presentation.ui.CustomAlert
-import com.ubase.uclass.presentation.viewmodel.ChatBadgeViewModel
 import com.ubase.uclass.util.Logger
 
 @Composable

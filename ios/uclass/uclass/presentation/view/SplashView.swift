@@ -36,11 +36,11 @@ struct SplashView: View {
     private func checkAutoLogin() {
         // 저장된 로그인 정보가 있고 자동 로그인이 가능한지 확인
         if UserDefaultsManager.canAutoLogin() {
-            print("=== 자동 로그인 조건 충족 ===")
+            Logger.dev("=== 자동 로그인 조건 충족 ===")
             UserDefaultsManager.printSavedLoginInfo()
             shouldAutoLogin = true
         } else {
-            print("자동 로그인 불가 - 수동 로그인 필요")
+            Logger.dev("자동 로그인 불가 - 수동 로그인 필요")
             shouldAutoLogin = false
         }
     }

@@ -1,64 +1,68 @@
 package com.ubase.uclass.presentation.view
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ubase.uclass.R
+import com.ubase.uclass.network.ViewCallbackManager
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.CHAT
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.HOME
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.NOTICE
+import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
+import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
 import com.ubase.uclass.presentation.viewmodel.ChatBadgeViewModel
+import com.ubase.uclass.presentation.viewmodel.NavigationViewModel
 import com.ubase.uclass.util.Logger
-import com.ubase.uclass.util.PreferenceManager
+
 
 @Composable
 fun MainBottomNavigationBar(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
-    onChatTabSelected: () -> Unit = {},
-    chatBadgeViewModel: ChatBadgeViewModel
+    chatBadgeViewModel: ChatBadgeViewModel = viewModel(),
+    navigaionViewModel: NavigationViewModel = viewModel()
 ) {
+    val chatBadgeVisible = chatBadgeViewModel.chatBadgeVisible
+    val navigation = navigaionViewModel.navigation
 
-    val chatBadgeVisible by chatBadgeViewModel.chatBadgeVisible
-    Logger.error("chatBadgeVisible::" + chatBadgeVisible)
+    // navigation 값이 변경될 때 onTabSelected 호출
+    LaunchedEffect(navigation) {
+        Logger.dev("navigation 값이 변경되었습니다: $navigation")
+        onTabSelected(navigation)
+    }
 
     NavigationBar(
         containerColor = Color.White,
         contentColor = Color.White,
     ) {
-        val context = LocalContext.current
-
         // 홈
         NavigationBarItem(
             icon = {
                 Icon(
                     painter = painterResource(
-                        id = R.drawable.navi_home_on
+                        id = if (selectedTab == 0) R.drawable.navi_home_on else R.drawable.navi_home_off
                     ),
                     contentDescription = "홈",
-                    tint = Color.Unspecified // 원본 이미지 색상 그대로
+                    tint = Color.Unspecified
                 )
             },
             label = { Text("홈") },
             selected = selectedTab == 0,
-            onClick = { onTabSelected(0) },
+            onClick = { ViewCallbackManager.notifyResult(NAVIGATION, HOME) },
             colors = NavigationBarItemDefaults.colors(
                 selectedTextColor = Color.Black,
                 unselectedTextColor = Color.Gray,
@@ -71,7 +75,9 @@ fun MainBottomNavigationBar(
             icon = {
                 Box {
                     Icon(
-                        painter = painterResource(id = R.drawable.navi_icon_chat),
+                        painter = painterResource(
+                            id = if (selectedTab == 1) R.drawable.navi_chat_on else R.drawable.navi_chat_off
+                        ),
                         contentDescription = "쪽지",
                         tint = Color.Unspecified
                     )
@@ -79,13 +85,13 @@ fun MainBottomNavigationBar(
                     // 뱃지 표시
                     if (chatBadgeVisible) {
                         Icon(
-                            painter = painterResource(id = R.drawable.navi_icon_new), // 뱃지 이미지 리소스
+                            painter = painterResource(id = R.drawable.navi_icon_new),
                             contentDescription = "새 메시지",
                             modifier = Modifier
                                 .size(12.dp)
-                                .offset(x = 5.dp, y = (-5).dp) // 아이콘 우상단에 배치
+                                .offset(x = 5.dp, y = (-5).dp)
                                 .align(Alignment.TopEnd),
-                            tint = Color.Unspecified // 원본 이미지 색상 그대로
+                            tint = Color.Unspecified
                         )
                     }
                 }
@@ -93,8 +99,8 @@ fun MainBottomNavigationBar(
             label = { Text("쪽지") },
             selected = selectedTab == 1,
             onClick = {
-                onTabSelected(1)
-                onChatTabSelected() // 뱃지 숨김 처리
+                ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
+                ViewCallbackManager.notifyResult(CHAT_BADGE, false)
             },
             colors = NavigationBarItemDefaults.colors(
                 selectedTextColor = Color.Black,
@@ -107,17 +113,16 @@ fun MainBottomNavigationBar(
         NavigationBarItem(
             icon = {
                 Icon(
-                    painter = painterResource(id = R.drawable.navi_icon_notice),
+                    painter = painterResource(
+                        id = if (selectedTab == 2) R.drawable.navi_info_on else R.drawable.navi_info_off
+                    ),
                     contentDescription = "공지사항",
                     tint = Color.Unspecified
                 )
             },
             label = { Text("공지사항") },
             selected = selectedTab == 2,
-            onClick = {
-                //PreferenceManager.clearLoginInfo(context)
-                chatBadgeViewModel.setChatBadge(true)
-            },
+            onClick = { ViewCallbackManager.notifyResult(NAVIGATION, NOTICE) },
             colors = NavigationBarItemDefaults.colors(
                 selectedTextColor = Color.Black,
                 unselectedTextColor = Color.Gray,

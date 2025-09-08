@@ -10,7 +10,6 @@ class WebViewManager: NSObject, ObservableObject {
     @Published var scriptMessage: String? = nil
     
     private var webView: WKWebView?
-    private var progressObserver: NSKeyValueObservation?
     private var jsInterface: UclassJsInterface?
     
     override init() {
@@ -56,15 +55,6 @@ class WebViewManager: NSObject, ObservableObject {
                 webView?.isInspectable = true
             }
         }
-        
-        // ✅ 로딩 프로그레스 관찰자 설정
-        progressObserver = webView?.observe(\.estimatedProgress, options: [.new]) { [weak self] _, change in
-            DispatchQueue.main.async {
-                if let progress = change.newValue {
-                    self?.loadingProgress = Int(progress * 100)
-                }
-            }
-        }
     }
     
     func preloadWebView(url: String) {
@@ -99,7 +89,6 @@ class WebViewManager: NSObject, ObservableObject {
     }
     
     deinit {
-        progressObserver?.invalidate()
         // Script Message Handler 제거
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "uclass")
     }

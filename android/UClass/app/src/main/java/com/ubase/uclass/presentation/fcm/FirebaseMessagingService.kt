@@ -10,6 +10,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -18,8 +20,10 @@ import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.Constants.MessageNotificationKeys
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.ubase.uclass.App
 import com.ubase.uclass.BuildConfig
 import com.ubase.uclass.R
+import com.ubase.uclass.presentation.MainActivity
 import com.ubase.uclass.util.AppUtil
 import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
@@ -103,8 +107,8 @@ class FirebaseMessagingService : FirebaseMessagingService() {
 
         try {
             /* PUSH ALARM  */
-            var title: String = ""
-            var body: String = ""
+            var title = ""
+            var body = ""
 
             if(message.data.containsKey("title") && message.data.containsKey("body")) {
                 title = message.data["title"]!!
@@ -127,6 +131,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             intentForPushActionActivity.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
 
             AppUtil.setFCMIntent(intentForPushActionActivity , null , null, message.data)
+            updateChatBadge(message.data)
 
             val pendingIntent = PendingIntent.getActivity(this, 1234, intentForPushActionActivity, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             builder.setContentTitle(title)
@@ -170,19 +175,29 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun buildNotification(context: Context, pendingIntent: PendingIntent): Notification {
-        return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("🔔 샘플 알림")
-            .setContentText("이것은 테스트 알림입니다!")
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setContentIntent(pendingIntent)
-            .setSmallIcon(R.drawable.img_cfo_noti)
-            .setColor(ContextCompat.getColor(context, R.color.black))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(Notification.DEFAULT_ALL)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setAutoCancel(true)
-            .setNumber(0)
-            .build()
+    private fun updateChatBadge(map: Map<String, String>?) {
+        if(map.isNullOrEmpty() || !map.containsKey("type") || !map["type"].equals("CHAT",true)) {
+            return
+        }
+
+        try {
+            val app = application as? App ?: return
+            val activities = app.getRunningActivity()
+
+            val mainActivity = activities.filterIsInstance<MainActivity>()
+                .firstOrNull { !it.isDestroyed && !it.isFinishing }
+
+            mainActivity?.let { activity ->
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        activity.updateChatBadgeFromFCM()
+                    } catch (e: Exception) {
+                        Logger.error("Failed to update chat badge: ${e.message}")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Logger.error("Error in updateChatBadgeSimple: ${e.message}")
+        }
     }
 }

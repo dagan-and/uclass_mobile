@@ -14,6 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.ubase.uclass.network.NetworkAPI
 import com.ubase.uclass.network.NetworkAPIManager
+import com.ubase.uclass.network.ViewCallbackManager
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.CHAT
+import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
+import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
 import com.ubase.uclass.presentation.ui.CustomLoading
 import com.ubase.uclass.presentation.view.MainScreen
 import com.ubase.uclass.presentation.web.WebViewManager
@@ -31,6 +35,10 @@ class MainActivity : ComponentActivity() {
 
     // 자동 로그인 상태 관리
     private var isAutoLoginAttempted = false
+
+    // FCM에서 전달받은 초기 네비게이션 타겟 (MainContent에서 사용)
+    var initialNavigationTarget: Int? = null
+        private set
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,7 +109,8 @@ class MainActivity : ComponentActivity() {
                         AppUtil.loginWithGoogle(this@MainActivity)
                     },
                     webViewManager = webViewManager,
-                    autoLoginInfo = autoLoginInfo
+                    autoLoginInfo = autoLoginInfo,
+                    initialNavigationTarget = initialNavigationTarget
                 )
                 CustomLoading()
             }
@@ -111,6 +120,16 @@ class MainActivity : ComponentActivity() {
         if (autoLoginInfo != null) {
             performAutoLogin(autoLoginInfo)
         }
+
+        // Intent에서 FCM 데이터 확인 (앱이 백그라운드에서 시작된 경우)
+        checkIntentForFCMData(intent)
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // 새로운 Intent에서 FCM 데이터 확인
+        checkIntentForFCMData(intent)
     }
 
     /**
@@ -168,8 +187,57 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * 앱이 살아있으면 FCM 데이터 실행
+     */
     fun setFCMIntent(bundle: Bundle?) {
-        // FCM 처리 로직
+        if (bundle != null) {
+            Logger.info("## FCM 데이터 수신 : ${bundle.keySet().joinToString { "$it=${bundle.getString(it)}" }}")
+            if(bundle.containsKey("type") && bundle.getString("type").equals("CHAT", true)) {
+                ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
+            }
+        }
+    }
+
+    /**
+     * Intent에서 FCM 데이터를 확인하고 처리
+     */
+    private fun checkIntentForFCMData(intent: android.content.Intent?) {
+        intent?.extras?.let { bundle ->
+            Logger.info("## Intent에서 FCM 데이터 수신: ${bundle.keySet().joinToString { "$it=${bundle.getString(it)}" }}")
+            if (bundle.containsKey("type") && bundle.getString("type").equals("CHAT", true)) {
+                initialNavigationTarget = CHAT
+            }
+        }
+    }
+
+    /**
+     * FCM에서 채팅 메시지가 왔을때
+     */
+    fun updateChatBadgeFromFCM() {
+        try {
+            if (!isDestroyed && !isFinishing) {
+                runOnUiThread {
+                    try {
+                        ViewCallbackManager.notifyResult(CHAT_BADGE, true)
+                        Logger.info("Chat badge updated from FCM")
+                    } catch (e: Exception) {
+                        Logger.error("Error updating chat badge from FCM: ${e.message}")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Logger.error("Error in updateChatBadgeFromFCM: ${e.message}")
+        }
+    }
+
+    /**
+     * 초기 네비게이션 타겟을 소비하고 초기화
+     */
+    fun consumeInitialNavigationTarget(): Int? {
+        val target = initialNavigationTarget
+        initialNavigationTarget = null
+        return target
     }
 
     override fun onDestroy() {
@@ -179,5 +247,6 @@ class MainActivity : ComponentActivity() {
         webViewManager.destroy()
         loginSuccessCallback = null
         loginFailureCallback = null
+        initialNavigationTarget = null
     }
 }

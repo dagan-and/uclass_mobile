@@ -17,7 +17,7 @@ struct MainBottomBar: View {
             Button(action: { selectedTab = 0 }) {
                 VStack(spacing: 4) {
                     Spacer().frame(height: topPadding)
-                    Image("navi_home_on")
+                    Image(selectedTab == 0 ? "navi_home_on" : "navi_home_off")
                         .resizable()
                         .frame(width: iconSize, height: iconSize)
                         .scaledToFit()
@@ -37,7 +37,7 @@ struct MainBottomBar: View {
                     VStack(spacing: 4) {
                         Spacer().frame(height: topPadding)
                         ZStack {
-                            Image("navi_icon_chat")
+                            Image(selectedTab == 1 ? "navi_chat_on" : "navi_chat_off")
                                 .resizable()
                                 .frame(width: iconSize, height: iconSize)
                                 .scaledToFit()
@@ -62,12 +62,12 @@ struct MainBottomBar: View {
 
             // 공지사항 화면 버튼
             Button(action: {
-                //selectedTab = 2
-                UserDefaultsManager.clearLoginInfo()
+                selectedTab = 2
+                Logger.shareLogFile()
             }) {
                 VStack(spacing: 4) {
                     Spacer().frame(height: topPadding)
-                    Image("navi_icon_notice")
+                    Image(selectedTab == 2 ? "navi_info_on" : "navi_info_off")
                         .resizable()
                         .frame(width: iconSize, height: iconSize)
                         .scaledToFit()

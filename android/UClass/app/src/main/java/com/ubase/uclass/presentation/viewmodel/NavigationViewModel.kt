@@ -5,29 +5,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.ubase.uclass.network.ViewCallbackManager
-import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
+import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
 
-class ChatBadgeViewModel : ViewModel() {
+class NavigationViewModel : ViewModel() {
 
-    var chatBadgeVisible by mutableStateOf(false)
+    var navigation by mutableStateOf(0)
         private set
 
-    private val callbackKey = "ChatBadge"
+    private val callbackKey = "Navigation"
+
+
 
     init {
         // ViewCallbackManager 에 콜백 등록
         ViewCallbackManager.registerCallback(callbackKey, object : ViewCallbackManager.ViewCallback {
             override fun onResult(code: Int, result: Any?) {
-                if (code == CHAT_BADGE) {
-                    chatBadgeVisible = (result as? Boolean) == true
+                if (code == NAVIGATION) {
+                    navigation = ((result as? Int)!!)
                 }
             }
         })
     }
 
-    fun hideBadge() {
-        chatBadgeVisible = false
-    }
 
     override fun onCleared() {
         super.onCleared()

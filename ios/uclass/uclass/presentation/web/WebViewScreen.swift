@@ -48,8 +48,6 @@ struct WebViewScreen: View {
                             onCancel: {}
                         )
                     }
-                } else if action.caseInsensitiveCompare("receiveChat") == .orderedSame{
-                    ChatBadgeViewModel.shared.showBadge()
                 } else {
                     Logger.dev("⚠️ Unknown action: \(action)")
                 }

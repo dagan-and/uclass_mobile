@@ -18,7 +18,6 @@ class WebViewManager(private val context: Context) {
 
     val isWebViewLoaded = mutableStateOf(false)
     val isWebViewLoading = mutableStateOf(false)
-    val webViewLoadingProgress = mutableStateOf(0)
 
     // JS Alert 메시지 전달용 상태
     val scriptMessage = mutableStateOf<String?>(null)
@@ -50,12 +49,6 @@ class WebViewManager(private val context: Context) {
                     }
                 }
 
-                override fun onPageCommitVisible(view: WebView?, url: String?) {
-                    super.onPageCommitVisible(view, url)
-                    Logger.info("## WebView onPageCommitVisible: $url")
-                    webViewLoadingProgress.value = 90
-                }
-
                 override fun onReceivedError(
                     view: WebView?,
                     errorCode: Int,
@@ -76,8 +69,6 @@ class WebViewManager(private val context: Context) {
             webChromeClient = object : android.webkit.WebChromeClient() {
                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
                     super.onProgressChanged(view, newProgress)
-                    webViewLoadingProgress.value = newProgress
-                    Logger.info("## WebView progress: $newProgress%")
                 }
             }
 

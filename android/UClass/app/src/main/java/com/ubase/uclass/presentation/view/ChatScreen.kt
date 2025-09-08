@@ -9,14 +9,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ubase.uclass.presentation.viewmodel.ChatBadgeViewModel
+import com.ubase.uclass.network.ViewCallbackManager
+import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
 
 @Composable
-fun ChatScreen(chatBadgeViewModel: ChatBadgeViewModel) {
+fun ChatScreen() {
 
     // ChatScreen이 나타날 때 채팅 뱃지 끄기
     LaunchedEffect(Unit) {
-        chatBadgeViewModel.setChatBadge(false)
+        ViewCallbackManager.notifyResult(CHAT_BADGE , false)
     }
 
     Column(

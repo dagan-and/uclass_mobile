@@ -35,28 +35,28 @@ struct SNSLoginView: View {
     private func startAuthentication() {
         let snsInfo = getCurrentSNSInfo()
 
-        print("=== 인증 시작 ===")
-        print("SNS Type: \(snsInfo.type)")
-        print("SNS Token: \(snsInfo.token)")
-        print("================")
+        Logger.dev("=== 인증 시작 ===")
+        Logger.dev("SNS Type: \(snsInfo.type)")
+        Logger.dev("SNS Token: \(snsInfo.token)")
+        Logger.dev("================")
 
         networkViewModel.callAuthInitStore(
             snsType: snsInfo.type,
             snsToken: snsInfo.token,
             onSuccess: { result in
                 var messageText = "응답을 받았습니다."
-                print("인증 성공: \(messageText)")
+                Logger.dev("인증 성공: \(messageText)")
 
                 // 성공 시 추가 처리 (예: 서버 응답 데이터 저장)
                 if let resultData = result as? [String: Any] {
-                    print("서버 응답 데이터: \(resultData)")
+                    Logger.dev("서버 응답 데이터: \(resultData)")
 
                     // 필요한 경우 서버에서 받은 추가 정보 저장
                     // UserDefaultsManager.set...()
                 }
             },
             onError: { error in
-                print("인증 실패: \(error)")
+                Logger.dev("인증 실패: \(error)")
 
                 // 인증 실패 시 저장된 로그인 정보 초기화
                 UserDefaultsManager.clearLoginInfo()
@@ -131,7 +131,7 @@ struct SNSLoginView: View {
     // 저장된 로그인 정보 확인
     private func checkSavedLoginInfo() {
         if UserDefaultsManager.isLoggedIn() {
-            print("저장된 로그인 정보 발견")
+            Logger.dev("저장된 로그인 정보 발견")
             UserDefaultsManager.printSavedLoginInfo()
 
             // 저장된 정보가 있으면 바로 인증 진행
@@ -139,7 +139,7 @@ struct SNSLoginView: View {
             let savedToken = UserDefaultsManager.getSNSToken()
 
             if !savedType.isEmpty && !savedToken.isEmpty {
-                print("자동 로그인 시도")
+                Logger.dev("자동 로그인 시도")
                 startAuthentication()
             }
         }
@@ -210,7 +210,7 @@ struct SNSLoginView: View {
                             textColor: .black,
                             isLoading: kakaoLoginManager.isLoading
                         ) {
-                            print("카카오 로그인 버튼 클릭")
+                            Logger.dev("카카오 로그인 버튼 클릭")
                             kakaoLoginManager.startKakaoLogin()
                         }
 
@@ -225,7 +225,7 @@ struct SNSLoginView: View {
                             textColor: .white,
                             isLoading: naverLoginManager.isLoading
                         ) {
-                            print("네이버 로그인 버튼 클릭")
+                            Logger.dev("네이버 로그인 버튼 클릭")
                             naverLoginManager.startNaverLogin()
                         }
 
@@ -236,7 +236,7 @@ struct SNSLoginView: View {
                             textColor: .white,
                             isLoading: appleLoginManager.isLoading
                         ) {
-                            print("애플 로그인 버튼 클릭")
+                            Logger.dev("애플 로그인 버튼 클릭")
                             appleLoginManager.startAppleLogin()
                         }
                     }

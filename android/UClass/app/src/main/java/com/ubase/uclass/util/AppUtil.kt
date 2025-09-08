@@ -254,21 +254,12 @@ object AppUtil {
         map: Map<String, String>? = null
     ) {
         // 각 값들을 우선순위에 따라 설정: Map -> Bundle -> Intent
-        val finalPushType = map?.get("pushType") ?: bundle?.getString("pushType") ?: get?.getStringExtra("pushType")
-        val finalServiceIndividualKey = map?.get("serviceIndividualKey") ?: bundle?.getString("serviceIndividualKey") ?: get?.getStringExtra("serviceIndividualKey")
-        val finalUtterance = map?.get("utterance") ?: bundle?.getString("utterance") ?: get?.getStringExtra("utterance")
-        val finalVocSeq = map?.get("vocSeq") ?: bundle?.getString("vocSeq") ?: get?.getStringExtra("vocSeq")
+        val finalPushType = map?.get("type") ?: bundle?.getString("type") ?: get?.getStringExtra("type")
         val finalUrl = map?.get("url") ?: bundle?.getString("url") ?: get?.getStringExtra("url")
-        val useInttId = map?.get("useInttId") ?: bundle?.getString("useInttId") ?: get?.getStringExtra("useInttId")
-
 
         // 값이 존재할 경우 Intent에 추가
-        finalPushType?.let { set.putExtra("pushType", it) }
-        finalServiceIndividualKey?.let { set.putExtra("serviceIndividualKey", it) }
-        finalUtterance?.let { set.putExtra("utterance", it) }
-        finalVocSeq?.let { set.putExtra("vocSeq", it) }
+        finalPushType?.let { set.putExtra("type", it) }
         finalUrl?.let { set.putExtra("url", it) }
-        useInttId?.let { set.putExtra("useInttId", it) }
     }
 
     //카카오 로그인

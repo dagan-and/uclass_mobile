@@ -1,64 +1,99 @@
 package com.ubase.uclass.presentation.fcm
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
-import com.ubase.uclass.App
+import androidx.activity.ComponentActivity
 import com.ubase.uclass.presentation.MainActivity
 import com.ubase.uclass.util.AppUtil
-import com.ubase.uclass.util.Constants
+import com.ubase.uclass.util.Logger
 
+/**
+ * FCM 푸시 알림을 클릭했을 때 데이터를 MainActivity로 전달하는 중계 액티비티
+ */
 class PushRelayActivity : Activity() {
-    /** Called when the activity is first created.  */
-    public override fun onCreate(savedInstanceState: Bundle?) {
-        Constants.isPushStart = true
+
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        updateIdleTime()
-        val bundle = intent.extras
-        if (bundle != null) {
-            if(App.instance.getRunningActivity().isNotEmpty() && !Constants.isClearedData()) {
-                for (activity in App.instance.getRunningActivity().reversed()) {
-                    if(activity is MainActivity) {
-                        activity.setFCMIntent(bundle)
-                        finish()
-                        return
-                    }
-                }
-                onPushNotification(bundle)
-                finish()
-            } else {
-                onPushNotification(bundle)
-                finish()
-            }
+
+        Logger.info("## PushRelayActivity 시작")
+
+        // 앱이 이미 실행 중인지 확인
+        val isAppRunning = isAppInForeground()
+
+        if (isAppRunning) {
+            // 앱이 실행 중이면 MainActivity에 FCM 데이터 전달
+            sendDataToMainActivity()
         } else {
-            finish()
+            // 앱이 실행 중이 아니면 MainActivity를 새로 시작
+            startMainActivity()
         }
-    }
 
-    private fun onPushNotification(bundle: Bundle) {
-        val intentForPushActionActivity = Intent(this, MainActivity::class.java)
-        intentForPushActionActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-
-        if (!wasLaunchedFromRecents()) {
-            AppUtil.setFCMIntent(intentForPushActionActivity,null, bundle)
-            intentForPushActionActivity.putExtra("RESTART", true)
-        }
-        startActivity(intentForPushActionActivity)
+        // 중계 액티비티는 즉시 종료
+        finish()
     }
 
     protected fun wasLaunchedFromRecents(): Boolean {
         return (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
     }
 
-    private val IDLE_PREF = "IDLE_PREF"
-    private val IDLE_KEY = "idleTime"
+    /**
+     * 앱이 포그라운드에서 실행 중인지 확인
+     */
+    private fun isAppInForeground(): Boolean {
+        val activityManager = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+        val runningTasks = activityManager.getRunningTasks(1)
 
-    private fun updateIdleTime() {
-        val prefs = getSharedPreferences(IDLE_PREF, Context.MODE_PRIVATE)
-        val editor: SharedPreferences.Editor = prefs.edit()
-        editor.putLong(IDLE_KEY, System.currentTimeMillis())
-        editor.apply()
+        return if (runningTasks.isNotEmpty()) {
+            val topActivity = runningTasks[0].topActivity
+            topActivity?.packageName == packageName
+        } else {
+            false
+        }
+    }
+
+    /**
+     * 실행 중인 MainActivity에 FCM 데이터 전달
+     */
+    private fun sendDataToMainActivity() {
+        try {
+            val app = application as? com.ubase.uclass.App
+            val activities = app?.getRunningActivity()
+
+            val mainActivity = activities?.filterIsInstance<MainActivity>()
+                ?.firstOrNull { !it.isDestroyed && !it.isFinishing }
+
+            if (mainActivity != null) {
+                Logger.info("## 실행 중인 MainActivity에 FCM 데이터 전달")
+                mainActivity.setFCMIntent(intent.extras)
+            } else {
+                Logger.info("## 실행 중인 MainActivity를 찾을 수 없음 - 새로 시작")
+                startMainActivity()
+            }
+        } catch (e: Exception) {
+            Logger.error("## MainActivity에 데이터 전달 실패: ${e.message}")
+            startMainActivity()
+        }
+    }
+
+    /**
+     * MainActivity를 새로 시작하면서 FCM 데이터 전달
+     */
+    private fun startMainActivity() {
+        Logger.info("## MainActivity 새로 시작")
+
+
+        val mainIntent = Intent(this, MainActivity::class.java).apply {
+            // 기존 액티비티 스택을 클리어하고 새로 시작
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+
+            // FCM 데이터 전달
+            intent.extras?.let { extras ->
+                putExtras(extras)
+                Logger.info("## FCM 데이터를 MainActivity에 전달: ${extras.keySet().joinToString { "$it=${extras.getString(it)}" }}")
+            }
+        }
+
+        startActivity(mainIntent)
     }
 }
