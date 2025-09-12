@@ -13,11 +13,11 @@ class AppleLoginManager: NSObject, ObservableObject {
     
     // SNS 토큰 및 타입 정보
     var snsType: String {
-        return "apple"
+        return "APPLE"
     }
     
     var snsToken: String {
-        return userInfo?.identityToken ?? ""
+        return userInfo?.userId ?? ""
     }
     
     override init() {

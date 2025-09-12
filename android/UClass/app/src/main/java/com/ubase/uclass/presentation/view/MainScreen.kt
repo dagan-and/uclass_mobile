@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ubase.uclass.network.NetworkAPIManager
 import com.ubase.uclass.network.ViewCallbackManager
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.HOME
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.presentation.web.WebViewScreen
@@ -39,7 +40,7 @@ fun MainScreen(
         NetworkAPIManager.registerCallback(callbackId, object : NetworkAPIManager.NetworkCallback {
             override fun onResult(code: Int, result: Any?) {
                 when (code) {
-                    NetworkAPIManager.ResponseCode.API_AUTH_INIT_STORE -> {
+                    NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN -> {
                         Logger.info("## authInitStore API 응답 성공")
                         isAPIInitialized = true
                     }
@@ -161,35 +162,53 @@ private fun MainContent(
     initialNavigationTarget: Int? = null
 ) {
     var selectedTab by remember { mutableStateOf(0) }
+    var previousTab by remember { mutableStateOf(0) } // 이전 탭 저장
 
     // FCM으로 인한 채팅 화면 이동 처리
     LaunchedEffect(Unit) {
         Logger.info("##initialNavigationTarget: $initialNavigationTarget 이동")
         if (initialNavigationTarget != null) {
+            previousTab = selectedTab
             ViewCallbackManager.notifyResult(NAVIGATION, initialNavigationTarget)
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // 메인 컨텐츠 영역
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            when (selectedTab) {
-                0 -> WebViewScreen(webViewManager = webViewManager)
-                1 -> ChatScreen()
-                2 -> NotificationScreen()
-            }
-        }
+    // 탭 변경 시 이전 탭 업데이트
+    val onTabSelected: (Int) -> Unit = { newTab ->
+        previousTab = selectedTab
+        selectedTab = newTab
+    }
 
-        // 하단 네비게이션 바
-        MainBottomNavigationBar(
-            selectedTab = selectedTab,
-            onTabSelected = { selectedTab = it },
+    // 채팅 화면일 때는 전체 화면으로 표시
+    if (selectedTab == 1) {
+        ChatScreen(
+            modifier = Modifier,
+            onBack = {
+                selectedTab = previousTab // 이전 탭으로 이동
+                ViewCallbackManager.notifyResult(NAVIGATION, selectedTab)
+            }
         )
+    } else {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // 메인 컨텐츠 영역
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                when (selectedTab) {
+                    0 -> WebViewScreen(webViewManager = webViewManager)
+                    2 -> NotificationScreen()
+                }
+            }
+
+            // 하단 네비게이션 바
+            MainBottomNavigationBar(
+                selectedTab = selectedTab,
+                onTabSelected = onTabSelected,
+            )
+        }
     }
 }

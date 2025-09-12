@@ -10,11 +10,11 @@ class NaverLoginManager: NSObject, ObservableObject {
     
     // SNS 토큰 및 타입 정보
     var snsType: String {
-        return "naver"
+        return "NAVER"
     }
     
     var snsToken: String {
-        return NidOAuth.shared.accessToken?.tokenString ?? ""
+        return userInfo?.userId ?? ""
     }
     
     override init() {

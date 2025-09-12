@@ -12,7 +12,7 @@ object NetworkAPIManager {
 
     // API 엔드포인트 정의
     object Endpoint {
-        const val AUTH_INIT_STORE = "/api/v1/auth/init_store"
+        const val AUTH_SOCIAL_LOGIN = "/auth/social-login"
 
     }
 
@@ -21,7 +21,7 @@ object NetworkAPIManager {
         const val API_ERROR: Int = 9999
 
         // 인증 관련
-        const val API_AUTH_INIT_STORE: Int = 1001
+        const val API_AUTH_SOCIAL_LOGIN: Int = 1001
     }
 
     /**

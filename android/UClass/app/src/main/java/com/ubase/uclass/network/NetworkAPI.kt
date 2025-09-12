@@ -1,8 +1,8 @@
 package com.ubase.uclass.network
 
-import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.ubase.uclass.network.request.SocialLoginRequest
 import com.ubase.uclass.network.response.ErrorData
 import com.ubase.uclass.util.AppUtil
 import com.ubase.uclass.util.Constants
@@ -105,21 +105,35 @@ object NetworkAPI {
     }
 
     /**
-     * 인증 스토어 초기화 API
+     * POST http://dev-umanager.ubase.kr/api/auth/social-login
+     * {
+     *     "provider": "KAKAO",
+     *     "token": "소셜 액세스 토큰",
+     *     "userType": "STUDENT",
+     *     "branchId": 1
+     * }
      */
-    fun authInitStore(version: String , snsType: String , snsId: String) {
+    fun socialLogin(snsType: String , snsId: String , userType : String, branchId: Int = 1) {
         checkInitialized()
 
         executorService?.execute {
             try {
-                val url = Constants.baseURL + NetworkAPIManager.Endpoint.AUTH_INIT_STORE
-                val responseCode = NetworkAPIManager.ResponseCode.API_AUTH_INIT_STORE
+                val url = Constants.baseURL + NetworkAPIManager.Endpoint.AUTH_SOCIAL_LOGIN
+                val responseCode = NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN
+
+                // 요청 바디 생성
+                val requestBody = SocialLoginRequest(
+                    provider = snsType,
+                    token = snsId,
+                    userType = userType,
+                    branchId = branchId
+                )
 
                 val httpClient = HttpClient.Builder()
                     .setUrl(url)
                     .setCookie(getCookieJar())
-                    .setParameters(hashMapOf("version" to version))
-                    .isPost(false)
+                    .setJsonData(Gson().toJson(requestBody))
+                    .isPost(true)
                     .enableLogging(true)
                     .build()
 
@@ -154,7 +168,7 @@ object NetworkAPI {
                     response.close()
                 }
             } catch (e: Exception) {
-                sendError(NetworkAPIManager.ResponseCode.API_AUTH_INIT_STORE, e)
+                sendError(NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN, e)
             }
         }
     }

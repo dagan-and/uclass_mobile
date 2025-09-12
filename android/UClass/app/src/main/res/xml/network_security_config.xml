@@ -3,6 +3,7 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">210.178.43.205</domain>
         <domain includeSubdomains="true">m.naver.com</domain>
+        <domain includeSubdomains="true">dev-umanager.ubase.kr</domain>
     </domain-config>
 </network-security-config>
 

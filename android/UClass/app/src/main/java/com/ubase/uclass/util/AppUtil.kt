@@ -309,7 +309,7 @@ object AppUtil {
 
 
                 val userInfo = LoginUserInfo(
-                    snsType = "kakao",
+                    snsType = "KAKAO",
                     userId = kakaoId,
                     email = email,
                     name = nickname,
@@ -319,7 +319,7 @@ object AppUtil {
                 // 로그인 정보 저장
                 PreferenceManager.saveLoginInfo(
                     context = context,
-                    snsType = "kakao",
+                    snsType = "KAKAO",
                     userId = kakaoId,
                     email = email,
                     name = nickname
@@ -354,7 +354,7 @@ object AppUtil {
                         val nickname = profile?.nickname ?: ""
 
                         val userInfo = LoginUserInfo(
-                            snsType = "naver",
+                            snsType = "NAVER",
                             userId = naverId,
                             email = email,
                             name = if (name.isNotEmpty()) name else nickname,
@@ -364,7 +364,7 @@ object AppUtil {
                         // 로그인 정보 저장
                         PreferenceManager.saveLoginInfo(
                             context = context,
-                            snsType = "naver",
+                            snsType = "NAVER",
                             userId = naverId,
                             email = email,
                             name = if (name.isNotEmpty()) name else nickname
@@ -445,7 +445,7 @@ object AppUtil {
             val profileImage = account.photoUrl?.toString()
 
             val userInfo = LoginUserInfo(
-                snsType = "google",
+                snsType = "GOOGLE",
                 userId = googleId,
                 email = email,
                 name = name,
@@ -455,7 +455,7 @@ object AppUtil {
             // 로그인 정보 저장
             PreferenceManager.saveLoginInfo(
                 context = context,
-                snsType = "google",
+                snsType = "GOOGLE",
                 userId = googleId,
                 email = email,
                 name = name

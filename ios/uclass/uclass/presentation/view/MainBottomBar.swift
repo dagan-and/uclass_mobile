@@ -3,6 +3,7 @@ import SwiftUI
 struct MainBottomBar: View {
     @Binding var selectedTab: Int
     @Binding var showChatBadge: Bool // 쪽지 뱃지 표시 여부
+    var onChatTap: () -> Void // 채팅 탭 클릭 콜백
     
     let topPadding: CGFloat = 6
     let iconPadding : CGFloat = 4
@@ -30,9 +31,7 @@ struct MainBottomBar: View {
             .frame(maxWidth: .infinity)
 
             // 채팅 화면 버튼 (뱃지 포함)
-            Button(action: {
-                selectedTab = 1
-            }) {
+            Button(action: onChatTap) {
                 ZStack {
                     VStack(spacing: 4) {
                         Spacer().frame(height: topPadding)

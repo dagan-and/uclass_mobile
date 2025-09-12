@@ -32,11 +32,17 @@ class NetworkViewModel: ObservableObject, NetworkAPIManager.NetworkCallback {
     /**
      * AuthInitStore API 전용 헬퍼 메서드
      */
-    func callAuthInitStore(snsType : String , snsToken : String , onSuccess: ((Any?) -> Void)? = nil, onError: ((String) -> Void)? = nil) {
-        executeAPI(targetCode: NetworkAPIManager.ResponseCode.API_AUTH_INIT_STORE, onSuccess: onSuccess, onError: onError)
-
-        Logger.dev("snsType::" + snsType + "snsToken" + snsToken)
-        NetworkAPI.shared.authInitStore(version: snsType)
+    func callSocialLogin(snsType : String ,
+                         snsToken : String ,
+                         userType: String,
+                         onSuccess: ((Any?) -> Void)? = nil, onError: ((String) -> Void)? = nil) {
+        executeAPI(targetCode: NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN, onSuccess: onSuccess, onError: onError)
+        
+        NetworkAPI.shared.socialLogin(
+            snsType: snsType,
+            snsId: snsToken,
+            userType: userType
+        )
     }
     
     

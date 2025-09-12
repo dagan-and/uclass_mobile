@@ -21,10 +21,41 @@
 #-renamesourcefileattribute SourceFile
 
 
+-keep class com.ubase.uclass.network.response** { *; }
+-keep class com.ubase.uclass.network.request** { *; }
+
+
+
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
+
+
 #-keepclassmembers enum okhttp3.** { *; }
 # FCM 프로가드
 -keep class com.google.android.gms.** { *; }
 -keep class com.google.firebase.** { *; }
+
+
+
+#카카오 , 네이버
+-keep class com.kakao.sdk.**.model.* { <fields>; }
+
+# https://github.com/square/okhttp/pull/6792
+-dontwarn org.bouncycastle.jsse.**
+-dontwarn org.conscrypt.*
+-dontwarn org.openjsse.**
+
+# refrofit2 (with r8 full mode)
+-if interface * { @retrofit2.http.* <methods>; }
+-keep,allowobfuscation interface <1>
+-keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
+-if interface * { @retrofit2.http.* public *** *(...); }
+-keep,allowoptimization,allowshrinking,allowobfuscation class <3>
+-keep,allowobfuscation,allowshrinking class retrofit2.Response
+-keep,allowobfuscation,allowshrinking interface retrofit2.Call
+-keep,allowobfuscation,allowshrinking class retrofit2.Response
+
+
 
 
 
@@ -57,6 +88,7 @@
 
 # Top-level functions that can only be used by Kotlin.
 -dontwarn retrofit2.KotlinExtensions
+-dontwarn retrofit2.KotlinExtensions$*
 
 #retofit# Platform calls Class.forName on types which do not exist on Android to determine platform.
 -dontnote retrofit2.Platform

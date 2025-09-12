@@ -32,7 +32,7 @@ struct SNSLoginView: View {
         return (savedType, savedToken)
     }
 
-    private func startAuthentication() {
+    private func startSocialLogin() {
         let snsInfo = getCurrentSNSInfo()
 
         Logger.dev("=== 인증 시작 ===")
@@ -40,9 +40,10 @@ struct SNSLoginView: View {
         Logger.dev("SNS Token: \(snsInfo.token)")
         Logger.dev("================")
 
-        networkViewModel.callAuthInitStore(
+        networkViewModel.callSocialLogin(
             snsType: snsInfo.type,
             snsToken: snsInfo.token,
+            userType: "STUDENT",
             onSuccess: { result in
                 var messageText = "응답을 받았습니다."
                 Logger.dev("인증 성공: \(messageText)")
@@ -100,17 +101,17 @@ struct SNSLoginView: View {
         }
         .onChange(of: kakaoLoginManager.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
-                startAuthentication()
+                startSocialLogin()
             }
         }
         .onChange(of: appleLoginManager.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
-                startAuthentication()
+                startSocialLogin()
             }
         }
         .onChange(of: naverLoginManager.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
-                startAuthentication()
+                startSocialLogin()
             }
         }
         .onChange(of: networkViewModel.isCompleted) { isCompleted in
@@ -140,7 +141,7 @@ struct SNSLoginView: View {
 
             if !savedType.isEmpty && !savedToken.isEmpty {
                 Logger.dev("자동 로그인 시도")
-                startAuthentication()
+                startSocialLogin()
             }
         }
     }

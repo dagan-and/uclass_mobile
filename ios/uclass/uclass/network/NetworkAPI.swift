@@ -120,76 +120,85 @@ class NetworkAPI {
     }
     
     /**
-     * 인증 스토어 초기화 API
-     */
-    func authInitStore(version: String) {
-        checkInitialized()
-        
-        operationQueue?.addOperation { [weak self] in
-            guard let self = self else { return }
+         * POST http://dev-umanager.ubase.kr/api/auth/social-login
+         * {
+         *     "provider": "KAKAO",
+         *     "token": "소셜 액세스 토큰",
+         *     "userType": "STUDENT",
+         *     "branchId": 1
+         * }
+         */
+        func socialLogin(snsType: String, snsId: String, userType: String, branchId: Int = 1) {
+            checkInitialized()
             
-            let url = Constants.baseURL + NetworkAPIManager.Endpoint.AUTH_INIT_STORE
-            let responseCode = NetworkAPIManager.ResponseCode.API_AUTH_INIT_STORE
-            
-            var headers: HTTPHeaders = [
-                "User-Agent": "iOS"
-            ]
-            
-            // JWT 토큰 헤더 추가
-            if let jwtToken = Constants.jwtToken, !jwtToken.isEmpty {
-                headers["JWT_TOKEN"] = jwtToken
-                headers["Authorization"] = jwtToken
-            } else {
-                headers["JWT_TOKEN"] = ""
-            }
-            
-            let parameters = ["version": version]
-            
-            self.sessionManager?.request(
-                url,
-                method: .get,
-                parameters: parameters,
-                headers: headers
-            ).responseString { [weak self] response in
+            operationQueue?.addOperation { [weak self] in
                 guard let self = self else { return }
                 
-                switch response.result {
-                case .success(let responseBody):
-                    self.logResponse(json: responseBody)
+                let url = Constants.baseURL + NetworkAPIManager.Endpoint.AUTH_SOCIAL_LOGIN
+                let responseCode = NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN
+                
+                // 요청 바디 생성
+                let requestBody: [String: Any] = [
+                    "provider": snsType,
+                    "token": snsId,
+                    "userType": userType,
+                    "branchId": branchId
+                ]
+                
+                // 요청 로깅
+                self.logRequest(request: requestBody)
+                
+                var headers: HTTPHeaders = [
+                    "Content-Type": "application/json",
+                    "User-Agent": "iOS"
+                ]
+                
+                self.sessionManager?.request(
+                    url,
+                    method: .post,
+                    parameters: requestBody,
+                    encoding: JSONEncoding.default,
+                    headers: headers
+                ).responseString { [weak self] response in
+                    guard let self = self else { return }
                     
-                    if let statusCode = response.response?.statusCode,
-                       statusCode >= 200 && statusCode < 300 {
+                    switch response.result {
+                    case .success(let responseBody):
+                        self.logResponse(json: responseBody)
                         
-                        if !responseBody.isEmpty {
-                            do {
-                                if let jsonData = responseBody.data(using: .utf8) {
-                                    let parsedResponse = try JSONSerialization.jsonObject(with: jsonData, options: [])
-                                    self.sendCallback(code: responseCode, data: parsedResponse)
-                                } else {
-                                    self.sendError(code: responseCode, error : "body parsing error")
+                        if let statusCode = response.response?.statusCode,
+                           statusCode >= 200 && statusCode < 300 {
+                            
+                            if !responseBody.isEmpty {
+                                do {
+                                    if let jsonData = responseBody.data(using: .utf8) {
+                                        let parsedResponse = try JSONSerialization.jsonObject(with: jsonData, options: [])
+                                        self.sendCallback(code: responseCode, data: parsedResponse)
+                                    } else {
+                                        self.sendError(code: responseCode, error: "Response body parsing error")
+                                    }
+                                } catch {
+                                    self.sendError(code: responseCode, error: error)
                                 }
-                            } catch {
-                                self.sendError(code: responseCode, error: error)
+                            } else {
+                                self.sendCallback(code: responseCode, data: nil)
                             }
                         } else {
-                            self.sendError(code: responseCode, error: "Empty response body")
+                            let statusCode = response.response?.statusCode ?? -1
+                            let statusMessage = HTTPURLResponse.localizedString(forStatusCode: statusCode)
+                            let errorData = ErrorData(
+                                code: responseCode,
+                                msg: "HTTP \(statusCode): \(statusMessage)"
+                            )
+                            self.sendCallback(code: NetworkAPIManager.ResponseCode.API_ERROR, data: errorData)
                         }
-                    } else {
-                        let statusCode = response.response?.statusCode ?? -1
-                        let statusMessage = HTTPURLResponse.localizedString(forStatusCode: statusCode)
-                        let errorData = ErrorData(
-                            code: responseCode,
-                            msg: "HTTP \(statusCode): \(statusMessage)"
-                        )
-                        self.sendCallback(code: NetworkAPIManager.ResponseCode.API_ERROR, data: errorData)
+                        
+                    case .failure(let error):
+                        self.sendError(code: responseCode, error: error)
                     }
-                    
-                case .failure(let error):
-                    self.sendError(code: responseCode, error: error)
                 }
             }
         }
-    }
     
     /**
      * NetworkAPI 종료

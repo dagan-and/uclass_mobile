@@ -12,11 +12,11 @@ class KakaoLoginManager: NSObject, ObservableObject {
     
     // SNS 토큰 및 타입 정보
     var snsType: String {
-        return "kakao"
+        return "KAKAO"
     }
     
     var snsToken: String {
-        return TokenManager.manager.getToken()?.accessToken ?? ""
+        return userInfo?.userId ?? ""
     }
     
     override init() {

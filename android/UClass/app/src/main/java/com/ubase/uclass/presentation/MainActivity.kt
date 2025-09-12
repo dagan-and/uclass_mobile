@@ -163,7 +163,7 @@ class MainActivity : ComponentActivity() {
 
         // NetworkAPI.authInitStore에 snsType과 userId 전달
         // 실제 API 시그니처에 맞게 수정 필요
-        NetworkAPI.authInitStore("1.0.0", snsType, userId)
+        NetworkAPI.socialLogin(snsType, userId , "STUDENT")
     }
 
     // Google 로그인 결과 처리

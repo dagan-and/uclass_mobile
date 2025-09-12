@@ -12,7 +12,7 @@ class NetworkAPIManager {
     
     // API 엔드포인트 정의
     struct Endpoint {
-        static let AUTH_INIT_STORE = "/api/v1/auth/init_store"
+        static let AUTH_SOCIAL_LOGIN = "/auth/social-login"
     }
     
     // 응답 코드 정의
@@ -20,7 +20,7 @@ class NetworkAPIManager {
         static let API_ERROR: Int = 9999
         
         // 인증 관련
-        static let API_AUTH_INIT_STORE: Int = 1001
+        static let API_AUTH_SOCIAL_LOGIN: Int = 1001
     }
     
     /**
