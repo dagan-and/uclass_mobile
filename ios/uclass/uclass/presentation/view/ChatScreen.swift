@@ -100,7 +100,11 @@ struct ChatScreen: View {
                                     )
                             }
                         }
+                        .rotationEffect(Angle(degrees: 180))
+                        .scaleEffect(x: -1.0, y: 1.0, anchor: .center)
                     }
+                    .rotationEffect(Angle(degrees: 180))
+                    .scaleEffect(x: -1.0, y: 1.0, anchor: .center)
                     .onTapGesture {
                         hideKeyboard()
                     }
@@ -123,22 +127,7 @@ struct ChatScreen: View {
                     // 입력창
                     inputView
                 }
-                .onReceive(
-                    NotificationCenter.default.publisher(
-                        for: UIResponder.keyboardWillShowNotification
-                    )
-                ) { _ in
-                    // 스크롤이 최하단에 있을 때만 마지막 메시지로 이동
-                    if isScrollAtBottom {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                            if let lastId = messages.last?.id {
-                                withAnimation {
-                                    proxy.scrollTo(lastId, anchor: .bottom)
-                                }
-                            }
-                        }
-                    }
-                }
+               
             }
         }
     }
@@ -246,9 +235,27 @@ struct ChatScreen: View {
         let myMessage = ChatMessage(text: text, isMe: true)
         messages.append(myMessage)
 
+        //TODO 삭제할 내용
+        if(text == "로그아웃") {
+            Logger.dev("🚪 로그아웃 처리 시작")
+            // 1. 로그인 정보 삭제
+            UserDefaultsManager.clearLoginInfo()
+            
+            // 2. 앱 재시작 알림 발송
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NotificationCenter.default.post(
+                    name: Notification.Name("RestartApp"),
+                    object: nil
+                )
+            }
+            return
+        }
+        
+        
         text = ""
         textEditorHeight = ChatScreen.textEditorDefault
-
+        
+        
         // 자동 응답 (테스트용)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             let autoReply = ChatMessage(text: "메시지를 받았습니다!", isMe: false)

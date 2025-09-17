@@ -2,15 +2,26 @@ import SwiftUI
 
 struct SplashView: View {
     @EnvironmentObject var webViewManager: WebViewManager
-    @State private var showLoginView = false
+    @State private var showNextView = false
     @State private var shouldAutoLogin = false
+    @State private var shouldShowPermissions = false
     
     var body: some View {
         ZStack {
-            if showLoginView {
-                SNSLoginView(shouldStartAutoLogin: shouldAutoLogin)
-                    .environmentObject(webViewManager)
+            if showNextView {
+                if shouldShowPermissions {
+                    // 권한 요청 화면
+                    PermissionView {
+                        Logger.info("권한 요청 완료 - 로그인 화면으로 이동")
+                        shouldShowPermissions = false
+                    }
+                } else {
+                    // 로그인 화면
+                    SNSLoginView(shouldStartAutoLogin: shouldAutoLogin)
+                        .environmentObject(webViewManager)
+                }
             } else {
+                // 스플래시 화면
                 Color.white.ignoresSafeArea()
                 Image("splash")
                     .resizable()
@@ -24,17 +35,17 @@ struct SplashView: View {
     }
     
     private func startSplashAnimation() {
-        // 자동 로그인 가능한지 체크
-        checkAutoLogin()
+        // 권한 상태와 자동 로그인 상태 체크
+        checkPermissionsAndAutoLogin()
         
         // 스플래시 화면 표시 시간
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            showLoginView = true
+            showNextView = true
         }
     }
     
-    private func checkAutoLogin() {
-        // 저장된 로그인 정보가 있고 자동 로그인이 가능한지 확인
+    private func checkPermissionsAndAutoLogin() {
+        // 자동 로그인 가능한지 체크
         if UserDefaultsManager.canAutoLogin() {
             Logger.dev("=== 자동 로그인 조건 충족 ===")
             UserDefaultsManager.printSavedLoginInfo()
@@ -43,5 +54,9 @@ struct SplashView: View {
             Logger.dev("자동 로그인 불가 - 수동 로그인 필요")
             shouldAutoLogin = false
         }
+        
+        // 권한 요청 화면을 보여줘야 하는지 체크
+        shouldShowPermissions = PermissionHelper.shouldShowPermissionRequest()
+        Logger.info("권한 요청 화면 표시 필요: \(shouldShowPermissions)")
     }
 }

@@ -1,19 +1,48 @@
 package com.ubase.uclass.presentation.view
 
-import android.os.Bundle
-import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.*
+import android.text.TextUtils
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ubase.uclass.network.NetworkAPI
 import com.ubase.uclass.network.NetworkAPIManager
 import com.ubase.uclass.network.ViewCallbackManager
-import com.ubase.uclass.network.ViewCallbackManager.PageCode.HOME
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
+import com.ubase.uclass.network.response.BaseData
+import com.ubase.uclass.network.response.EmptyData
+import com.ubase.uclass.network.response.ErrorData
+import com.ubase.uclass.network.response.SNSCheckData
+import com.ubase.uclass.network.response.SNSLoginData
+import com.ubase.uclass.presentation.ui.CustomAlertManager
+import com.ubase.uclass.presentation.viewmodel.LogoutViewModel
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.presentation.web.WebViewScreen
+import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
+import com.ubase.uclass.util.PreferenceManager
 import kotlinx.coroutines.delay
+
+// 안전한 캐스팅을 위한 확장 함수들
+inline fun <reified T> Any?.asBaseData(): BaseData<T>? {
+    return try {
+        @Suppress("UNCHECKED_CAST")
+        this as? BaseData<T>
+    } catch (e: ClassCastException) {
+        Logger.error("타입 캐스팅 실패: ${e.message}")
+        null
+    }
+}
 
 @Composable
 fun MainScreen(
@@ -26,12 +55,31 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
 
+    // LogoutViewModel 추가
+    val logoutViewModel: LogoutViewModel = viewModel()
+
     // 상태 관리
     var isLoggedIn by remember { mutableStateOf(false) }
     var isWebViewLoading by remember { mutableStateOf(false) }
     var loginSuccess by remember { mutableStateOf(false) }
     var isAPIInitialized by remember { mutableStateOf(false) }
     var isAutoLogin by remember { mutableStateOf(autoLoginInfo != null) }
+
+    // API 오류 처리 함수
+    fun handleAPIError(errorMessage: String) {
+        Logger.error("API 오류 처리: $errorMessage")
+
+        if (isAutoLogin) {
+            Logger.info("## 자동 로그인 실패 - 수동 로그인으로 전환")
+            isAutoLogin = false
+            loginSuccess = false
+            isWebViewLoading = false
+        } else {
+            // 수동 로그인 실패
+            isWebViewLoading = false
+            loginSuccess = false
+        }
+    }
 
     // NetworkAPI 콜백 등록
     DisposableEffect(Unit) {
@@ -40,23 +88,118 @@ fun MainScreen(
         NetworkAPIManager.registerCallback(callbackId, object : NetworkAPIManager.NetworkCallback {
             override fun onResult(code: Int, result: Any?) {
                 when (code) {
-                    NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN -> {
-                        Logger.info("## authInitStore API 응답 성공")
-                        isAPIInitialized = true
+                    NetworkAPIManager.ResponseCode.API_AUTH_SNS_CHECK -> {
+                        // BaseData<SNSCheckData>로 안전한 캐스팅
+                        result.asBaseData<SNSCheckData>()?.let { response ->
+                            if (response.isSuccess) {
+                                Logger.dev("SNS 체크 성공: ${response.message}")
+
+                                response.data?.let { checkData ->
+                                    if (checkData.isExistingUser) {
+                                        Logger.dev("기존 사용자 - 로그인 API 호출")
+                                        val snsType = PreferenceManager.getSNSType(context)
+                                        val userId = PreferenceManager.getUserId(context)
+                                        NetworkAPI.snsLogin(snsType, userId)
+                                    } else {
+                                        Logger.dev("신규 사용자 - 회원가입 API 호출")
+                                        val snsType = PreferenceManager.getSNSType(context)
+                                        val userId = PreferenceManager.getUserId(context)
+                                        var userName = PreferenceManager.getUserName(context)
+                                        var userEmail = PreferenceManager.getUserEmail(context)
+
+                                        if (TextUtils.isEmpty(userName)) {
+                                            userName = "기본값"
+                                        }
+                                        if (TextUtils.isEmpty(userEmail)) {
+                                            userEmail = "default@default.com"
+                                        }
+
+                                        NetworkAPI.snsRegister(snsType, userId, userName, userEmail)
+                                    }
+                                }
+                            } else {
+                                Logger.error("SNS 체크 실패: ${response.message}")
+                                handleAPIError("SNS 체크 실패")
+                            }
+                        } ?: run {
+                            Logger.error("SNS 체크 응답 타입 오류")
+                            handleAPIError("응답 타입 오류")
+                        }
                     }
+
+                    NetworkAPIManager.ResponseCode.API_AUTH_SNS_LOGIN -> {
+                        // BaseData<SNSLoginData>로 안전한 캐스팅
+                        result.asBaseData<SNSLoginData>()?.let { response ->
+                            if (response.isSuccess) {
+                                Logger.dev("로그인 성공: ${response.message}")
+
+                                response.data?.let { loginData ->
+                                    // JWT 토큰 저장
+                                    Constants.jwtToken = loginData.accessToken
+
+                                    Logger.dev("사용자 정보:")
+                                    Logger.dev("- ID: ${loginData.userId}")
+                                    Logger.dev("- 이름: ${loginData.userName}")
+                                    Logger.dev("- 승인상태: ${loginData.approvalStatus}")
+                                    Logger.dev("- 지점: ${loginData.branchName}")
+
+                                    val content = """
+                                            사용자: ${loginData.userName}
+                                            지점: ${loginData.branchName}
+                                            승인 상태: ${loginData.approvalStatus}
+                                            로그인 시간: ${loginData.loginAt}
+                                            사용자 타입: ${loginData.userType}
+                                        """.trimIndent()
+                                    CustomAlertManager.showAlert(
+                                        content = content
+                                    )
+
+                                    // API 초기화 완료 표시
+                                    isAPIInitialized = true
+                                }
+                            } else {
+                                Logger.error("로그인 실패: ${response.message}")
+                                handleAPIError("로그인 실패")
+                            }
+                        } ?: run {
+                            Logger.error("로그인 응답 타입 오류")
+                            handleAPIError("응답 타입 오류")
+                        }
+                    }
+
+                    NetworkAPIManager.ResponseCode.API_AUTH_SNS_REGISTER -> {
+                        // BaseData<EmptyData>로 안전한 캐스팅
+                        result.asBaseData<EmptyData>()?.let { response ->
+                            if (response.isSuccess) {
+                                Logger.dev("회원가입 성공: ${response.message}")
+
+                                // 회원가입이 완료되면 로그인 API 호출
+                                val snsType = PreferenceManager.getSNSType(context)
+                                val userId = PreferenceManager.getUserId(context)
+                                NetworkAPI.snsLogin(snsType, userId)
+                            } else {
+                                Logger.error("회원가입 실패: ${response.message}")
+                                handleAPIError("회원가입 실패")
+                            }
+                        } ?: run {
+                            Logger.error("회원가입 응답 타입 오류")
+                            handleAPIError("응답 타입 오류")
+                        }
+                    }
+
+                    NetworkAPIManager.ResponseCode.API_ERROR -> {
+                        if (result is ErrorData) {
+                            Logger.error("API 오류: ${result.msg}")
+                            handleAPIError(result.msg ?: "알 수 없는 오류")
+                        } else {
+                            Logger.error("알 수 없는 API 오류")
+                            handleAPIError("알 수 없는 오류")
+                        }
+                    }
+
                     else -> {
                         Logger.info("## API 응답 오류: code=$code")
-                        // API 오류 시 로그인 실패 처리
-                        if (isAutoLogin) {
-                            Logger.info("## 자동 로그인 실패 - 수동 로그인으로 전환")
-                            isAutoLogin = false
-                            loginSuccess = false
-                            isWebViewLoading = false
-                        } else {
-                            // 수동 로그인 실패
-                            isWebViewLoading = false
-                            loginSuccess = false
-                        }
+                        handleAPIError("예상하지 못한 응답 코드: $code")
                     }
                 }
             }
@@ -64,6 +207,22 @@ fun MainScreen(
 
         onDispose {
             NetworkAPIManager.unregisterCallback(callbackId)
+        }
+    }
+
+    // 로그아웃 상태 감지
+    LaunchedEffect(logoutViewModel.logout) {
+        if (logoutViewModel.logout) {
+            Logger.dev("로그아웃 감지 - 초기화 진행")
+            PreferenceManager.clearLoginInfo(context = context)
+            Constants.jwtToken = ""
+
+            // 상태 초기화
+            isLoggedIn = false
+            isAPIInitialized = false
+            loginSuccess = false
+            isWebViewLoading = false
+            isAutoLogin = false
         }
     }
 
@@ -95,7 +254,12 @@ fun MainScreen(
     }
 
     // 상태 변화 모니터링 및 메인 화면 전환 로직
-    LaunchedEffect(isAPIInitialized, loginSuccess, webViewManager.isWebViewLoaded.value, webViewManager.isWebViewLoading.value) {
+    LaunchedEffect(
+        isAPIInitialized,
+        loginSuccess,
+        webViewManager.isWebViewLoaded.value,
+        webViewManager.isWebViewLoading.value
+    ) {
         if (isAPIInitialized && loginSuccess) {
             if (webViewManager.isWebViewLoaded.value) {
                 Logger.info("## 모든 조건 만족 - 메인 화면으로 전환")

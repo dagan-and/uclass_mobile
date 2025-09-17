@@ -281,30 +281,32 @@ struct CustomAlertView: View {
     }
     
     private func singleButton(_ button: AlertButton) -> some View {
-        Button(action: {
-            button.action?()
-            onDismiss()
-        }) {
-            Text(button.title)
-                .font(.system(size: 17, weight: button.style == .cancel ? .regular : .medium))
-                .foregroundColor(colorForButtonStyle(button.style))
-                .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
+         Button(action: {
+             button.action?()
+             onDismiss()
+         }) {
+             Text(button.title)
+                 .font(.system(size: 17, weight: button.style == .cancel ? .regular : .medium))
+                 .foregroundColor(colorForButtonStyle(button.style))
+                 .frame(maxWidth: .infinity, minHeight: 44)
+                 .contentShape(Rectangle())
+         }
+         .buttonStyle(PlainButtonStyle())
+     }
     
     private func alertButton(_ button: AlertButton) -> some View {
-        Button(action: {
-            button.action?()
-            onDismiss()
-        }) {
-            Text(button.title)
-                .font(.system(size: 17, weight: button.style == .cancel ? .regular : .medium))
-                .foregroundColor(colorForButtonStyle(button.style))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
+         Button(action: {
+             button.action?()
+             onDismiss()
+         }) {
+             Text(button.title)
+                 .font(.system(size: 17, weight: button.style == .cancel ? .regular : .medium))
+                 .foregroundColor(colorForButtonStyle(button.style))
+                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                 .contentShape(Rectangle()) 
+         }
+         .buttonStyle(PlainButtonStyle())
+     }
     
     private func colorForButtonStyle(_ style: AlertButton.AlertButtonStyle) -> Color {
         switch style {

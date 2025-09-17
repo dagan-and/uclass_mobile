@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -42,26 +43,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ubase.uclass.R
 import com.ubase.uclass.network.ViewCallbackManager
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.HOME
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
 import com.ubase.uclass.network.response.ChatMessage
 import com.ubase.uclass.presentation.ui.ChatBubble
+import com.ubase.uclass.util.PreferenceManager
 
 @Composable
 fun ChatScreen(
     modifier: Modifier,
     onBack: () -> Unit
 ) {
+
+    val context = LocalContext.current
+
     LaunchedEffect(Unit) {
         ViewCallbackManager.notifyResult(CHAT_BADGE, false)
     }
 
     var messages by remember {
         mutableStateOf(
-            List(3) { index ->
+            List(100) { index ->
                 if (index % 2 == 0) {
-                    ChatMessage("내 메시지 $index", true)
+                    ChatMessage(text = "내 메시지 $index", isMe = true)
                 } else {
-                    ChatMessage("상대방 메시지 $index", false)
+                    ChatMessage(text = "상대방 메시지 $index", isMe = false)
                 }
             }
         )
@@ -122,7 +128,7 @@ fun ChatScreen(
                 ) {
                     focusManager.clearFocus()
                 },
-            contentAlignment = Alignment.TopStart
+            contentAlignment = Alignment.BottomStart
         ) {
             LazyColumn(
                 state = listState,
@@ -189,12 +195,19 @@ fun ChatScreen(
                         indication = null // 클릭 ripple 제거
                     ) {
                         if (messageText.isNotEmpty()) {
+
+                            //TODO 삭제하기
+                            if(messageText == "로그아웃") {
+                                ViewCallbackManager.notifyResult(ViewCallbackManager.ResponseCode.NAVIGATION , HOME)
+                                ViewCallbackManager.notifyResult(ViewCallbackManager.ResponseCode.LOGOUT, true)
+                            }
+
                             // 새 메시지를 맨 앞에 추가 (reverseLayout이므로 시각적으로는 맨 아래)
-                            messages = messages + ChatMessage(messageText, true)
+                            messages = messages + ChatMessage(text = messageText, isMe = true)
                             messageText = ""
 
                             // 테스트용 자동 응답도 맨 앞에 추가
-                            messages = messages + ChatMessage("안녕하세요! 메시지를 받았습니다.", false)
+                            messages = messages + ChatMessage(text = "안녕하세요! 메시지를 받았습니다.", isMe = false)
                         }
                     },
                 contentAlignment = Alignment.Center

@@ -1,33 +1,35 @@
-대표님
+API 요청: POST /api/auth/sns/check
+REQUEST: {"provider": "NAVER", "snsId": "1_PNt39700voivjLWQv26RNi65y1IsErmk-fr5U1fMw"}
+API 응답 (200): 기존 회원입니다.
+RESPONSE: {
+  "success": true,
+  "message": "기존 회원입니다.",
+  "data": {
+    "userId": 1,
+    "name": "김용식",
+    "userType": "STUDENT",
+    "branchId": 1,
+    "approvalStatus": "PENDING",
+    "existingUser": true
+  }
+}
 
-모바일 개발
-작업일자 : 2개월반
-작업시간 : 평일 2H +- , 주말 5H +- (총200H +-)
-* 개발 및 테스트 시간 포함
-
-작업내용 : 크게 생각나는것만 적었습니다.
-- 네이티브 페이지 5 +-
-- 웹앱 연동
-- 소셜 로그인 연동
-- 채팅 개발(소켓통신)
-- 푸시 연동
-- Android/ios 스토어 등록
-
-총 : 300만원
-
-
-
-웹/앱 디자인
-
-작업일자 : 5일
-작업시간 : 평일 5H +- (총25H +-)
-
-작업내용 : 크게 생각나는것만 적었습니다.
-- 웹 디자인
-- 모바일 디자인
-- 제플린 연동
-
-총 : 30만원
-
-
-으로 생각합니다.
+API 요청: POST /api/auth/sns/login
+REQUEST: {"provider": "NAVER", "snsId": "1_PNt39700voivjLWQv26RNi65y1IsErmk-fr5U1fMw"}
+API 응답 (200): 로그인되었습니다. (승인 대기 중)
+RESPONSE: {
+  "success": true,
+  "message": "로그인되었습니다. (승인 대기 중)",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "tokenType": "Bearer",
+    "expiresIn": 86400,
+    "userId": 1,
+    "userName": "김용식",
+    "userType": "STUDENT",
+    "branchId": 1,
+    "branchName": "강남지점",
+    "approvalStatus": "PENDING",
+    "loginAt": "2025-09-15 15:13:18"
+  }
+}

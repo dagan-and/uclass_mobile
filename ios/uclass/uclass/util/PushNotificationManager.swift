@@ -156,4 +156,13 @@ class PushNotificationManager: ObservableObject {
         clearPendingNavigation()
         Logger.dev("🗑️ 모든 대기 중인 화면 이동 정보 삭제")
     }
+    
+    
+    func displayResetBadge() {
+            if #available(iOS 16.0, *) {
+                UNUserNotificationCenter.current().setBadgeCount(0)
+            } else {
+                UIApplication.shared.applicationIconBadgeNumber = 0
+            }
+        }
 }

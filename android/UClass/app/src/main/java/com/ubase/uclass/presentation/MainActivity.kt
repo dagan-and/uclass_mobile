@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.ubase.uclass.network.NetworkAPI
@@ -18,11 +19,14 @@ import com.ubase.uclass.network.ViewCallbackManager
 import com.ubase.uclass.network.ViewCallbackManager.PageCode.CHAT
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
+import com.ubase.uclass.presentation.ui.CustomAlert
 import com.ubase.uclass.presentation.ui.CustomLoading
 import com.ubase.uclass.presentation.view.MainScreen
+import com.ubase.uclass.presentation.view.PermissionScreen
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.util.AppUtil
 import com.ubase.uclass.util.Logger
+import com.ubase.uclass.util.PermissionHelper
 import com.ubase.uclass.util.PreferenceManager
 
 class MainActivity : ComponentActivity() {
@@ -61,63 +65,89 @@ class MainActivity : ComponentActivity() {
         val autoLoginInfo = AppUtil.tryAutoLogin(this)
         val shouldKeepSplash = autoLoginInfo != null
 
+        // 권한 상태를 미리 체크
+        val initialPermissionState = PermissionHelper.checkPermissions(this)
+        val shouldShowPermissionRequest = PermissionHelper.shouldShowPermissionRequest(this)
+        Logger.info("## 초기 권한 상태: $initialPermissionState, 권한 요청 표시 필요: $shouldShowPermissionRequest")
+
         splashScreen.setKeepOnScreenCondition {
             // 자동 로그인 가능한 경우 스플래시 유지
-            shouldKeepSplash && !isAutoLoginAttempted
+            (shouldKeepSplash && !isAutoLoginAttempted)
         }
 
         webViewManager = WebViewManager(this)
 
         enableEdgeToEdge()
         setContent {
+            // 권한 화면 표시 여부를 관리하는 State (초기값을 미리 체크한 값으로 설정)
+            var shouldShowPermissions by remember { mutableStateOf(shouldShowPermissionRequest) }
+
+
             Box(Modifier.safeDrawingPadding()) {
-                MainScreen(
-                    onKakaoLogin = { successCallback, failureCallback ->
-                        loginSuccessCallback = successCallback
-                        loginFailureCallback = failureCallback
+                if (!shouldShowPermissions) {
+                    // 처음 실행 시에만 권한 화면 표시
+                    PermissionScreen(
+                        onPermissionsGranted = {
+                            Logger.info("권한 요청 완료 - 권한 화면을 다시 보여주지 않도록 설정")
+                            // 권한 요청을 보여줬음을 기록
+                            PermissionHelper.markPermissionRequestShown(this@MainActivity)
+                            // 권한 화면 숨김
+                            shouldShowPermissions = true
+                        }
+                    )
+                } else {
+                    // 권한 화면을 이미 보여줬거나 필요 없는 경우 MainScreen 표시
+                    MainScreen(
+                        onKakaoLogin = { successCallback, failureCallback ->
+                            loginSuccessCallback = successCallback
+                            loginFailureCallback = failureCallback
 
-                        AppUtil.loginWithKakaoTalk(this@MainActivity,
-                            onSuccess = { userInfo ->
-                                Logger.info("## 카카오 로그인 성공: ${userInfo.name}")
-                                callAuthInitStore()
-                            },
-                            onFailure = { error ->
-                                Logger.info("## 카카오 로그인 실패 : $error")
-                                Toast.makeText(this@MainActivity, "카카오 로그인에 실패했습니다.$error", Toast.LENGTH_SHORT).show()
-                                loginFailureCallback?.invoke()
-                            })
-                    },
-                    onNaverLogin = { successCallback, failureCallback ->
-                        loginSuccessCallback = successCallback
-                        loginFailureCallback = failureCallback
+                            AppUtil.loginWithKakaoTalk(this@MainActivity,
+                                onSuccess = { userInfo ->
+                                    Logger.info("## 카카오 로그인 성공: ${userInfo.name}")
+                                    callSNSCheck()
+                                },
+                                onFailure = { error ->
+                                    Logger.info("## 카카오 로그인 실패 : $error")
+                                    Toast.makeText(this@MainActivity, "카카오 로그인에 실패했습니다.$error", Toast.LENGTH_SHORT).show()
+                                    loginFailureCallback?.invoke()
+                                })
+                        },
+                        onNaverLogin = { successCallback, failureCallback ->
+                            loginSuccessCallback = successCallback
+                            loginFailureCallback = failureCallback
 
-                        AppUtil.loginWithNaver(this@MainActivity,
-                            onSuccess = { userInfo ->
-                                Logger.info("## 네이버 로그인 성공: ${userInfo.name}")
-                                callAuthInitStore()
-                            },
-                            onFailure = { error ->
-                                Logger.info("## 네이버 로그인 실패 : $error")
-                                Toast.makeText(this@MainActivity, "네이버 로그인에 실패했습니다.$error", Toast.LENGTH_SHORT).show()
-                                loginFailureCallback?.invoke()
-                            })
-                    },
-                    onGoogleLogin = { successCallback, failureCallback ->
-                        loginSuccessCallback = successCallback
-                        loginFailureCallback = failureCallback
+                            AppUtil.loginWithNaver(this@MainActivity,
+                                onSuccess = { userInfo ->
+                                    Logger.info("## 네이버 로그인 성공: ${userInfo.name}")
+                                    callSNSCheck()
+                                },
+                                onFailure = { error ->
+                                    Logger.info("## 네이버 로그인 실패 : $error")
+                                    Toast.makeText(this@MainActivity, "네이버 로그인에 실패했습니다.$error", Toast.LENGTH_SHORT).show()
+                                    loginFailureCallback?.invoke()
+                                })
+                        },
+                        onGoogleLogin = { successCallback, failureCallback ->
+                            loginSuccessCallback = successCallback
+                            loginFailureCallback = failureCallback
 
-                        AppUtil.loginWithGoogle(this@MainActivity)
-                    },
-                    webViewManager = webViewManager,
-                    autoLoginInfo = autoLoginInfo,
-                    initialNavigationTarget = initialNavigationTarget
-                )
-                CustomLoading()
+                            AppUtil.loginWithGoogle(this@MainActivity)
+                        },
+                        webViewManager = webViewManager,
+                        autoLoginInfo = autoLoginInfo,
+                        initialNavigationTarget = initialNavigationTarget
+                    )
+                }
+
+                // 전역 UI 컴포넌트들
+                CustomLoading()  // 전역 로딩
+                CustomAlert()    // 전역 알림
             }
         }
 
         // 자동 로그인 시도
-        if (autoLoginInfo != null) {
+        if (autoLoginInfo != null ) {
             performAutoLogin(autoLoginInfo)
         }
 
@@ -141,14 +171,14 @@ class MainActivity : ComponentActivity() {
         // 약간의 지연 후 자동 로그인 처리 (스플래시 화면 표시 시간 확보)
         Handler(Looper.getMainLooper()).postDelayed({
             isAutoLoginAttempted = true
-            callAuthInitStore()
+            callSNSCheck()
         }, 1000)
     }
 
     /**
-     * authInitStore API 호출 (snsType, userId 포함)
+     * 유저정보 체크 API 호출 (snsType, userId 포함)
      */
-    private fun callAuthInitStore() {
+    private fun callSNSCheck() {
         val snsType = PreferenceManager.getSNSType(this)
         val userId = PreferenceManager.getUserId(this)
 
@@ -159,11 +189,7 @@ class MainActivity : ComponentActivity() {
         }
         loginSuccessCallback?.invoke()
 
-        Logger.info("## authInitStore 호출: snsType=$snsType, userId=$userId")
-
-        // NetworkAPI.authInitStore에 snsType과 userId 전달
-        // 실제 API 시그니처에 맞게 수정 필요
-        NetworkAPI.socialLogin(snsType, userId , "STUDENT")
+        NetworkAPI.snsCheck(snsType, userId)
     }
 
     // Google 로그인 결과 처리
@@ -176,7 +202,7 @@ class MainActivity : ComponentActivity() {
                 data = data,
                 onSuccess = { userInfo ->
                     Logger.info("## 구글 로그인 성공: ${userInfo.name}")
-                    callAuthInitStore()
+                    callSNSCheck()
                 },
                 onFailure = { error ->
                     Logger.info("## 구글 로그인 실패 : $error")

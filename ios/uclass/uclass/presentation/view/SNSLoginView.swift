@@ -15,55 +15,95 @@ struct SNSLoginView: View {
     @State private var showLoadingView = false
     @State private var animationColor = Color(red: 0.0, green: 0.48, blue: 1.0)
 
-    // 현재 로그인된 SNS 매니저에서 토큰 정보 가져오기
-    private func getCurrentSNSInfo() -> (type: String, token: String) {
-        if kakaoLoginManager.isLoggedIn {
-            return (kakaoLoginManager.snsType, kakaoLoginManager.snsToken)
-        } else if appleLoginManager.isLoggedIn {
-            return (appleLoginManager.snsType, appleLoginManager.snsToken)
-        } else if naverLoginManager.isLoggedIn {
-            return (naverLoginManager.snsType, naverLoginManager.snsToken)
-        }
+    private func apiError(error: String) {
+        Logger.dev("인증 실패: \(error)")
+        // 인증 실패 시 저장된 로그인 정보 초기화
+        UserDefaultsManager.clearLoginInfo()
+        // 현재 로그인 상태 초기화
+        resetAllLoginStates()
 
-        // UserDefaults에서 저장된 정보 가져오기
-        let savedType = UserDefaultsManager.getSNSType()
-        let savedToken = UserDefaultsManager.getSNSToken()
-
-        return (savedType, savedToken)
+        CustomAlertManager.shared.showErrorAlert(
+            message: error
+        )
     }
 
-    private func startSocialLogin() {
-        let snsInfo = getCurrentSNSInfo()
+    private func apiSNSCheck() {
 
-        Logger.dev("=== 인증 시작 ===")
-        Logger.dev("SNS Type: \(snsInfo.type)")
-        Logger.dev("SNS Token: \(snsInfo.token)")
+        Logger.dev("=== 계정확인 ===")
+        Logger.dev("SNS Type: \(UserDefaultsManager.getSNSType())")
+        Logger.dev("SNS ID: \(UserDefaultsManager.getUserId())")
         Logger.dev("================")
 
-        networkViewModel.callSocialLogin(
-            snsType: snsInfo.type,
-            snsToken: snsInfo.token,
-            userType: "STUDENT",
+        networkViewModel.callSNSCheck(
+            snsType: UserDefaultsManager.getSNSType(),
+            snsId: UserDefaultsManager.getUserId(),
             onSuccess: { result in
-                var messageText = "응답을 받았습니다."
-                Logger.dev("인증 성공: \(messageText)")
 
-                // 성공 시 추가 처리 (예: 서버 응답 데이터 저장)
-                if let resultData = result as? [String: Any] {
-                    Logger.dev("서버 응답 데이터: \(resultData)")
-
-                    // 필요한 경우 서버에서 받은 추가 정보 저장
-                    // UserDefaultsManager.set...()
+                if let resultData = result as? BaseData<SNSCheckData> {
+                    if resultData.data?.isExistingUser == true {
+                        apiSNSLogin()
+                    } else {
+                        apiSNSRegister()
+                    }
+                } else {
+                    apiError(error: "데이터 형식 Error")
                 }
             },
             onError: { error in
-                Logger.dev("인증 실패: \(error)")
+                apiError(error: error)
+            }
+        )
+    }
 
-                // 인증 실패 시 저장된 로그인 정보 초기화
-                UserDefaultsManager.clearLoginInfo()
+    private func apiSNSLogin() {
 
-                // 현재 로그인 상태 초기화
-                resetAllLoginStates()
+        networkViewModel.callSNSLogin(
+            snsType: UserDefaultsManager.getSNSType(),
+            snsId: UserDefaultsManager.getUserId(),
+            onSuccess: { result in
+                if let resultData = result as? BaseData<SNSLoginData> {
+                    
+                    Constants.jwtToken = resultData.data?.accessToken
+                    
+                    Logger.dev("로그인 성공")
+                    Logger.dev("jwtToken:: " + (Constants.jwtToken ?? "nil"))
+                    
+                    
+                    if let loginData = resultData.data {
+                            let message = """
+                            사용자: \(loginData.userName)
+                            지점: \(loginData.branchName)
+                            승인 상태: \(loginData.approvalStatus)
+                            로그인 시간: \(loginData.loginAt)
+                            """
+                            
+                            CustomAlertManager.shared.showAlert(message: message)
+                        }
+
+                    networkViewModel.handleSuccess()
+                } else {
+                    apiError(error: "데이터 형식 Error")
+                }
+            },
+            onError: { error in
+                apiError(error: error)
+            }
+        )
+    }
+
+    private func apiSNSRegister() {
+
+        networkViewModel.callSNSRegister(
+            snsType: UserDefaultsManager.getSNSType(),
+            snsId: UserDefaultsManager.getUserId(),
+            name: UserDefaultsManager.getUserName(),
+            email: UserDefaultsManager.getUserEmail(),
+            onSuccess: { result in
+
+                apiSNSLogin()
+            },
+            onError: { error in
+                apiError(error: error)
             }
         )
     }
@@ -101,17 +141,17 @@ struct SNSLoginView: View {
         }
         .onChange(of: kakaoLoginManager.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
-                startSocialLogin()
+                apiSNSCheck()
             }
         }
         .onChange(of: appleLoginManager.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
-                startSocialLogin()
+                apiSNSCheck()
             }
         }
         .onChange(of: naverLoginManager.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
-                startSocialLogin()
+                apiSNSCheck()
             }
         }
         .onChange(of: networkViewModel.isCompleted) { isCompleted in
@@ -141,7 +181,7 @@ struct SNSLoginView: View {
 
             if !savedType.isEmpty && !savedToken.isEmpty {
                 Logger.dev("자동 로그인 시도")
-                startSocialLogin()
+                apiSNSCheck()
             }
         }
     }

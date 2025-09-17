@@ -61,6 +61,7 @@ class NetworkAPI {
      * 에러 발생 시 NetworkAPIManager를 통해 콜백 전달
      */
     private func sendError(code: Int, error: Error) {
+        Logger.error(error)
         let errorData = ErrorData(code: code, msg: AppUtil.getExceptionLog(error))
         NetworkAPIManager.shared.notifyResult(code: NetworkAPIManager.ResponseCode.API_ERROR, result: errorData)
     }
@@ -69,6 +70,7 @@ class NetworkAPI {
      * 에러 발생 시 NetworkAPIManager를 통해 콜백 전달
      */
     private func sendError(code: Int, error: String) {
+        Logger.error(error)
         let errorData = ErrorData(code: code, msg: error)
         NetworkAPIManager.shared.notifyResult(code: NetworkAPIManager.ResponseCode.API_ERROR, result: errorData)
     }
@@ -80,7 +82,7 @@ class NetworkAPI {
         NetworkAPIManager.shared.notifyResult(code: code, result: data)
     }
     
-    private func logRequest(request: Any) {
+    private func logRequest(request: [String: Any]) {
         if Logger.isEnable() {
             do {
                 let jsonData = try JSONSerialization.data(withJSONObject: request, options: .prettyPrinted)
@@ -120,85 +122,175 @@ class NetworkAPI {
     }
     
     /**
-         * POST http://dev-umanager.ubase.kr/api/auth/social-login
-         * {
-         *     "provider": "KAKAO",
-         *     "token": "소셜 액세스 토큰",
-         *     "userType": "STUDENT",
-         *     "branchId": 1
-         * }
-         */
-        func socialLogin(snsType: String, snsId: String, userType: String, branchId: Int = 1) {
-            checkInitialized()
+     * 공통 POST 요청 처리 함수
+     */
+    private func executePostRequest<T: Codable>(
+        endpoint: String,
+        responseCode: Int,
+        requestBody: [String: Any],
+        responseType: T.Type
+    ) {
+        checkInitialized()
+        
+        operationQueue?.addOperation { [weak self] in
+            guard let self = self else { return }
             
-            operationQueue?.addOperation { [weak self] in
+            let url = Constants.baseURL + endpoint
+            
+            // 요청 로깅
+            Logger.dev("URL:" + url)
+            self.logRequest(request: requestBody)
+            
+            var headers: HTTPHeaders = [
+                "Content-Type": "application/json",
+                "User-Agent": "IOS"
+            ]
+            
+            // JWT 토큰 헤더 추가
+            if let jwtToken = Constants.jwtToken, !jwtToken.isEmpty {
+                headers["JWT_TOKEN"] = jwtToken
+                headers["Authorization"] = jwtToken
+            } else {
+                headers["JWT_TOKEN"] = ""
+            }
+            
+            self.sessionManager?.request(
+                url,
+                method: .post,
+                parameters: requestBody,
+                encoding: JSONEncoding.default,
+                headers: headers
+            ).responseString { [weak self] response in
                 guard let self = self else { return }
                 
-                let url = Constants.baseURL + NetworkAPIManager.Endpoint.AUTH_SOCIAL_LOGIN
-                let responseCode = NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN
-                
-                // 요청 바디 생성
-                let requestBody: [String: Any] = [
-                    "provider": snsType,
-                    "token": snsId,
-                    "userType": userType,
-                    "branchId": branchId
-                ]
-                
-                // 요청 로깅
-                self.logRequest(request: requestBody)
-                
-                var headers: HTTPHeaders = [
-                    "Content-Type": "application/json",
-                    "User-Agent": "iOS"
-                ]
-                
-                self.sessionManager?.request(
-                    url,
-                    method: .post,
-                    parameters: requestBody,
-                    encoding: JSONEncoding.default,
-                    headers: headers
-                ).responseString { [weak self] response in
-                    guard let self = self else { return }
+                switch response.result {
+                case .success(let responseBody):
+                    self.logResponse(json: responseBody)
                     
-                    switch response.result {
-                    case .success(let responseBody):
-                        self.logResponse(json: responseBody)
+                    if let statusCode = response.response?.statusCode,
+                       statusCode >= 200 && statusCode < 300 {
                         
-                        if let statusCode = response.response?.statusCode,
-                           statusCode >= 200 && statusCode < 300 {
-                            
-                            if !responseBody.isEmpty {
-                                do {
-                                    if let jsonData = responseBody.data(using: .utf8) {
-                                        let parsedResponse = try JSONSerialization.jsonObject(with: jsonData, options: [])
+                        if !responseBody.isEmpty {
+                            do {
+                                if let jsonData = responseBody.data(using: .utf8) {
+                                    let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any]
+                                    
+                                    // success 필드 체크
+                                    let isSuccess = jsonObject?["success"] as? Bool ?? false
+                                    let isDataExist = jsonObject?["data"] != nil
+                                    
+                                    if isSuccess && isDataExist {
+                                        // success가 true인 경우 - 정상 처리
+                                        let parsedResponse = try JSONDecoder().decode(responseType, from: jsonData)
                                         self.sendCallback(code: responseCode, data: parsedResponse)
                                     } else {
-                                        self.sendError(code: responseCode, error: "Response body parsing error")
+                                        // success가 false인 경우 - 에러 처리
+                                        let message = jsonObject?["message"] as? String ?? "Unknown error"
+                                        let errorObject = jsonObject?["error"] as? [String: Any]
+                                        
+                                        let errorCode = errorObject?["errorCode"] as? String ?? "UNKNOWN_ERROR"
+                                        let errorDetail = errorObject?["errorDetail"] as? String ?? message
+                                        
+                                        let errorData = ErrorData(code: responseCode, msg: "\(errorCode): \(errorDetail)")
+                                        self.sendCallback(code: NetworkAPIManager.ResponseCode.API_ERROR, data: errorData)
                                     }
-                                } catch {
-                                    self.sendError(code: responseCode, error: error)
+                                } else {
+                                    self.sendError(code: responseCode, error: "Response body parsing error")
                                 }
-                            } else {
-                                self.sendCallback(code: responseCode, data: nil)
+                            } catch {
+                                self.sendError(code: responseCode, error: error)
                             }
                         } else {
-                            let statusCode = response.response?.statusCode ?? -1
-                            let statusMessage = HTTPURLResponse.localizedString(forStatusCode: statusCode)
-                            let errorData = ErrorData(
-                                code: responseCode,
-                                msg: "HTTP \(statusCode): \(statusMessage)"
-                            )
-                            self.sendCallback(code: NetworkAPIManager.ResponseCode.API_ERROR, data: errorData)
+                            self.sendCallback(code: responseCode, data: nil)
                         }
-                        
-                    case .failure(let error):
-                        self.sendError(code: responseCode, error: error)
+                    } else {
+                        let statusCode = response.response?.statusCode ?? -1
+                        let statusMessage = HTTPURLResponse.localizedString(forStatusCode: statusCode)
+                        let errorData = ErrorData(
+                            code: responseCode,
+                            msg: "HTTP \(statusCode): \(statusMessage)"
+                        )
+                        self.sendCallback(code: NetworkAPIManager.ResponseCode.API_ERROR, data: errorData)
                     }
+                    
+                case .failure(let error):
+                    self.sendError(code: responseCode, error: error)
                 }
             }
         }
+    }
+    
+    /**
+     * POST /api/auth/sns/check
+     */
+    func snsCheck(snsType: String, snsId: String) {
+        let requestBody: [String: Any] = [
+            "provider": snsType,
+            "snsId": snsId,
+            "pushToken": Constants.fcmToken ?? ""
+        ]
+        
+        executePostRequest(
+            endpoint: NetworkAPIManager.Endpoint.API_AUTH_SNS_CHECK,
+            responseCode: NetworkAPIManager.ResponseCode.API_AUTH_SNS_CHECK,
+            requestBody: requestBody,
+            responseType: BaseData<SNSCheckData>.self
+        )
+    }
+    
+    /**
+     * POST /api/auth/sns/login
+     */
+    func snsLogin(snsType: String, snsId: String) {
+        let requestBody: [String: Any] = [
+            "provider": snsType,
+            "snsId": snsId,
+            "pushToken": Constants.fcmToken ?? ""
+        ]
+        
+        executePostRequest(
+            endpoint: NetworkAPIManager.Endpoint.API_AUTH_SNS_LOGIN,
+            responseCode: NetworkAPIManager.ResponseCode.API_AUTH_SNS_LOGIN,
+            requestBody: requestBody,
+            responseType: BaseData<SNSLoginData>.self
+        )
+    }
+    
+    /**
+     * POST /api/auth/sns/register
+     */
+    func snsRegister(
+        snsType: String,
+        snsId: String,
+        name: String,
+        email: String,
+        phoneNumber: String = "010-1234-5678",
+        profileImageUrl: String = "",
+        userType: String = "STUDENT",
+        branchId: Int = 1,
+        termsAgreed: Bool = true,
+        privacyAgreed: Bool = true
+    ) {
+        let requestBody: [String: Any] = [
+            "provider": snsType,
+            "snsId": snsId,
+            "name": name,
+            "email": email,
+            "phoneNumber": phoneNumber,
+            "profileImageUrl": profileImageUrl,
+            "userType": userType,
+            "branchId": branchId,
+            "termsAgreed": termsAgreed,
+            "privacyAgreed": privacyAgreed
+        ]
+        
+        executePostRequest(
+            endpoint: NetworkAPIManager.Endpoint.API_AUTH_SNS_REGISTER,
+            responseCode: NetworkAPIManager.ResponseCode.API_AUTH_SNS_REGISTER,
+            requestBody: requestBody,
+            responseType: BaseData<EmptyData>.self
+        )
+    }
     
     /**
      * NetworkAPI 종료

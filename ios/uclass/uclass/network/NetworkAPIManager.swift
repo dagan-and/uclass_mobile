@@ -12,7 +12,9 @@ class NetworkAPIManager {
     
     // API 엔드포인트 정의
     struct Endpoint {
-        static let AUTH_SOCIAL_LOGIN = "/auth/social-login"
+        static let API_AUTH_SNS_CHECK = "/api/auth/sns/check"
+        static let API_AUTH_SNS_LOGIN = "/api/auth/sns/login"
+        static let API_AUTH_SNS_REGISTER = "/api/auth/sns/register"
     }
     
     // 응답 코드 정의
@@ -20,7 +22,9 @@ class NetworkAPIManager {
         static let API_ERROR: Int = 9999
         
         // 인증 관련
-        static let API_AUTH_SOCIAL_LOGIN: Int = 1001
+        static let API_AUTH_SNS_CHECK: Int = 1001
+        static let API_AUTH_SNS_LOGIN: Int = 1002
+        static let API_AUTH_SNS_REGISTER: Int = 1003
     }
     
     /**
@@ -108,7 +112,11 @@ class NetworkAPIManager {
             DispatchQueue.main.async {
                 if !currentCallbacks.isEmpty {
                     for callback in currentCallbacks {
-                        callback.onResult(code: code, result: result)
+                        do {
+                            callback.onResult(code: code, result: result)
+                        } catch {
+                            Logger.error("Error in callback notification for code: \(code)\n\(error)")
+                        }
                     }
                 } else {
                     Logger.dev("No callbacks registered - Result ignored (Code: \(code))")

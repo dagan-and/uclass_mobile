@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ubase.uclass.presentation.ui.CustomAlert
-import com.ubase.uclass.util.Logger
 
 @Composable
 fun WebViewScreen(webViewManager: WebViewManager) {

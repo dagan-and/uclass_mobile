@@ -2,14 +2,22 @@ package com.ubase.uclass.network
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.ubase.uclass.network.request.SocialLoginRequest
+import com.google.gson.JsonObject
+import com.google.gson.reflect.TypeToken
+import com.ubase.uclass.network.request.SNSLogin
+import com.ubase.uclass.network.request.SNSRegister
+import com.ubase.uclass.network.response.BaseData
 import com.ubase.uclass.network.response.ErrorData
+import com.ubase.uclass.network.response.SNSCheckData
+import com.ubase.uclass.network.response.SNSLoginData
+import com.ubase.uclass.network.response.EmptyData
 import com.ubase.uclass.util.AppUtil
 import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
 import okhttp3.CookieJar
 import okhttp3.JavaNetCookieJar
 import okhttp3.Response
+import java.lang.reflect.Type
 import java.net.CookieHandler
 import java.net.CookieManager
 import java.util.concurrent.ExecutorService
@@ -105,29 +113,21 @@ object NetworkAPI {
     }
 
     /**
-     * POST http://dev-umanager.ubase.kr/api/auth/social-login
-     * {
-     *     "provider": "KAKAO",
-     *     "token": "소셜 액세스 토큰",
-     *     "userType": "STUDENT",
-     *     "branchId": 1
-     * }
+     * 공통 POST 요청 처리 함수 - BaseData<T> 구조용
      */
-    fun socialLogin(snsType: String , snsId: String , userType : String, branchId: Int = 1) {
+    private fun executePostRequest(
+        endpoint: String,
+        responseCode: Int,
+        requestBody: Any,
+        responseType: Type
+    ) {
         checkInitialized()
 
         executorService?.execute {
             try {
-                val url = Constants.baseURL + NetworkAPIManager.Endpoint.AUTH_SOCIAL_LOGIN
-                val responseCode = NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN
+                val url = Constants.baseURL + endpoint
 
-                // 요청 바디 생성
-                val requestBody = SocialLoginRequest(
-                    provider = snsType,
-                    token = snsId,
-                    userType = userType,
-                    branchId = branchId
-                )
+                logRequest(requestBody)
 
                 val httpClient = HttpClient.Builder()
                     .setUrl(url)
@@ -140,15 +140,32 @@ object NetworkAPI {
                 val response: Response = httpClient.getCall().execute()
 
                 try {
-                    val responseBody = response.body.string() ?: ""
-                    logResponse(responseBody)
+                    val responseString = response.body.string() ?: ""
+                    logResponse(responseString)
 
                     if (response.isSuccessful) {
-                        if (responseBody.isNotEmpty()) {
+                        if (responseString.isNotEmpty()) {
                             try {
                                 val gson = Gson()
-                                val parsedResponse = gson.fromJson(responseBody, Any::class.java)
-                                sendCallback(responseCode, parsedResponse)
+                                val parsedResponse = gson.fromJson<Any>(responseString, responseType)
+
+                                // BaseData 구조로 파싱된 응답 확인
+                                if (parsedResponse is BaseData<*>) {
+                                    if (parsedResponse.isSuccess) {
+                                        // 성공 시 전체 BaseData 객체 전달
+                                        sendCallback(responseCode, parsedResponse)
+                                    } else {
+                                        // API에서 success: false 응답
+                                        val errorData = ErrorData(
+                                            responseCode,
+                                            parsedResponse.message ?: "API Error"
+                                        )
+                                        sendCallback(NetworkAPIManager.ResponseCode.API_ERROR, errorData)
+                                    }
+                                } else {
+                                    // BaseData 구조가 아닌 응답
+                                    sendCallback(responseCode, parsedResponse)
+                                }
                             } catch (e: Exception) {
                                 sendError(responseCode, e)
                             }
@@ -168,9 +185,87 @@ object NetworkAPI {
                     response.close()
                 }
             } catch (e: Exception) {
-                sendError(NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN, e)
+                sendError(responseCode, e)
             }
         }
+    }
+
+    /**
+     * POST /api/auth/sns/check
+     */
+    fun snsCheck(snsType: String, snsId: String) {
+        val requestBody = SNSLogin(
+            provider = snsType,
+            snsId = snsId,
+            pushToken = Constants.fcmToken
+        )
+
+        val responseType = object : TypeToken<BaseData<SNSCheckData>>() {}.type
+
+        executePostRequest(
+            endpoint = NetworkAPIManager.Endpoint.API_AUTH_SNS_CHECK,
+            responseCode = NetworkAPIManager.ResponseCode.API_AUTH_SNS_CHECK,
+            requestBody = requestBody,
+            responseType = responseType
+        )
+    }
+
+    /**
+     * POST /api/auth/sns/login
+     */
+    fun snsLogin(snsType: String, snsId: String) {
+        val requestBody = SNSLogin(
+            provider = snsType,
+            snsId = snsId,
+            pushToken = Constants.fcmToken
+        )
+
+        val responseType = object : TypeToken<BaseData<SNSLoginData>>() {}.type
+
+        executePostRequest(
+            endpoint = NetworkAPIManager.Endpoint.API_AUTH_SNS_LOGIN,
+            responseCode = NetworkAPIManager.ResponseCode.API_AUTH_SNS_LOGIN,
+            requestBody = requestBody,
+            responseType = responseType
+        )
+    }
+
+    /**
+     * POST /api/auth/sns/register
+     */
+    fun snsRegister(
+        snsType: String,
+        snsId: String,
+        name: String,
+        email: String,
+        phoneNumber: String = "010-1234-5678",
+        profileImageUrl: String = "",
+        userType: String = "STUDENT",
+        branchId: Int = 1,
+        termsAgreed: Boolean = true,
+        privacyAgreed: Boolean = true
+    ) {
+        val requestBody = SNSRegister(
+            provider = snsType,
+            snsId = snsId,
+            name = name,
+            email = email,
+            phoneNumber = phoneNumber,
+            profileImageUrl = profileImageUrl,
+            userType = userType,
+            branchId = branchId,
+            termsAgreed = termsAgreed,
+            privacyAgreed = privacyAgreed
+        )
+
+        val responseType = object : TypeToken<BaseData<EmptyData>>() {}.type
+
+        executePostRequest(
+            endpoint = NetworkAPIManager.Endpoint.API_AUTH_SNS_REGISTER,
+            responseCode = NetworkAPIManager.ResponseCode.API_AUTH_SNS_REGISTER,
+            requestBody = requestBody,
+            responseType = responseType
+        )
     }
 
     /**

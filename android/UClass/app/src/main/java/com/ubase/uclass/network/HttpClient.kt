@@ -109,7 +109,7 @@ class HttpClient private constructor(private val call: Call) {
             } else {
                 requestBuilder.addHeader("JWT_TOKEN", "")
             }
-            requestBuilder.addHeader("User-Agent", "AOS")
+            requestBuilder.addHeader("User-Agent", "ANDROID")
 
             // 추가 헤더 설정
             headers?.forEach { (key, value) ->

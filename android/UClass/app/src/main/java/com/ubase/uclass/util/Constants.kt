@@ -1,7 +1,7 @@
 package com.ubase.uclass.util
 
 object Constants {
-    var baseURL = "https://dev-umanager.ubase.kr/api"
+    var baseURL = "https://dev-umanager.ubase.kr"
     var jwtToken : String = ""
     var fcmToken : String = ""
     var refreshToken : String = ""

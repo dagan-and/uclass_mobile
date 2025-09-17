@@ -15,7 +15,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
         // 앱 기본값 설정
-        Constants.baseURL = "https://cloudbranchq-dev.aiwebcash.co.kr/adm"
+        Constants.baseURL = "https://dev-umanager.ubase.kr"
         Constants.isDebug = true
         NetworkAPI.shared.initialize()
         
@@ -27,12 +27,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         FirebaseApp.configure()
         Messaging.messaging().delegate = self
         
-        // 앱 실행 시 사용자에게 알림 허용 권한을 받는다
-        UNUserNotificationCenter.current().delegate = self
-        
-        let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
-        UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { _, _ in }
-        
+        // FCM 토큰 받기 위해서는 remote notification 등록
         application.registerForRemoteNotifications()
         
         // 푸시 알림으로 앱이 실행된 경우
@@ -99,6 +94,7 @@ extension AppDelegate: MessagingDelegate {
     // FCM Token 업데이트 시
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         Logger.dev("FCM Token:: \(fcmToken ?? "nil")")
+        Constants.fcmToken = fcmToken
     }
 }
 

@@ -17,6 +17,8 @@ object ViewCallbackManager {
         const val CHAT_BADGE: Int = 1
         //화면 이동
         const val NAVIGATION : Int = 2
+        //로그아웃
+        const val LOGOUT : Int = 3
     }
 
     // 페이지 코드 정의

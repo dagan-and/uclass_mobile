@@ -142,4 +142,30 @@ object PreferenceManager {
     fun canAutoLogin(context: Context): Boolean {
         return isLoggedIn(context) && hasCompleteUserInfo(context)
     }
+
+    // PreferenceManager.kt에 추가할 메서드들
+
+    /**
+     * Boolean 값을 저장
+     */
+    fun putBoolean(context: Context, key: String, value: Boolean) {
+        val sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        sharedPreferences.edit().putBoolean(key, value).apply()
+    }
+
+    /**
+     * Boolean 값을 가져옴
+     */
+    fun getBoolean(context: Context, key: String, defaultValue: Boolean = false): Boolean {
+        val sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getBoolean(key, defaultValue)
+    }
+
+    /**
+     * 특정 키의 값을 삭제
+     */
+    fun remove(context: Context, key: String) {
+        val sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        sharedPreferences.edit().remove(key).apply()
+    }
 }

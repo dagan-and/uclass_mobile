@@ -12,7 +12,9 @@ object NetworkAPIManager {
 
     // API 엔드포인트 정의
     object Endpoint {
-        const val AUTH_SOCIAL_LOGIN = "/auth/social-login"
+        const val API_AUTH_SNS_CHECK = "/api/auth/sns/check"
+        const val API_AUTH_SNS_LOGIN = "/api/auth/sns/login"
+        const val API_AUTH_SNS_REGISTER = "/api/auth/sns/register"
 
     }
 
@@ -21,7 +23,12 @@ object NetworkAPIManager {
         const val API_ERROR: Int = 9999
 
         // 인증 관련
-        const val API_AUTH_SOCIAL_LOGIN: Int = 1001
+        const val API_AUTH_SNS_CHECK : Int = 1001
+        const val API_AUTH_SNS_LOGIN : Int = 1002
+        const val API_AUTH_SNS_REGISTER : Int = 1003
+
+
+
     }
 
     /**

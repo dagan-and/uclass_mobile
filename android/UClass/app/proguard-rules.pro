@@ -20,32 +20,32 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
+# 네트워크 관련 클래스 보호
+-keep class com.ubase.uclass.network.response.** { *; }
+-keep class com.ubase.uclass.network.request.** { *; }
 
--keep class com.ubase.uclass.network.response** { *; }
--keep class com.ubase.uclass.network.request** { *; }
-
-
-
+# Compose 관련
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
 
-
-#-keepclassmembers enum okhttp3.** { *; }
 # FCM 프로가드
 -keep class com.google.android.gms.** { *; }
 -keep class com.google.firebase.** { *; }
 
-
-
-#카카오 , 네이버
+# 카카오, 네이버
 -keep class com.kakao.sdk.**.model.* { <fields>; }
 
-# https://github.com/square/okhttp/pull/6792
+# OkHttp 관련
 -dontwarn org.bouncycastle.jsse.**
 -dontwarn org.conscrypt.*
 -dontwarn org.openjsse.**
 
-# refrofit2 (with r8 full mode)
+# GraalVM Native Image 관련 (Android에서는 사용하지 않음)
+-dontwarn com.oracle.svm.core.annotate.**
+-dontwarn org.graalvm.nativeimage.**
+-dontwarn okhttp3.internal.graal.**
+
+# Retrofit2 관련 (with r8 full mode)
 -if interface * { @retrofit2.http.* <methods>; }
 -keep,allowobfuscation interface <1>
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
@@ -54,17 +54,6 @@
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
 -keep,allowobfuscation,allowshrinking interface retrofit2.Call
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
-
-
-
-
-
-
-
-
-
-
-
 
 ##---------------Begin: proguard configuration for retrofit2  ----------
 -keepattributes Signature, InnerClasses, EnclosingMethod
@@ -90,7 +79,7 @@
 -dontwarn retrofit2.KotlinExtensions
 -dontwarn retrofit2.KotlinExtensions$*
 
-#retofit# Platform calls Class.forName on types which do not exist on Android to determine platform.
+# Platform calls Class.forName on types which do not exist on Android to determine platform.
 -dontnote retrofit2.Platform
 # Platform used when running on Java 8 VMs. Will not be used at runtime.
 #-dontwarn retrofit2.Platform$Java8
@@ -98,7 +87,8 @@
 -keepattributes Signature
 # Retain declared checked exceptions for use by a Proxy instance.
 -keepattributes Exceptions
-#jsoup
+
+# jsoup
 -keep public class org.jsoup.**{    public *;}
 ##---------------End: proguard configuration for retrofit2  ----------
 
@@ -123,10 +113,45 @@
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
 
+# ===== 추가된 TypeToken 관련 ProGuard 규칙 =====
+# TypeToken 클래스와 관련 메서드 보호
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+
+# TypeToken의 익명 클래스 보호 (핵심!)
+-keep class com.ubase.uclass.network.NetworkAPI$*$* {
+    *;
+}
+
+# 제네릭 타입 정보 보존 (매우 중요!)
+-keepattributes Signature,RuntimeVisibleAnnotations,AnnotationDefault
+
+# TypeToken을 사용하는 모든 익명 클래스 보호
+-keep class **$*TypeToken* { *; }
+-keep class * extends com.google.gson.reflect.TypeToken { *; }
+
+# NetworkAPI 클래스의 모든 내부 클래스 보호
+-keep class com.ubase.uclass.network.NetworkAPI$** { *; }
+
+# 람다와 익명 클래스의 타입 정보 보존
+-keepclassmembers class * {
+    ** *TypeToken*;
+}
+
+# TypeToken 생성자 보호
+-keepclassmembers class com.google.gson.reflect.TypeToken {
+    <init>();
+    <init>(...);
+}
+
+# 제네릭 파라미터 보존을 위한 추가 설정
+-keep class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
 ##---------------End: proguard configuration for Gson  ----------
 
 # Needed to keep generic types and @Key annotations accessed via reflection
-
 -keepattributes AnnotationDefault
 
 -keepclassmembers class * {
@@ -135,16 +160,13 @@
 
 # Needed by Guava
 # See https://groups.google.com/forum/#!topic/guava-discuss/YCZzeCiIVoI
-
 -dontwarn sun.misc.Unsafe
 -dontwarn com.google.common.collect.MinMaxPriorityQueue
 
 # Needed by google-http-client-android when linking against an older platform version
-
 -dontwarn com.google.api.client.extensions.android.**
 
 # Needed by google-api-client-android when linking against an older platform version
-
 -dontwarn com.google.api.client.googleapis.extensions.android.**
 
 # GRPC

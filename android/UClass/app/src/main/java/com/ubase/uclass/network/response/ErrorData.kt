@@ -1,23 +1,10 @@
 package com.ubase.uclass.network.response
 
-class ErrorData(code: Int, msg: String?) {
-    private var code = 0
-    private var msg: String? = null
-
-
-    fun getCode(): Int {
-        return this.code
-    }
-
-    fun setCode(code: Int) {
-        this.code = code
-    }
-
-    fun getMsg(): String? {
-        return this.msg
-    }
-
-    fun setMsg(msg: String?) {
-        this.msg = msg
-    }
-}
+/**
+ * 에러 데이터 클래스
+ * 네트워크 API 에러 정보를 담는 데이터 클래스
+ */
+data class ErrorData(
+    val code: Int,
+    val msg: String?
+)

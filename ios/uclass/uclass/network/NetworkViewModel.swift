@@ -28,24 +28,64 @@ class NetworkViewModel: ObservableObject, NetworkAPIManager.NetworkCallback {
         unregisterNetworkCallback()
     }
     
-
     /**
-     * AuthInitStore API 전용 헬퍼 메서드
+     * SNS Check API 호출
      */
-    func callSocialLogin(snsType : String ,
-                         snsToken : String ,
-                         userType: String,
-                         onSuccess: ((Any?) -> Void)? = nil, onError: ((String) -> Void)? = nil) {
-        executeAPI(targetCode: NetworkAPIManager.ResponseCode.API_AUTH_SOCIAL_LOGIN, onSuccess: onSuccess, onError: onError)
-        
-        NetworkAPI.shared.socialLogin(
-            snsType: snsType,
-            snsId: snsToken,
-            userType: userType
-        )
+    func callSNSCheck(
+        snsType: String,
+        snsId: String,
+        onSuccess: ((Any?) -> Void)? = nil,
+        onError: ((String) -> Void)? = nil
+    ) {
+        executeAPI(targetCode: NetworkAPIManager.ResponseCode.API_AUTH_SNS_CHECK, onSuccess: onSuccess, onError: onError)
+        NetworkAPI.shared.snsCheck(snsType: snsType, snsId: snsId)
     }
     
+    /**
+     * SNS Login API 호출
+     */
+    func callSNSLogin(
+        snsType: String,
+        snsId: String,
+        onSuccess: ((Any?) -> Void)? = nil,
+        onError: ((String) -> Void)? = nil
+    ) {
+        executeAPI(targetCode: NetworkAPIManager.ResponseCode.API_AUTH_SNS_LOGIN, onSuccess: onSuccess, onError: onError)
+        NetworkAPI.shared.snsLogin(snsType: snsType, snsId: snsId)
+    }
     
+    /**
+     * SNS Register API 호출
+     */
+    func callSNSRegister(
+        snsType: String,
+        snsId: String,
+        name: String,
+        email: String,
+        phoneNumber: String = "010-1234-5678",
+        profileImageUrl: String = "",
+        userType: String = "STUDENT",
+        branchId: Int = 1,
+        termsAgreed: Bool = true,
+        privacyAgreed: Bool = true,
+        onSuccess: ((Any?) -> Void)? = nil,
+        onError: ((String) -> Void)? = nil
+    ) {
+        executeAPI(targetCode: NetworkAPIManager.ResponseCode.API_AUTH_SNS_REGISTER, onSuccess: onSuccess, onError: onError)
+        
+        NetworkAPI.shared.snsRegister(
+            snsType: snsType,
+            snsId: snsId,
+            name: name,
+            email: email,
+            phoneNumber: phoneNumber,
+            profileImageUrl: profileImageUrl,
+            userType: userType,
+            branchId: branchId,
+            termsAgreed: termsAgreed,
+            privacyAgreed: privacyAgreed
+        )
+    }
     
     /**
      * 일반적인 API 호출 메서드
@@ -126,26 +166,17 @@ class NetworkViewModel: ObservableObject, NetworkAPIManager.NetworkCallback {
     // MARK: - Private Methods
     
     private func handleTargetResponse(result: Any?) {
-        Logger.dev("Target API response received for callback: \(callbackKey)")
-        
-        // 응답 데이터 저장
-        self.responseData = result
-        
-        // 응답 데이터 처리 (JWT 토큰 등)
-        if let dataDict = result as? [String: Any] {
-            if let token = dataDict["token"] as? String {
-                Constants.jwtToken = token
-                Logger.dev("JWT Token updated from API response")
-            }
+            Logger.dev("Target API response received for callback: \(callbackKey)")
+            
+            // 응답 데이터 저장
+            self.responseData = result
+            
+            // 상태 업데이트
+            self.isLoading = false
+            
+            // 성공 콜백 호출
+            self.onSuccess?(result)
         }
-        
-        // 상태 업데이트
-        self.isLoading = false
-        self.isCompleted = true
-        
-        // 성공 콜백 호출
-        self.onSuccess?(result)
-    }
     
     private func handleError(result: Any?) {
         self.isLoading = false
@@ -168,5 +199,9 @@ class NetworkViewModel: ObservableObject, NetworkAPIManager.NetworkCallback {
         
         // 에러 콜백 호출
         self.onError?(errorMsg)
+    }
+    
+    func handleSuccess() {
+        self.isCompleted = true
     }
 }
