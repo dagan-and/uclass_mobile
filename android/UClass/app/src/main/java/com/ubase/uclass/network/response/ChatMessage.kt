@@ -11,3 +11,8 @@ data class ChatMessage(
     val isMe: Boolean,
     val timestamp: Date = Date()
 )
+
+sealed class ChatItem {
+    data class MessageItem(val message: ChatMessage) : ChatItem()
+    data class DateItem(val date: String) : ChatItem()
+}

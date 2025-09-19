@@ -25,6 +25,7 @@ import com.ubase.uclass.BuildConfig
 import com.ubase.uclass.R
 import com.ubase.uclass.presentation.MainActivity
 import com.ubase.uclass.util.AppUtil
+import com.ubase.uclass.util.BadgeManager
 import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
 import kotlin.random.Random
@@ -97,7 +98,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                     NotificationManager.IMPORTANCE_HIGH
                 )
                 channel.description = CHANNEL_ID
-                channel.setShowBadge(false)
+                channel.setShowBadge(true)
                 notificationManager.createNotificationChannel(channel)
             }
             builder = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
@@ -133,6 +134,10 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             AppUtil.setFCMIntent(intentForPushActionActivity , null , null, message.data)
             updateChatBadge(message.data)
 
+            // 현재 배지 카운트 가져오기
+            BadgeManager.getInstance().incrementBadgeCount(this)
+            val badgeCount = BadgeManager.getInstance().getBadgeCount(this)
+
             val pendingIntent = PendingIntent.getActivity(this, 1234, intentForPushActionActivity, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             builder.setContentTitle(title)
                 .setContentText(body)
@@ -144,7 +149,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 .setDefaults(Notification.DEFAULT_ALL)
                 .setCategory(NotificationCompat.CATEGORY_CALL) //Heads-up 알림을 크게 보여줌
                 .setAutoCancel(true)
-                .setNumber(0)
+                .setNumber(badgeCount)
                 .setFullScreenIntent(pendingIntent ,true)
             val notification: Notification = builder.build()
             notificationManager.notify(Random.nextInt(), notification)

@@ -139,28 +139,28 @@ struct SNSLoginView: View {
             // 앱 시작 시 저장된 로그인 정보 확인
             checkSavedLoginInfo()
         }
-        .onChange(of: kakaoLoginManager.isLoggedIn) { isLoggedIn in
-            if isLoggedIn {
+        .onChange(of: kakaoLoginManager.isLoggedIn) {
+            if kakaoLoginManager.isLoggedIn {
                 apiSNSCheck()
             }
         }
-        .onChange(of: appleLoginManager.isLoggedIn) { isLoggedIn in
-            if isLoggedIn {
+        .onChange(of: appleLoginManager.isLoggedIn) {
+            if appleLoginManager.isLoggedIn {
                 apiSNSCheck()
             }
         }
-        .onChange(of: naverLoginManager.isLoggedIn) { isLoggedIn in
-            if isLoggedIn {
+        .onChange(of: naverLoginManager.isLoggedIn) {
+            if naverLoginManager.isLoggedIn {
                 apiSNSCheck()
             }
         }
-        .onChange(of: networkViewModel.isCompleted) { isCompleted in
-            if isCompleted {
+        .onChange(of: networkViewModel.isCompleted) {
+            if networkViewModel.isCompleted {
                 startWebViewLoading()
             }
         }
-        .onChange(of: webViewManager.isLoaded) { isLoaded in
-            if isLoaded && showLoadingView {
+        .onChange(of: webViewManager.isLoaded) {
+            if webViewManager.isLoaded && showLoadingView {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     navigateToMain = true
                     showLoadingView = false

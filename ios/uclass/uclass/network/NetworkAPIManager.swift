@@ -112,11 +112,7 @@ class NetworkAPIManager {
             DispatchQueue.main.async {
                 if !currentCallbacks.isEmpty {
                     for callback in currentCallbacks {
-                        do {
-                            callback.onResult(code: code, result: result)
-                        } catch {
-                            Logger.error("Error in callback notification for code: \(code)\n\(error)")
-                        }
+                        callback.onResult(code: code, result: result)
                     }
                 } else {
                     Logger.dev("No callbacks registered - Result ignored (Code: \(code))")

@@ -114,10 +114,10 @@ class HttpClient {
             configuration.timeoutIntervalForRequest = timeout
             configuration.timeoutIntervalForResource = timeout
             
-            var interceptors: [RequestInterceptor] = []
+            let interceptors: [RequestInterceptor] = []
             
             // 로깅 설정
-            if Constants.isDebug && isLogging {
+            if Constants.isDebug {
                 let eventMonitor = ClosureEventMonitor()
                 eventMonitor.requestDidFinish = { request in
                     if let logListener = self.logListener {

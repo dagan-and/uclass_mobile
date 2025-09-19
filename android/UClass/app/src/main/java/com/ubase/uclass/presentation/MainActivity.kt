@@ -25,6 +25,7 @@ import com.ubase.uclass.presentation.view.MainScreen
 import com.ubase.uclass.presentation.view.PermissionScreen
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.util.AppUtil
+import com.ubase.uclass.util.BadgeManager
 import com.ubase.uclass.util.Logger
 import com.ubase.uclass.util.PermissionHelper
 import com.ubase.uclass.util.PreferenceManager
@@ -160,6 +161,12 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         // 새로운 Intent에서 FCM 데이터 확인
         checkIntentForFCMData(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 앱이 포그라운드로 올 때마다 배지 초기화
+        BadgeManager.getInstance().clearBadgeCount(this)
     }
 
     /**
