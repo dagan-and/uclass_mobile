@@ -13,6 +13,7 @@ struct ChatScreen: View {
     @State private var isScrollAtBottom: Bool = true
     @State private var tableViewRef: UITableView?
     @State private var messageCount: Int = 0
+    @State private var isLoadingPreviousMessages: Bool = false
     
     // 새로운 메시지 대기열 관련 상태 - 수정된 부분
     @State private var pendingMessages: [ChatMessage] = []
@@ -74,13 +75,53 @@ struct ChatScreen: View {
     }
 
     var body: some View {
-        GeometryReader { _ in
-            VStack(spacing: 0) {
-                titleBar
-                chatContainer
+        GeometryReader { geometry in
+            ZStack {
+                VStack(spacing: 0) {
+                    titleBar
+                    chatContainer
+                }
+                .background(Color.white)
+                
+                // 이전 메시지 로딩 상태 표시 (Z축으로 떠있음)
+                if isLoadingPreviousMessages {
+                    VStack {
+                        Spacer().frame(height: navigationBarHeight + 8) // titleBar 높이만큼 + 여백
+                        
+                        HStack(spacing: 8) {
+                            Text("이전 메시지를 불러오는 중...")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.black)
+                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .top).combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                        .animation(.easeInOut(duration: 0.3), value: isLoadingPreviousMessages)
+                        
+                        Spacer()
+                    }
+                }
             }
-            .background(Color.white)
             .navigationBarHidden(true)
+            .gesture(
+                DragGesture()
+                    .onEnded { value in
+                        // 오른쪽으로 swipe (뒤로가기)
+                        if value.translation.width > 100 && abs(value.translation.height) < 100 {
+                            Logger.dev("👈 [SWIPE] 오른쪽 스와이프로 뒤로가기")
+                            hideKeyboard()
+                            onBack()
+                        }
+                    }
+            )
             .onAppear {
                 NotificationCenter.default.post(
                     name: Notification.Name("ChatBadgeOff"),
@@ -90,6 +131,12 @@ struct ChatScreen: View {
             }
             .onChange(of: isScrollAtBottom) { _, newValue in
                 handleScrollToBottom(newValue)
+            }
+            .onChange(of: messages.count) { oldCount, newCount in
+                // 메시지 수가 변경될 때마다 로그 출력
+                if newCount != oldCount {
+                    Logger.dev("📊 [MSG_COUNT] 메시지 수 변경: \(oldCount) -> \(newCount)")
+                }
             }
         }
     }
@@ -125,7 +172,8 @@ struct ChatScreen: View {
                 ChatTableView(
                     messages: $messages,
                     isScrollAtBottom: $isScrollAtBottom,
-                    tableViewRef: $tableViewRef
+                    tableViewRef: $tableViewRef,
+                    isLoadingPreviousMessages: $isLoadingPreviousMessages
                 )
                 .onTapGesture {
                     hideKeyboard()
@@ -302,12 +350,6 @@ struct ChatScreen: View {
             
             // 처리 완료
             isProcessingPendingMessages = false
-            
-            // 처리 중에 새로 들어온 메시지가 있다면 알림 다시 표시
-            if !pendingMessages.isEmpty {
-                showPendingMessagesAlert = true
-                Logger.dev("📬 [NEW_PENDING] 처리 중에 새로운 대기 메시지 발견, 알림 다시 표시")
-            }
             
             // 스크롤을 다시 하단으로
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
