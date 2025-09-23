@@ -26,6 +26,10 @@ class LogoutViewModel : ViewModel() {
         })
     }
 
+    fun reset() {
+        logout = false
+    }
+
     override fun onCleared() {
         super.onCleared()
         ViewCallbackManager.unregisterCallback(callbackKey)

@@ -1,5 +1,7 @@
 package com.ubase.uclass.presentation.view
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -16,7 +18,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat.startActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ubase.uclass.App
 import com.ubase.uclass.R
 import com.ubase.uclass.network.ViewCallbackManager
 import com.ubase.uclass.network.ViewCallbackManager.PageCode.CHAT
@@ -122,7 +126,12 @@ fun MainBottomNavigationBar(
             },
             label = { Text("공지사항") },
             selected = selectedTab == 2,
-            onClick = { ViewCallbackManager.notifyResult(NAVIGATION, NOTICE) },
+            onClick = {
+                val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:01234561492"))
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // ApplicationContext로 실행 시 필요
+                App.context().startActivity(intent)
+                ViewCallbackManager.notifyResult(NAVIGATION, NOTICE)
+                      },
             colors = NavigationBarItemDefaults.colors(
                 selectedTextColor = Color.Black,
                 unselectedTextColor = Color.Gray,

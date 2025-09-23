@@ -14,9 +14,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ubase.uclass.network.response.ChatMessage
 import com.ubase.uclass.util.DateUtils
+import com.ubase.uclass.util.Logger
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun ChatBubble(message: ChatMessage) {
+
+    // timestamp를 오전/오후 시:분 형태로 변환
+    val displayTime = formatTimestamp(message.timestamp)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -27,7 +34,7 @@ fun ChatBubble(message: ChatMessage) {
         if (message.isMe) {
             // 내 메시지: 시간 표시 왼쪽, 말풍선 오른쪽
             Text(
-                text = DateUtils.formatTime(message.timestamp),
+                text = displayTime,
                 color = Color.Gray,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(end = 8.dp, bottom = 4.dp)
@@ -67,12 +74,33 @@ fun ChatBubble(message: ChatMessage) {
             }
 
             Text(
-                text = DateUtils.formatTime(message.timestamp),
+                text = displayTime,
                 color = Color.Gray,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
             )
         }
+    }
+}
+
+/**
+ * timestamp를 오전/오후 시:분 형태로 변환
+ * @param timestamp "2025-09-19 22:59:19" 형태의 문자열
+ * @return "오후 10:59" 형태의 문자열
+ */
+private fun formatTimestamp(timestamp: String): String {
+    return try {
+        // 입력 형태: "2025-09-19 22:59:19"
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        // 출력 형태: "오전/오후 h:mm"
+        val outputFormat = SimpleDateFormat("a h:mm", Locale.KOREAN)
+
+        val date = inputFormat.parse(timestamp)
+        date?.let { outputFormat.format(it) } ?: timestamp
+    } catch (e: Exception) {
+        Logger.error("timestamp 파싱 실패: $timestamp, error: ${e.message}")
+        // 파싱 실패 시 원본 반환
+        timestamp
     }
 }
 

@@ -1,18 +1,63 @@
 package com.ubase.uclass.network.response
 
-import java.util.*
+import com.google.gson.annotations.SerializedName
+import com.ubase.uclass.util.Constants
 
 /**
- * 채팅 메시지 데이터 모델
+ * 메시지 데이터 모델
  */
 data class ChatMessage(
-    val id: String = UUID.randomUUID().toString(),
-    val text: String,
-    val isMe: Boolean,
-    val timestamp: Date = Date()
-)
+    @SerializedName("messageId")
+    val messageId: String,
 
-sealed class ChatItem {
-    data class MessageItem(val message: ChatMessage) : ChatItem()
-    data class DateItem(val date: String) : ChatItem()
+    @SerializedName("senderId")
+    val senderId: Double,
+
+    @SerializedName("senderType")
+    val senderType: String,
+
+    @SerializedName("senderName")
+    val senderName: String,
+
+    @SerializedName("receiverId")
+    val receiverId: Double,
+
+    @SerializedName("receiverType")
+    val receiverType: String,
+
+    @SerializedName("receiverName")
+    val receiverName: String,
+
+    @SerializedName("branchId")
+    val branchId: Double,
+
+    @SerializedName("branchName")
+    val branchName: String,
+
+    @SerializedName("content")
+    val content: String,
+
+    @SerializedName("isRead")
+    val isRead: Boolean,
+
+    @SerializedName("readAt")
+    val readAt: String?,
+
+    @SerializedName("sentAt")
+    val sentAt: String,
+
+    @SerializedName("roomId")
+    val roomId: String
+) {
+    // isMe 계산 프로퍼티
+    val isMe: Boolean
+        get() = senderId.toInt() == Constants.getUserId()
+
+    // 표시할 텍스트 (content 필드 사용)
+    val text: String
+        get() = content
+
+    // 타임스탬프 (sentAt 필드 사용)
+    val timestamp: String
+        get() = sentAt
 }

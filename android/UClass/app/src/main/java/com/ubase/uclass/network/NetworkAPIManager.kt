@@ -12,10 +12,18 @@ object NetworkAPIManager {
 
     // API 엔드포인트 정의
     object Endpoint {
+        //인증관리
         const val API_AUTH_SNS_CHECK = "/api/auth/sns/check"
         const val API_AUTH_SNS_LOGIN = "/api/auth/sns/login"
         const val API_AUTH_SNS_REGISTER = "/api/auth/sns/register"
 
+        //채팅
+        const val API_DM_NATIVE_INIT = "/api/dm/native/init"
+        const val API_DM_NATIVE_MESSAGES = "/api/dm/native/messages"
+        const val API_DM_NATIVE_READ = "/api/dm/native/read"
+        const val API_DM_NATIVE_SEND = "/api/dm/native/send"
+        const val API_DM_NATIVE_STATUS = "/api/dm/native/status"
+        const val API_DM_NATIVE_UNREAD = "/api/dm/native/unread"
     }
 
     // 응답 코드 정의
@@ -27,8 +35,13 @@ object NetworkAPIManager {
         const val API_AUTH_SNS_LOGIN : Int = 1002
         const val API_AUTH_SNS_REGISTER : Int = 1003
 
-
-
+        // 채팅 관련
+        const val API_DM_NATIVE_INIT : Int = 2001
+        const val API_DM_NATIVE_MESSAGES : Int = 2002
+        const val API_DM_NATIVE_READ : Int = 2003
+        const val API_DM_NATIVE_SEND : Int = 2004
+        const val API_DM_NATIVE_STATUS : Int = 2005
+        const val API_DM_NATIVE_UNREAD : Int = 2006
     }
 
     /**

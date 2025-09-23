@@ -38,6 +38,7 @@ navigation-compose = "2.8.3"
 kakao = "2.20.3"
 naver = "5.1.1"
 google-auth = "20.7.0"
+socket = "1.0.2"
 
 
 [libraries]
@@ -88,6 +89,7 @@ androidx-navigation-compose = { module = "androidx.navigation:navigation-compose
 kakao = { module = "com.kakao.sdk:v2-user", version.ref = "kakao" }
 naver = { module = "com.navercorp.nid:oauth", version.ref = "naver" }
 google-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "google-auth" }
+socket = { module = "io.socket:socket.io-client", version.ref = "socket" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

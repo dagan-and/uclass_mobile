@@ -232,7 +232,7 @@ fun CustomAlert() {
                                 .weight(1f)
                                 .height(44.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4F63D2)
+                                containerColor = Color(0xFF0022EE)
                             ),
                             shape = RoundedCornerShape(8.dp)
                         ) {

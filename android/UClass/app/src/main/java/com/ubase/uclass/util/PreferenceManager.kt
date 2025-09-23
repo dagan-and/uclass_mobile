@@ -10,8 +10,10 @@ object PreferenceManager {
 
     // Keys
     private const val KEY_SNS_TYPE = "sns_type"
+    private const val KEY_SNS_ID = "sns_id"
     private const val KEY_SNS_TOKEN = "sns_token"
-    private const val KEY_USER_ID = "user_id"
+    private const val KEY_USER_ID = "user_id_v1"
+    private const val KEY_BRANCH_ID = "branch_id_v1"
     private const val KEY_USER_EMAIL = "user_email"
     private const val KEY_USER_NAME = "user_name"
     private const val KEY_IS_LOGGED_IN = "is_logged_in"
@@ -33,14 +35,9 @@ object PreferenceManager {
         return getPreferences(context).getString(KEY_SNS_TYPE, "") ?: ""
     }
 
-    /** 사용자 ID 저장 */
-    fun setUserId(context: Context, userId: String) {
-        getPreferences(context).edit().putString(KEY_USER_ID, userId).apply()
-    }
-
     /** 사용자 ID 조회 */
-    fun getUserId(context: Context): String {
-        return getPreferences(context).getString(KEY_USER_ID, "") ?: ""
+    fun getSNSId(context: Context): String {
+        return getPreferences(context).getString(KEY_SNS_ID, "") ?: ""
     }
 
     /** 사용자 이메일 저장 */
@@ -73,13 +70,33 @@ object PreferenceManager {
         return getPreferences(context).getBoolean(KEY_IS_LOGGED_IN, false)
     }
 
+    /** 사용자 ID 조회 */
+    fun setUserId(context: Context, userId: Int) {
+        getPreferences(context).edit().putInt(KEY_USER_ID , userId).apply()
+    }
+
+    /** 사용자 ID 조회 */
+    fun getUserId(context: Context): Int {
+        return getPreferences(context).getInt(KEY_USER_ID, 0)
+    }
+
+    /** 지점 ID 조회 */
+    fun setBranchId(context: Context, userId: Int) {
+        getPreferences(context).edit().putInt(KEY_BRANCH_ID , userId).apply()
+    }
+
+    /** 지점 ID 조회 */
+    fun getBranchId(context: Context): Int {
+        return getPreferences(context).getInt(KEY_BRANCH_ID, 0)
+    }
+
     // MARK: - 전체 로그인 정보 저장
 
     /** 모든 로그인 정보를 한번에 저장 */
     fun saveLoginInfo(context: Context, snsType: String, userId: String, email: String, name: String) {
         val editor = getPreferences(context).edit()
         editor.putString(KEY_SNS_TYPE, snsType)
-        editor.putString(KEY_USER_ID, userId)
+        editor.putString(KEY_SNS_ID, userId)
         editor.putString(KEY_USER_EMAIL, email)
         editor.putString(KEY_USER_NAME, name)
         editor.putBoolean(KEY_IS_LOGGED_IN, true)
@@ -91,7 +108,7 @@ object PreferenceManager {
     fun clearLoginInfo(context: Context) {
         val editor = getPreferences(context).edit()
         editor.remove(KEY_SNS_TYPE)
-        editor.remove(KEY_USER_ID)
+        editor.remove(KEY_SNS_ID)
         editor.remove(KEY_USER_EMAIL)
         editor.remove(KEY_USER_NAME)
         editor.remove(KEY_LOGIN_TIME)
@@ -103,7 +120,7 @@ object PreferenceManager {
     fun printSavedLoginInfo(context: Context) {
         Logger.info("=== 저장된 로그인 정보 ===")
         Logger.info("SNS Type: ${getSNSType(context)}")
-        Logger.info("User ID: ${getUserId(context)}")
+        Logger.info("User ID: ${getSNSId(context)}")
         Logger.info("Email: ${getUserEmail(context)}")
         Logger.info("Name: ${getUserName(context)}")
         Logger.info("Is Logged In: ${isLoggedIn(context)}")
@@ -116,7 +133,7 @@ object PreferenceManager {
     fun getLoginInfoAsJson(context: Context): JSONObject {
         val json = JSONObject()
         json.put("snsType", getSNSType(context))
-        json.put("userId", getUserId(context))
+        json.put("userId", getSNSId(context))
         json.put("email", getUserEmail(context))
         json.put("name", getUserName(context))
         json.put("isLoggedIn", isLoggedIn(context))
@@ -130,7 +147,7 @@ object PreferenceManager {
 
     /** 사용자 정보가 완전한지 확인 */
     fun hasCompleteUserInfo(context: Context): Boolean {
-        return getUserId(context).isNotEmpty()
+        return getSNSId(context).isNotEmpty()
     }
 
     /** 로그인 시간 조회 */

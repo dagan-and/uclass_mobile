@@ -47,7 +47,7 @@ fun CustomLoading() {
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(60.dp),
-                    color = Color(0xFF4F63D2),
+                    color = Color(0xFF0022EE),
                     strokeWidth = 6.dp
                 )
             }

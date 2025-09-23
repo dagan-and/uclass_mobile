@@ -35,12 +35,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -53,6 +54,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ubase.uclass.R
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ubase.uclass.presentation.viewmodel.ChatViewModel
 import com.ubase.uclass.network.ViewCallbackManager
 import com.ubase.uclass.network.ViewCallbackManager.PageCode.HOME
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
@@ -71,37 +74,36 @@ import java.util.Date
 @Composable
 fun ChatScreen(
     modifier: Modifier,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    chatViewModel: ChatViewModel = viewModel()
 ) {
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
+    // ViewModel 상태 구독
+    val isChatInitialized by chatViewModel.isChatInitialized.collectAsState()
+    val isInitializingChat by chatViewModel.isInitializingChat.collectAsState()
+    val messages by chatViewModel.messages.collectAsState()
+    val messageText by chatViewModel.messageText.collectAsState()
+    val newlyAddedMessageIds by chatViewModel.newlyAddedMessageIds.collectAsState()
+    val showNewMessageAlert by chatViewModel.showNewMessageAlert.collectAsState()
+    val isAtBottom by chatViewModel.isAtBottom.collectAsState()
+    val isLoadingMore by chatViewModel.isLoadingMore.collectAsState()
+    val hasMoreMessages by chatViewModel.hasMoreMessages.collectAsState()
+    val branchName by chatViewModel.branchName.collectAsState()
+
     LaunchedEffect(Unit) {
         ViewCallbackManager.notifyResult(CHAT_BADGE, false)
+
+        // 사용자 ID 가져와서 채팅 초기화
+        val userId = PreferenceManager.getUserId(context)
+        if (userId != 0) {
+            chatViewModel.initializeChat(userId.toString())
+        } else {
+            Logger.error("사용자 ID가 없어 채팅 초기화를 건너뜁니다")
+        }
     }
-
-    // 더미 데이터 생성 (9월 1일 ~ 9월 10일, 200개 메시지)
-    var messages by remember {
-        //mutableStateOf(emptyList<ChatMessage>())
-        mutableStateOf(generateDummyMessages()) // 더미 데이터 테스트시 주석 해제
-    }
-
-    // 새로 추가된 메시지 ID를 추적하기 위한 상태
-    var newlyAddedMessageIds by remember { mutableStateOf(setOf<String>()) }
-
-    // 새 메시지 알림 상태
-    var showNewMessageAlert by remember { mutableStateOf(false) }
-
-    // 스크롤 위치 확인을 위한 상태
-    var isAtBottom by remember { mutableStateOf(true) }
-
-    // 더 많은 메시지 로딩 상태
-    var isLoadingMore by remember { mutableStateOf(false) }
-    var hasMoreMessages by remember { mutableStateOf(true) }
-    var messageCounter by remember { mutableStateOf(200) } // 현재 메시지 개수
-
-    var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
     //인터랙션 제거
@@ -119,11 +121,7 @@ fun ChatScreen(
             val firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset
             firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset == 0
         }.collect { isAtBottomNow ->
-            isAtBottom = isAtBottomNow
-            // 최신 위치에 있으면 새 메시지 알림 숨기기
-            if (isAtBottomNow) {
-                showNewMessageAlert = false
-            }
+            chatViewModel.updateScrollPosition(isAtBottomNow)
         }
     }
 
@@ -138,50 +136,12 @@ fun ChatScreen(
             totalItemsCount > 0 && lastVisibleItemIndex >= totalItemsCount - 5
         }.collect { shouldLoadMore ->
             if (shouldLoadMore && !isLoadingMore && hasMoreMessages) {
-                Logger.dev("최하단 감지 - 더 많은 메시지 로드 시작")
-                isLoadingMore = true
-
-                // 네트워크 지연 시뮬레이션
-                kotlinx.coroutines.delay(1000)
-
-                // 더 많은 더미 데이터 생성
-                val newMessages = generateMoreDummyMessages(
-                    startIndex = messageCounter,
-                    count = 50,
-                    baseDate = messages.minByOrNull { it.timestamp }?.timestamp ?: Date()
-                )
-
-                if (newMessages.isNotEmpty()) {
-                    messages = newMessages + messages // 기존 메시지 앞에 추가
-                    messageCounter += newMessages.size
-                    Logger.dev("${newMessages.size}개의 이전 메시지 로드 완료")
-
-                    // 1000개가 넘으면 더 이상 로드하지 않음
-                    if (messageCounter >= 1000) {
-                        hasMoreMessages = false
-                        Logger.dev("최대 메시지 수 도달 - 더 이상 로드하지 않음")
-                    }
-                } else {
-                    hasMoreMessages = false
-                }
-
-                isLoadingMore = false
+                chatViewModel.loadMoreMessages()
             }
         }
     }
 
-    // 상대방 메시지 시뮬레이션 (테스트용)
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(5000) // 5초 후 상대방 메시지 추가
-        val otherMessage = ChatMessage(text = "안녕하세요! 상대방 메시지입니다.", isMe = false)
-        newlyAddedMessageIds = newlyAddedMessageIds + otherMessage.id
-        messages = messages + otherMessage
-
-        // 스크롤이 최신 위치가 아니면 알림 표시
-        if (!isAtBottom) {
-            showNewMessageAlert = true
-        }
-    }
+    // 상대방 메시지 시뮬레이션 제거 (더미 데이터)
 
     Column(
         modifier = modifier
@@ -207,11 +167,22 @@ fun ChatScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
+                // branchName을 타이틀로 표시
                 Text(
-                    text = "채팅",
+                    text = branchName,
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.Black
                 )
+
+                // 채팅 초기화 상태 표시
+                if (isInitializingChat) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.Gray
+                    )
+                }
             }
         }
 
@@ -221,92 +192,114 @@ fun ChatScreen(
                 .weight(1f)
                 .padding(horizontal = 16.dp)
         ) {
-            // 채팅 리스트 (백그라운드)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        focusManager.clearFocus()
-                    },
-                contentAlignment = Alignment.BottomStart
-            ) {
-                LazyColumn(
-                    state = listState,
-                    reverseLayout = true,
-                    modifier = Modifier.fillMaxWidth()
+            // 채팅 초기화 로딩 화면
+            if (isInitializingChat) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val sortedMessages = messages.sortedBy { it.timestamp }
-                    val messagesWithDateSeparators = buildList {
-                        sortedMessages.forEachIndexed { index, message ->
-                            // 이전 메시지와 날짜가 다르면 날짜 구분선 추가
-                            if (index == 0 || !DateUtils.isSameDay(
-                                    sortedMessages[index - 1].timestamp,
-                                    message.timestamp
-                                )
-                            ) {
-                                add("DATE_${DateUtils.formatDate(message.timestamp)}")
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "채팅을 준비하는 중...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            } else {
+                // 채팅 리스트 (백그라운드)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            focusManager.clearFocus()
+                        },
+                    contentAlignment = Alignment.BottomStart
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        reverseLayout = true,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val sortedMessages = messages.sortedBy { it.timestamp }
+                        val messagesWithDateSeparators = buildList {
+                            sortedMessages.forEachIndexed { index, message ->
+                                // 이전 메시지와 날짜가 다르면 날짜 구분선 추가
+                                if (index == 0 || !DateUtils.isSameDay(
+                                        sortedMessages[index - 1].timestamp,
+                                        message.timestamp
+                                    )
+                                ) {
+                                    add("DATE_${DateUtils.formatDate(message.timestamp)}")
+                                }
+                                add("MESSAGE_${message.messageId}")  // message.id → message.messageId 로 변경
                             }
-                            add("MESSAGE_${message.id}")
-                        }
-                    }.reversed()
+                        }.reversed()
 
 
-                    items(
-                        items = messagesWithDateSeparators,
-                        key = { it } // 각 아이템의 고유 키 설정
-                    ) { item ->
-                        when {
-                            item.startsWith("DATE_") -> {
-                                val date = item.removePrefix("DATE_")
-                                DateSeparator(date = date)
-                            }
-                            item.startsWith("MESSAGE_") -> {
-                                val messageId = item.removePrefix("MESSAGE_")
-                                val message = messages.find { it.id == messageId }
-                                message?.let {
-                                    // 새로 추가된 메시지인지 확인
-                                    val isNewMessage = newlyAddedMessageIds.contains(messageId)
+                        items(
+                            items = messagesWithDateSeparators,
+                            key = { it } // 각 아이템의 고유 키 설정
+                        ) { item ->
+                            when {
+                                item.startsWith("DATE_") -> {
+                                    val date = item.removePrefix("DATE_")
+                                    DateSeparator(date = date)
+                                }
+                                item.startsWith("MESSAGE_") -> {
+                                    val messageId = item.removePrefix("MESSAGE_")
+                                    val message = messages.find { it.messageId == messageId }
+                                    message?.let {
+                                        // 새로 추가된 메시지인지 확인
+                                        val isNewMessage = chatViewModel.isNewMessage(messageId)
 
-                                    androidx.compose.animation.AnimatedVisibility(
-                                        visible = true,
-                                        enter = if (isNewMessage) {
-                                            // 새 메시지 애니메이션: 아래에서 위로 슬라이드 + 페이드인 + 확장
-                                            slideInVertically(
-                                                initialOffsetY = { it },
-                                                animationSpec = spring(
-                                                    dampingRatio = 0.8f,
-                                                    stiffness = 300f
+                                        androidx.compose.animation.AnimatedVisibility(
+                                            visible = true,
+                                            enter = if (isNewMessage) {
+                                                // 새 메시지 애니메이션: 아래서 위로 슬라이드 + 페이드인 + 확장
+                                                slideInVertically(
+                                                    initialOffsetY = { it },
+                                                    animationSpec = spring(
+                                                        dampingRatio = 0.8f,
+                                                        stiffness = 300f
+                                                    )
+                                                ) + fadeIn(
+                                                    animationSpec = tween(300)
+                                                ) + expandVertically(
+                                                    animationSpec = spring(
+                                                        dampingRatio = 0.8f,
+                                                        stiffness = 300f
+                                                    )
                                                 )
-                                            ) + fadeIn(
-                                                animationSpec = tween(300)
-                                            ) + expandVertically(
+                                            } else {
+                                                // 기존 메시지는 즉시 표시
+                                                fadeIn(animationSpec = tween(0))
+                                            },
+                                            modifier = Modifier.animateItemPlacement(
                                                 animationSpec = spring(
                                                     dampingRatio = 0.8f,
                                                     stiffness = 300f
                                                 )
                                             )
-                                        } else {
-                                            // 기존 메시지는 즉시 표시
-                                            fadeIn(animationSpec = tween(0))
-                                        },
-                                        modifier = Modifier.animateItemPlacement(
-                                            animationSpec = spring(
-                                                dampingRatio = 0.8f,
-                                                stiffness = 300f
-                                            )
-                                        )
-                                    ) {
-                                        ChatBubble(message = it)
-                                    }
+                                        ) {
+                                            ChatBubble(message = it)
+                                        }
 
-                                    // 애니메이션 완료 후 새 메시지 상태 해제
-                                    LaunchedEffect(messageId) {
-                                        if (isNewMessage) {
-                                            kotlinx.coroutines.delay(500) // 애니메이션 완료 대기
-                                            newlyAddedMessageIds = newlyAddedMessageIds - messageId
+                                        // 애니메이션 완료 후 새 메시지 상태 해제
+                                        LaunchedEffect(messageId) {
+                                            if (isNewMessage) {
+                                                kotlinx.coroutines.delay(500) // 애니메이션 완료 대기
+                                                chatViewModel.removeNewMessageId(messageId)
+                                            }
                                         }
                                     }
                                 }
@@ -314,72 +307,72 @@ fun ChatScreen(
                         }
                     }
                 }
-            }
 
-            // 새 메시지 알림 (플로팅 오버레이)
-            if (showNewMessageAlert) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                // 새 메시지 알림 (플로팅 오버레이)
+                if (showNewMessageAlert) {
                     Box(
                         modifier = Modifier
-                            .background(
-                                color = Color(0xFF4CAF50),
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                // 클릭 시 최신 메시지로 스크롤
-                                coroutineScope.launch {
-                                    listState.animateScrollToItem(0)
-                                    showNewMessageAlert = false
-                                }
-                            }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 16.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "새로운 메시지가 왔습니다",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = Color(0xFF4CAF50),
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    // 클릭 시 최신 메시지로 스크롤
+                                    coroutineScope.launch {
+                                        listState.animateScrollToItem(0)
+                                        chatViewModel.hideNewMessageAlert()
+                                    }
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "새로운 메시지가 왔습니다",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
-            }
 
-            // 로딩 인디케이터 (상단에 표시)
-            if (isLoadingMore) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(bottom = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                // 로딩 인디케이터 (상단에 표시)
+                if (isLoadingMore) {
                     Box(
                         modifier = Modifier
-                            .background(
-                                color = Color(0xFF000000),
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .align(Alignment.TopCenter)
+                            .padding(bottom = 16.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "이전 메시지를 불러오는 중...",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = Color(0xFF000000),
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "이전 메시지를 불러오는 중...",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // 채팅 입력창
+        // 채팅 입력창 (채팅 초기화 완료 후에만 활성화)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -390,7 +383,7 @@ fun ChatScreen(
                 modifier = Modifier
                     .weight(1f)
                     .background(
-                        color = Color(0xFFF0F0F0), // 연한 회색
+                        color = if (isChatInitialized) Color(0xFFF0F0F0) else Color(0xFFE0E0E0), // 초기화 완료 여부에 따라 색상 변경
                         shape = RoundedCornerShape(24.dp)
                     )
                     .padding(horizontal = 16.dp, vertical = 12.dp) // 내부 패딩
@@ -399,23 +392,24 @@ fun ChatScreen(
 
                 BasicTextField(
                     value = messageText,
-                    onValueChange = { messageText = it },
+                    onValueChange = { if (isChatInitialized) chatViewModel.updateMessageText(it) }, // 초기화 완료 후에만 입력 허용
                     modifier = Modifier
                         .fillMaxWidth()
                         .onFocusChanged { isFocused = it.isFocused },
                     textStyle = TextStyle(
                         fontSize = 16.sp,
-                        color = Color.Black
+                        color = if (isChatInitialized) Color.Black else Color.Gray
                     ),
                     maxLines = 6,
                     singleLine = false,
-                    cursorBrush = SolidColor(Color.Black) // 검은색 커서
+                    cursorBrush = SolidColor(if (isChatInitialized) Color.Black else Color.Gray),
+                    enabled = isChatInitialized // 초기화 완료 후에만 활성화
                 )
 
                 // Placeholder
                 if (messageText.isEmpty() && !isFocused) {
                     Text(
-                        text = "메시지 입력",
+                        text = if (isChatInitialized) "메시지 입력" else "채팅 준비 중...",
                         color = Color.Gray,
                         fontSize = 16.sp
                     )
@@ -432,30 +426,23 @@ fun ChatScreen(
                         interactionSource = interactionSource,
                         indication = null
                     ) {
-                        if (messageText.isNotEmpty()) {
+                        if (messageText.isNotEmpty() && isChatInitialized) {
 
                             //TODO 삭제하기
-                            if(messageText == "로그아웃") {
+                            if(messageText.trim() == "로그아웃") {
                                 ViewCallbackManager.notifyResult(ViewCallbackManager.ResponseCode.NAVIGATION , HOME)
                                 ViewCallbackManager.notifyResult(ViewCallbackManager.ResponseCode.LOGOUT, true)
                             }
 
-                            // 새 메시지를 맨 앞에 추가 (reverseLayout이므로 시각적으로는 맨 아래)
-                            val newMessage = ChatMessage(text = messageText, isMe = true)
-                            messages = messages + newMessage
+                            // ViewModel을 통해 메시지 전송
+                            chatViewModel.sendMessage(messageText)
 
-                            // 내가 보낸 메시지는 항상 애니메이션과 스크롤 적용
-                            newlyAddedMessageIds = newlyAddedMessageIds + newMessage.id
-
-                            messageText = ""
-
-                            // 내가 보낸 메시지는 항상 최신으로 스크롤
+                            // 자동 스크롤
                             coroutineScope.launch {
                                 try {
-                                    // 약간의 지연 후 스크롤 (애니메이션과 함께)
                                     kotlinx.coroutines.delay(50)
                                     listState.animateScrollToItem(0)
-                                    showNewMessageAlert = false // 알림 숨기기
+                                    chatViewModel.hideNewMessageAlert()
                                     Logger.dev("새 메시지로 자동 스크롤 완료")
                                 } catch (e: Exception) {
                                     Logger.error("자동 스크롤 중 오류 발생: ${e.message}")
@@ -465,60 +452,17 @@ fun ChatScreen(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                val iconRes =
-                    if (messageText.isEmpty()) R.drawable.icon_send_off else R.drawable.icon_send_on
+                val iconRes = when {
+                    !isChatInitialized -> R.drawable.icon_send_off // 초기화 중일 때
+                    messageText.isEmpty() -> R.drawable.icon_send_off
+                    else -> R.drawable.icon_send_on
+                }
                 Icon(
                     painter = painterResource(id = iconRes),
-                    contentDescription = "전송"
+                    contentDescription = "전송",
+                    tint = if (isChatInitialized && messageText.isNotEmpty()) Color.Unspecified else Color.Gray
                 )
             }
         }
     }
-}
-
-// 더미 데이터 생성 함수
-private fun generateDummyMessages(): List<ChatMessage> {
-    val messages = mutableListOf<ChatMessage>()
-    val calendar = Calendar.getInstance()
-
-    // 9월 1일부터 시작
-    calendar.set(2024, Calendar.SEPTEMBER, 1, 9, 0, 0)
-
-    repeat(200) { index ->
-        val message = ChatMessage(
-            text = if (index % 2 == 0) "내 메시지 $index" else "상대방 메시지 $index",
-            isMe = index % 2 == 0,
-            timestamp = calendar.time.clone() as Date
-        )
-        messages.add(message)
-
-        // 시간을 랜덤하게 증가 (1분 ~ 2시간)
-        val randomMinutes = (1..120).random()
-        calendar.add(Calendar.MINUTE, randomMinutes)
-    }
-
-    return messages
-}
-
-// 추가 더미 데이터 생성 함수 (이전 메시지)
-private fun generateMoreDummyMessages(startIndex: Int, count: Int, baseDate: Date): List<ChatMessage> {
-    val messages = mutableListOf<ChatMessage>()
-    val calendar = Calendar.getInstance()
-    calendar.time = baseDate
-
-    // 기준 날짜에서 시간을 거꾸로 가면서 생성
-    repeat(count) { index ->
-        // 시간을 랜덤하게 감소 (1분 ~ 2시간 전)
-        val randomMinutes = (1..120).random()
-        calendar.add(Calendar.MINUTE, -randomMinutes)
-
-        val message = ChatMessage(
-            text = if ((startIndex + index) % 2 == 0) "내 이전 메시지 ${startIndex + index}" else "상대방 이전 메시지 ${startIndex + index}",
-            isMe = (startIndex + index) % 2 == 0,
-            timestamp = calendar.time.clone() as Date
-        )
-        messages.add(0, message) // 앞에 추가해서 시간순 정렬 유지
-    }
-
-    return messages
 }

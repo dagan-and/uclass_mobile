@@ -1,11 +1,21 @@
 package com.ubase.uclass.util
 
+import com.ubase.uclass.App
+
 object Constants {
     var baseURL = "https://dev-umanager.ubase.kr"
     var jwtToken : String = ""
     var fcmToken : String = ""
     var refreshToken : String = ""
     var tokenExpired : String = ""
+
+    fun getUserId() : Int {
+        return PreferenceManager.getUserId(App.context())
+    }
+
+    fun getBranchId() : Int {
+        return PreferenceManager.getBranchId(App.context())
+    }
 
     //앱 디버깅 설정
     var isDebug = false

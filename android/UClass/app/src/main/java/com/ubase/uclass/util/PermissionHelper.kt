@@ -28,6 +28,7 @@ object PermissionHelper {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
             }
+            add(Manifest.permission.CALL_PHONE)
         }.toTypedArray()
     }
 

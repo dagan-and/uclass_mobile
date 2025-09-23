@@ -4,9 +4,11 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
+import com.ubase.uclass.network.request.ChatInit
 import com.ubase.uclass.network.request.SNSLogin
 import com.ubase.uclass.network.request.SNSRegister
 import com.ubase.uclass.network.response.BaseData
+import com.ubase.uclass.network.response.ChatInitData
 import com.ubase.uclass.network.response.ErrorData
 import com.ubase.uclass.network.response.SNSCheckData
 import com.ubase.uclass.network.response.SNSLoginData
@@ -173,9 +175,10 @@ object NetworkAPI {
                             sendCallback(responseCode, null)
                         }
                     } else {
+                        val errorResponse = Gson().fromJson(responseString, BaseData::class.java)
                         val errorData = ErrorData(
                             responseCode,
-                            "HTTP ${response.code}: ${response.message}"
+                            errorResponse.message
                         )
                         sendCallback(NetworkAPIManager.ResponseCode.API_ERROR, errorData)
                     }
@@ -241,7 +244,7 @@ object NetworkAPI {
         phoneNumber: String = "010-1234-5678",
         profileImageUrl: String = "",
         userType: String = "STUDENT",
-        branchId: Int = 1,
+        branchId: Int = 10000001,
         termsAgreed: Boolean = true,
         privacyAgreed: Boolean = true
     ) {
@@ -267,6 +270,27 @@ object NetworkAPI {
             responseType = responseType
         )
     }
+
+    /**
+     * POST /api/auth/sns/register
+     */
+    fun chatInit(
+        useId: String,
+    ){
+        val requestBody = ChatInit(
+            userId = useId
+        )
+
+        val responseType = object : TypeToken<BaseData<ChatInitData>>() {}.type
+
+        executePostRequest(
+            endpoint = NetworkAPIManager.Endpoint.API_DM_NATIVE_INIT,
+            responseCode = NetworkAPIManager.ResponseCode.API_DM_NATIVE_INIT,
+            requestBody = requestBody,
+            responseType = responseType
+        )
+    }
+
 
     /**
      * NetworkAPI 종료

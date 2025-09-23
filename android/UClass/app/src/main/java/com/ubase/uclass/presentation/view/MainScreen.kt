@@ -79,6 +79,7 @@ fun MainScreen(
             isWebViewLoading = false
             loginSuccess = false
         }
+        CustomAlertManager.showAlert(content = errorMessage)
     }
 
     // NetworkAPI 콜백 등록
@@ -98,12 +99,12 @@ fun MainScreen(
                                     if (checkData.isExistingUser) {
                                         Logger.dev("기존 사용자 - 로그인 API 호출")
                                         val snsType = PreferenceManager.getSNSType(context)
-                                        val userId = PreferenceManager.getUserId(context)
+                                        val userId = PreferenceManager.getSNSId(context)
                                         NetworkAPI.snsLogin(snsType, userId)
                                     } else {
                                         Logger.dev("신규 사용자 - 회원가입 API 호출")
                                         val snsType = PreferenceManager.getSNSType(context)
-                                        val userId = PreferenceManager.getUserId(context)
+                                        val userId = PreferenceManager.getSNSId(context)
                                         var userName = PreferenceManager.getUserName(context)
                                         var userEmail = PreferenceManager.getUserEmail(context)
 
@@ -136,6 +137,10 @@ fun MainScreen(
                                 response.data?.let { loginData ->
                                     // JWT 토큰 저장
                                     Constants.jwtToken = loginData.accessToken
+                                    PreferenceManager.setUserId(context, loginData.userId)
+                                    PreferenceManager.setBranchId(context , loginData.branchId)
+
+                                    logoutViewModel.reset()
 
                                     Logger.dev("사용자 정보:")
                                     Logger.dev("- ID: ${loginData.userId}")
@@ -175,7 +180,7 @@ fun MainScreen(
 
                                 // 회원가입이 완료되면 로그인 API 호출
                                 val snsType = PreferenceManager.getSNSType(context)
-                                val userId = PreferenceManager.getUserId(context)
+                                val userId = PreferenceManager.getSNSId(context)
                                 NetworkAPI.snsLogin(snsType, userId)
                             } else {
                                 Logger.error("회원가입 실패: ${response.message}")
@@ -189,17 +194,13 @@ fun MainScreen(
 
                     NetworkAPIManager.ResponseCode.API_ERROR -> {
                         if (result is ErrorData) {
-                            Logger.error("API 오류: ${result.msg}")
-                            handleAPIError(result.msg ?: "알 수 없는 오류")
-                        } else {
-                            Logger.error("알 수 없는 API 오류")
-                            handleAPIError("알 수 없는 오류")
+                            if(result.code == NetworkAPIManager.ResponseCode.API_AUTH_SNS_CHECK ||
+                                result.code == NetworkAPIManager.ResponseCode.API_AUTH_SNS_LOGIN ||
+                                result.code == NetworkAPIManager.ResponseCode.API_AUTH_SNS_REGISTER) {
+                                Logger.error("API 오류: ${result.code}::${result.msg}")
+                                handleAPIError("${result.msg}")
+                            }
                         }
-                    }
-
-                    else -> {
-                        Logger.info("## API 응답 오류: code=$code")
-                        handleAPIError("예상하지 못한 응답 코드: $code")
                     }
                 }
             }

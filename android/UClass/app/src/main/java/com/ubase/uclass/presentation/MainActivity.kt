@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.ubase.uclass.network.NetworkAPI
 import com.ubase.uclass.network.NetworkAPIManager
+import com.ubase.uclass.network.SocketManager
 import com.ubase.uclass.network.ViewCallbackManager
 import com.ubase.uclass.network.ViewCallbackManager.PageCode.CHAT
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
@@ -59,6 +60,8 @@ class MainActivity : ComponentActivity() {
         if (!NetworkAPI.isInitialized()) {
             NetworkAPI.initialize()
         }
+
+        SocketManager.initialize()
 
         val splashScreen = installSplashScreen()
 
@@ -187,7 +190,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun callSNSCheck() {
         val snsType = PreferenceManager.getSNSType(this)
-        val userId = PreferenceManager.getUserId(this)
+        val userId = PreferenceManager.getSNSId(this)
 
         if (snsType.isEmpty() || userId.isEmpty()) {
             Logger.info("## SNS 로그인 정보 없음 - API 호출 실패")
@@ -277,6 +280,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         NetworkAPI.shutdown()
         NetworkAPIManager.clearAllCallbacks()
+        SocketManager.cleanup()
         webViewManager.destroy()
         loginSuccessCallback = null
         loginFailureCallback = null

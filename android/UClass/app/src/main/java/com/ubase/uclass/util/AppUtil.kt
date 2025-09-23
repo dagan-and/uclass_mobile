@@ -477,7 +477,7 @@ object AppUtil {
     fun tryAutoLogin(context: Context): Pair<String, String>? {
         if (PreferenceManager.canAutoLogin(context)) {
             val snsType = PreferenceManager.getSNSType(context)
-            val userId = PreferenceManager.getUserId(context)
+            val userId = PreferenceManager.getSNSId(context)
             Logger.info("## 자동 로그인 가능: $snsType, userId: $userId")
             return Pair(snsType, userId)
         }
