@@ -11,7 +11,7 @@ data class ChatMessage(
     val messageId: String,
 
     @SerializedName("senderId")
-    val senderId: Double,
+    val senderId: Int,
 
     @SerializedName("senderType")
     val senderType: String,
@@ -20,7 +20,7 @@ data class ChatMessage(
     val senderName: String,
 
     @SerializedName("receiverId")
-    val receiverId: Double,
+    val receiverId: Int,
 
     @SerializedName("receiverType")
     val receiverType: String,
@@ -29,7 +29,7 @@ data class ChatMessage(
     val receiverName: String,
 
     @SerializedName("branchId")
-    val branchId: Double,
+    val branchId: Int,
 
     @SerializedName("branchName")
     val branchName: String,

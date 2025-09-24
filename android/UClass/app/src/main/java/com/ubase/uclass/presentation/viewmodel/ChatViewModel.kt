@@ -9,7 +9,6 @@ import com.ubase.uclass.network.response.BaseData
 import com.ubase.uclass.network.response.ChatInitData
 import com.ubase.uclass.network.response.ChatMessage
 import com.ubase.uclass.network.response.ErrorData
-import com.ubase.uclass.network.response.SNSCheckData
 import com.ubase.uclass.presentation.view.asBaseData
 import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
@@ -23,7 +22,7 @@ import java.util.Locale
 import java.util.UUID
 
 /**
- * 간단한 채팅 ViewModel
+ * 채팅 ViewModel - 소켓 연결 생명주기 관리
  */
 class ChatViewModel : ViewModel() {
 
@@ -68,21 +67,39 @@ class ChatViewModel : ViewModel() {
     private val _branchName = MutableStateFlow("")
     val branchName: StateFlow<String> = _branchName.asStateFlow()
 
+    // 자동 스크롤 트리거
+    private val _shouldScrollToBottom = MutableStateFlow<Long>(0L)
+    val shouldScrollToBottom: StateFlow<Long> = _shouldScrollToBottom.asStateFlow()
+
+    // 초기화 상태 관리
+    private var isSocketConnected = false
+    private var callbackId: String? = null
+
     init {
+        Logger.dev("ChatViewModel 생성")
         setupNetworkCallbacks()
     }
 
     /**
      * 채팅 초기화 (API 호출 + WebSocket 연결)
+     * 여러 번 호출되어도 안전하도록 처리
      */
     fun initializeChat(userId: String) {
-        if (_isInitializingChat.value || _isChatInitialized.value) return
+        if (_isInitializingChat.value || _isChatInitialized.value) {
+            Logger.dev("채팅 초기화 건너뜀 - 이미 진행중이거나 완료됨")
+            return
+        }
 
         viewModelScope.launch {
             _isInitializingChat.value = true
             Logger.dev("채팅 초기화 시작 - userId: $userId")
 
             try {
+                // SocketManager 초기화 (한 번만)
+                if (!isSocketConnected) {
+                    SocketManager.initialize()
+                }
+
                 // NetworkAPI의 chatInit 호출
                 NetworkAPI.chatInit(userId)
             } catch (e: Exception) {
@@ -104,31 +121,34 @@ class ChatViewModel : ViewModel() {
      * 메시지 전송
      */
     fun sendMessage(text: String) {
-        if (text.isBlank() || !_isChatInitialized.value) return
+        if (text.isBlank() || !_isChatInitialized.value) {
+            Logger.dev("메시지 전송 건너뜀 - 텍스트 비어있거나 초기화되지 않음")
+            return
+        }
 
         viewModelScope.launch {
-
+            // WebSocket을 통한 메시지 전송
             SocketManager.sendDmMessage(text)
 
             // 새 메시지 생성 - 실제 API 스펙에 맞게 생성
             val currentTime = System.currentTimeMillis()
             val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-
+            val receiverId = Constants.getBranchId()
             val newMessage = ChatMessage(
                 messageId = UUID.randomUUID().toString(),
-                senderId = Constants.getUserId().toDouble(),
-                senderType = "user", // 또는 적절한 타입
-                senderName = "나", // 실제 사용자명으로 대체 필요
-                receiverId = 1.0, // 상대방 ID
-                receiverType = "admin", // 또는 적절한 타입
-                receiverName = "관리자", // 실제 상대방명으로 대체 필요
-                branchId = 1.0, // 실제 브랜치 ID
+                senderId = Constants.getUserId(),
+                senderType = "STUDENT",
+                senderName = "나",
+                receiverId = receiverId,
+                receiverType = "admin",
+                receiverName = "관리자",
+                branchId = receiverId,
                 branchName = _branchName.value,
                 content = text,
                 isRead = false,
                 readAt = null,
                 sentAt = sdf.format(Date(currentTime)),
-                roomId = "default_room" // 실제 룸 ID로 대체 필요
+                roomId = "default_room"
             )
 
             // 메시지 리스트에 추가
@@ -139,6 +159,45 @@ class ChatViewModel : ViewModel() {
 
             // 입력창 초기화
             _messageText.value = ""
+
+            Logger.dev("메시지 전송 완료: ${newMessage.messageId}")
+
+            // 애니메이션 완료 후 새 메시지 상태 해제
+            kotlinx.coroutines.delay(500)
+            _newlyAddedMessageIds.value -= newMessage.messageId
+        }
+    }
+
+    /**
+     * WebSocket으로 받은 새 메시지 처리
+     */
+    private fun handleNewWebSocketMessage(newMessage: ChatMessage) {
+        viewModelScope.launch {
+            Logger.dev("새로운 WebSocket 메시지 수신: ${newMessage.messageId}")
+
+            // 중복 메시지 체크 (messageId로)
+            val existingMessage = _messages.value.find { it.messageId == newMessage.messageId }
+            if (existingMessage != null) {
+                Logger.dev("중복 메시지 무시: ${newMessage.messageId}")
+                return@launch
+            }
+
+            // 메시지 리스트에 추가
+            _messages.value += newMessage
+
+            // 새로 추가된 메시지로 표시
+            _newlyAddedMessageIds.value += newMessage.messageId
+
+            // 사용자가 최하단에 있으면 자동 스크롤 트리거
+            if (_isAtBottom.value) {
+                kotlinx.coroutines.delay(50) // 메시지 추가 후 잠깐 대기
+                _shouldScrollToBottom.value = System.currentTimeMillis()
+                Logger.dev("최하단에 있어서 자동 스크롤 트리거")
+            } else {
+                // 사용자가 최하단에 있지 않으면 새 메시지 알림 표시
+                _showNewMessageAlert.value = true
+                Logger.dev("최하단에 있지 않아서 새 메시지 알림 표시")
+            }
 
             // 애니메이션 완료 후 새 메시지 상태 해제
             kotlinx.coroutines.delay(500)
@@ -192,16 +251,17 @@ class ChatViewModel : ViewModel() {
      */
     private fun setupNetworkCallbacks() {
         // API 응답을 위한 콜백 등록
-        val callbackId = "Chat_${System.currentTimeMillis()}"
+        callbackId = "Chat_${System.currentTimeMillis()}"
 
-        NetworkAPIManager.registerCallback(callbackId, object : NetworkAPIManager.NetworkCallback {
+        NetworkAPIManager.registerCallback(callbackId!!, object : NetworkAPIManager.NetworkCallback {
             override fun onResult(code: Int, result: Any?) {
                 when (code) {
                     NetworkAPIManager.ResponseCode.API_DM_NATIVE_INIT -> {
-                        // 2. API 성공 후 소켓 연결
+                        // API 성공 후 소켓 연결
                         viewModelScope.launch {
                             result.asBaseData<ChatInitData>()?.let { response ->
                                 if (response.isSuccess) {
+                                    Logger.dev("채팅 초기화 API 성공")
 
                                     // 브랜치명 업데이트
                                     response.data?.branchName?.let { branchName ->
@@ -213,12 +273,14 @@ class ChatViewModel : ViewModel() {
                                         _messageCounter.value = response.data.messages.size
                                     }
 
-                                    SocketManager.connect()
+                                    // WebSocket 연결 및 메시지 수신 콜백 설정
+                                    connectWebSocket()
                                     _isChatInitialized.value = true
                                     _isInitializingChat.value = false
+
+                                    Logger.dev("채팅 초기화 완료")
                                 }
                             }
-
                         }
                     }
                     NetworkAPIManager.ResponseCode.API_ERROR -> {
@@ -227,17 +289,39 @@ class ChatViewModel : ViewModel() {
                             if(result.code == NetworkAPIManager.ResponseCode.API_DM_NATIVE_INIT) {
                                 Logger.error("API 오류: ${result.code}::${result.msg}")
                                 viewModelScope.launch {
-                                    //handleAPIError("${result.code}::${result.msg}")
                                     _isInitializingChat.value = false
                                     _isChatInitialized.value = true // 에러 시에도 UI 사용 가능
                                 }
-
                             }
                         }
                     }
                 }
             }
         })
+    }
+
+    /**
+     * WebSocket 연결 및 메시지 수신 처리
+     */
+    private fun connectWebSocket() {
+        if (isSocketConnected) {
+            Logger.dev("WebSocket 이미 연결됨 - 연결 건너뜀")
+            return
+        }
+
+        SocketManager.connect(
+            onDmMessage = { chatMessage ->
+                // WebSocket으로 받은 메시지 처리
+                handleNewWebSocketMessage(chatMessage)
+            },
+            onJoined = { joinMessage ->
+                Logger.dev("방 입장 메시지 수신: $joinMessage")
+                // 필요시 입장 처리 로직 추가
+            }
+        )
+
+        isSocketConnected = true
+        Logger.dev("WebSocket 연결 완료")
     }
 
     /**
@@ -255,12 +339,53 @@ class ChatViewModel : ViewModel() {
     }
 
     /**
-     * ViewModel 정리
+     * 리소스 정리 (ChatScreen에서 호출)
+     */
+    fun cleanup() {
+        Logger.dev("ChatViewModel cleanup 시작")
+
+        viewModelScope.launch {
+            try {
+                // WebSocket 연결 해제
+                if (isSocketConnected) {
+                    SocketManager.disconnect()
+                    isSocketConnected = false
+                    Logger.dev("WebSocket 연결 해제 완료")
+                }
+
+                // 상태 초기화
+                _isInitializingChat.value = false
+                _isChatInitialized.value = false
+                _showNewMessageAlert.value = false
+                _messageText.value = ""
+                _newlyAddedMessageIds.value = emptySet()
+
+                Logger.dev("ChatViewModel 상태 초기화 완료")
+            } catch (e: Exception) {
+                Logger.error("ChatViewModel cleanup 중 오류: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * ViewModel 정리 (시스템에서 자동 호출)
      */
     override fun onCleared() {
         super.onCleared()
-        // WebSocket 연결 해제
-        SocketManager.disconnect()
+        Logger.dev("ChatViewModel onCleared 호출")
+
+        // 콜백 해제
+        callbackId?.let {
+            NetworkAPIManager.unregisterCallback(it)
+            Logger.dev("NetworkAPI 콜백 해제: $it")
+        }
+
+        // WebSocket 정리
+        if (isSocketConnected) {
+            SocketManager.cleanup()
+            isSocketConnected = false
+        }
+
         Logger.dev("ChatViewModel cleared")
     }
 }

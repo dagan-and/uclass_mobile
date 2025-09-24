@@ -34,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -92,18 +93,30 @@ fun ChatScreen(
     val isLoadingMore by chatViewModel.isLoadingMore.collectAsState()
     val hasMoreMessages by chatViewModel.hasMoreMessages.collectAsState()
     val branchName by chatViewModel.branchName.collectAsState()
+    val shouldScrollToBottom by chatViewModel.shouldScrollToBottom.collectAsState()
 
+    // 화면 진입 시 채팅 초기화 및 소켓 연결
     LaunchedEffect(Unit) {
         ViewCallbackManager.notifyResult(CHAT_BADGE, false)
 
         // 사용자 ID 가져와서 채팅 초기화
         val userId = PreferenceManager.getUserId(context)
         if (userId != 0) {
+            Logger.dev("ChatScreen 진입 - 채팅 초기화 시작")
             chatViewModel.initializeChat(userId.toString())
         } else {
             Logger.error("사용자 ID가 없어 채팅 초기화를 건너뜁니다")
         }
     }
+
+    // 화면에서 나갈 때 리소스 정리
+    DisposableEffect(Unit) {
+        onDispose {
+            Logger.dev("ChatScreen 종료 - 리소스 정리")
+            chatViewModel.cleanup() // ViewModel을 통한 정리
+        }
+    }
+
     val listState = rememberLazyListState()
 
     //인터랙션 제거
@@ -111,8 +124,24 @@ fun ChatScreen(
     //키보드 포커스
     val focusManager = LocalFocusManager.current
 
-    // 뒤로가기
-    BackHandler { onBack() }
+    // 뒤로가기 처리
+    BackHandler {
+        Logger.dev("ChatScreen 뒤로가기 - 리소스 정리 후 종료")
+        onBack()
+    }
+
+    // WebSocket 메시지 수신 시 자동 스크롤
+    LaunchedEffect(shouldScrollToBottom) {
+        if (shouldScrollToBottom > 0) {
+            try {
+                listState.animateScrollToItem(0)
+                chatViewModel.hideNewMessageAlert()
+                Logger.dev("WebSocket 메시지 수신으로 자동 스크롤 완료")
+            } catch (e: Exception) {
+                Logger.error("WebSocket 메시지 자동 스크롤 중 오류 발생: ${e.message}")
+            }
+        }
+    }
 
     // 스크롤 위치 모니터링
     LaunchedEffect(listState) {
@@ -141,8 +170,6 @@ fun ChatScreen(
         }
     }
 
-    // 상대방 메시지 시뮬레이션 제거 (더미 데이터)
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -161,7 +188,7 @@ fun ChatScreen(
                     Icon(
                         painter = painterResource(id = R.drawable.icon_back),
                         contentDescription = "뒤로가기",
-                        tint = Color.Black // 필요에 따라 조정
+                        tint = Color.Black
                     )
                 }
 
@@ -241,10 +268,9 @@ fun ChatScreen(
                                 ) {
                                     add("DATE_${DateUtils.formatDate(message.timestamp)}")
                                 }
-                                add("MESSAGE_${message.messageId}")  // message.id → message.messageId 로 변경
+                                add("MESSAGE_${message.messageId}")
                             }
                         }.reversed()
-
 
                         items(
                             items = messagesWithDateSeparators,
