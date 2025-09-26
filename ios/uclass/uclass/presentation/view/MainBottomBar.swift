@@ -62,7 +62,6 @@ struct MainBottomBar: View {
             // 공지사항 화면 버튼
             Button(action: {
                 selectedTab = 2
-                Logger.shareLogFile()
             }) {
                 VStack(spacing: 4) {
                     Spacer().frame(height: topPadding)

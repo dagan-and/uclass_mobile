@@ -369,7 +369,6 @@ struct ChatScreen: View {
                 .reversed()  // 역순으로 변환 (결과적으로 오름차순)
         )
         
-        Logger.dev("📦 [CHAT_INIT] 초기 메시지 \(initialMessages.count)개 로드됨 (messageSeq 정렬 적용)")
         
         self.messages = initialMessages
     }
@@ -526,7 +525,6 @@ struct ChatScreen: View {
     /// 스크롤이 하단에 도달했을 때 처리
     private func handleScrollToBottom(_ isAtBottom: Bool) {
         if isAtBottom && !pendingMessages.isEmpty && !isProcessingPendingMessages {
-            Logger.dev("🔥 [FLUSH_PENDING] 대기 중인 메시지들을 메인 리스트에 추가")
             showPendingMessages()
         }
     }
@@ -556,7 +554,6 @@ struct ChatScreen: View {
     
     /// 사용자 액션으로 스크롤을 하단으로 이동
     private func scrollToBottomAsUserAction() {
-        Logger.dev("👆 [USER_SCROLL] 사용자 액션으로 스크롤 이동")
         
         guard let tableView = tableViewRef, !messages.isEmpty else { return }
         
@@ -574,7 +571,6 @@ struct ChatScreen: View {
     /// 대기 메시지들을 애니메이션과 함께 순차적으로 추가
     private func addPendingMessagesWithAnimation() {
         guard !processingQueue.isEmpty else {
-            Logger.dev("✅ [PENDING_COMPLETE] 모든 대기 메시지 추가 완료")
             
             // 처리 완료
             isProcessingPendingMessages = false
@@ -670,7 +666,6 @@ struct ChatScreen: View {
 
         // 로그아웃 테스트 코드
         if(messageContent == "로그아웃") {
-            Logger.dev("🚪 로그아웃 처리 시작")
             // 1. 로그인 정보 삭제
             UserDefaultsManager.clearLoginInfo()
             
@@ -697,6 +692,13 @@ struct ChatScreen: View {
             textEditorHeight = ChatScreen.textEditorDefault
             return
         }
+        // 앱로그 테스트 코드
+        if(messageContent == "로그") {
+            Logger.shareLogFile()
+            text = ""
+            textEditorHeight = ChatScreen.textEditorDefault
+            return
+        }
         
         // 실제 소켓을 통한 메시지 전송
         Logger.dev("📤 [SEND_MSG] 소켓으로 메시지 전송: \(messageContent)")
@@ -708,7 +710,6 @@ struct ChatScreen: View {
     }
     
     private func scrollToBottom() {
-        Logger.dev("⬇️ [SCROLL] 수동 스크롤 버튼 클릭")
         
         guard let tableView = tableViewRef, !messages.isEmpty else { return }
         

@@ -41,9 +41,7 @@ struct ChatTableView: UIViewRepresentable {
         let previousMessageCount = coordinator.messages.count
         let currentMessageCount = messages.count
         
-        Logger.dev("📄 [UPDATE] 업데이트 시작")
-        Logger.dev("📊 [UPDATE] 이전 메시지 수: \(previousMessageCount) -> 현재: \(currentMessageCount)")
-        
+
         // 데이터 업데이트
         coordinator.messages = messages
         coordinator.parent = self
@@ -57,7 +55,6 @@ struct ChatTableView: UIViewRepresentable {
         
         // 자동 스크롤 처리
         if shouldAutoScroll && !coordinator.chatItems.isEmpty {
-            Logger.dev("⬇️ [SCROLL] 자동 스크롤 실행")
             DispatchQueue.main.async {
                 coordinator.willStartProgrammaticScroll()
                 let indexPath = IndexPath(row: 0, section: 0)
@@ -101,7 +98,7 @@ struct ChatTableView: UIViewRepresentable {
             
             var currentDate: Date?
             
-            for (index, message) in messages.enumerated() {
+            for (_, message) in messages.enumerated() {
                 let messageDate = Calendar.current.startOfDay(for: message.timestamp)
                 
                 // 날짜가 바뀌면 날짜 구분선 추가
@@ -113,7 +110,6 @@ struct ChatTableView: UIViewRepresentable {
                 chatItems.append(.message(message))
             }
             
-            Logger.dev("✅ [ITEMS] ChatItems 업데이트 완료 - 총 \(chatItems.count)개")
         }
         
         func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -189,7 +185,6 @@ struct ChatTableView: UIViewRepresentable {
             if !decelerate && !isUpdatingScrollState && !isProgrammaticScrolling {
                 checkScrollPosition(scrollView)
                 checkScrollTop(scrollView)
-                Logger.dev("👆 [SCROLL] 드래그 종료 - contentOffset: \(scrollView.contentOffset)")
             }
         }
         
@@ -197,7 +192,6 @@ struct ChatTableView: UIViewRepresentable {
             if !isUpdatingScrollState && !isProgrammaticScrolling {
                 checkScrollPosition(scrollView)
                 checkScrollTop(scrollView)
-                Logger.dev("🛑 [SCROLL] 감속 종료 - contentOffset: \(scrollView.contentOffset)")
             }
         }
         
@@ -205,14 +199,12 @@ struct ChatTableView: UIViewRepresentable {
             isUpdatingScrollState = false
             isProgrammaticScrolling = false
             checkScrollPosition(scrollView)
-            Logger.dev("🎬 [SCROLL] 애니메이션 종료 - contentOffset: \(scrollView.contentOffset)")
         }
         
         func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
             isUpdatingScrollState = false
             isProgrammaticScrolling = false
             hasCheckedTopScroll = false
-            Logger.dev("👆 [SCROLL] 드래그 시작 - contentOffset: \(scrollView.contentOffset)")
         }
         
         private func checkScrollPosition(_ scrollView: UIScrollView) {
@@ -220,7 +212,6 @@ struct ChatTableView: UIViewRepresentable {
             let isAtBottom = contentOffset <= 50
             
             if parent.isScrollAtBottom != isAtBottom {
-                Logger.dev("📍 [SCROLL] 스크롤 상태 변경: \(parent.isScrollAtBottom) -> \(isAtBottom) (offset: \(contentOffset))")
                 DispatchQueue.main.async { [weak self] in
                     self?.parent.isScrollAtBottom = isAtBottom
                 }
@@ -240,7 +231,6 @@ struct ChatTableView: UIViewRepresentable {
             let isAtTop = contentOffset >= maxOffset - 50
             
             if isAtTop && contentHeight > frameHeight {
-                Logger.dev("⬆️ [SCROLL_TOP] 스크롤 최상단 감지 - 데이터 로딩 시작")
                 hasCheckedTopScroll = true
                 
                 // 👇 여기서 ChatScreen으로 콜백 전달
@@ -250,7 +240,6 @@ struct ChatTableView: UIViewRepresentable {
         
         /// 데이터 로딩 후 스크롤 위치 조정
         private func adjustScrollPositionAfterDataLoad(newMessageCount: Int) {
-            Logger.dev("📍 [SCROLL_ADJUST] 스크롤 위치 조정 시작 (새 메시지: \(newMessageCount)개)")
             
             // 스크롤 위치를 새로 추가된 메시지만큼 아래로 이동
             // 이렇게 하면 사용자가 보고 있던 메시지가 그대로 화면에 유지됨
@@ -258,7 +247,6 @@ struct ChatTableView: UIViewRepresentable {
         }
         
         func willStartProgrammaticScroll() {
-            Logger.dev("🤖 [SCROLL] 프로그래매틱 스크롤 시작")
             isUpdatingScrollState = true
             isProgrammaticScrolling = true
         }

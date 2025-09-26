@@ -54,6 +54,7 @@ struct PermissionView: View {
     
     @State private var isPermissionRequested = false
     @State private var allPermissionsGranted = false
+    @State private var currentPermissionStep = 0 // 현재 권한 요청 단계
     
     var body: some View {
         GeometryReader { geometry in
@@ -74,7 +75,7 @@ struct PermissionView: View {
                                     .font(Font.PermissionStyle.subtitle)
                                     .foregroundColor(Color.PermissionStyle.secondaryText)
                                 
-                                Text("앱 접근 권한을 안내해 드려요.")
+                                Text("앱 접근 권한을 안내해 드릴게요.")
                                     .font(Font.PermissionStyle.subtitle)
                                     .foregroundColor(Color.PermissionStyle.accentText)
                             }
@@ -150,9 +151,9 @@ struct PermissionView: View {
     
                     VStack(spacing: PermissionSpacing.medium) {
                         Button(action: {
-                            requestPermissions()
+                            requestPermissionsSequentially()
                         }) {
-                            Text(isPermissionRequested ? "권한 요청 중..." : "확인")
+                            Text(buttonText)
                                 .font(Font.PermissionStyle.buttonText)
                                 .foregroundColor(Color.PermissionStyle.buttonText)
                                 .frame(maxWidth: .infinity)
@@ -175,6 +176,22 @@ struct PermissionView: View {
         }
     }
     
+    // 버튼 텍스트 동적 변경
+    private var buttonText: String {
+        if !isPermissionRequested {
+            return "확인"
+        }
+        
+        switch currentPermissionStep {
+        case 1:
+            return "알림 권한 요청 중..."
+        case 2:
+            return "사진 권한 요청 중..."
+        default:
+            return "권한 요청 중..."
+        }
+    }
+    
     private func checkInitialPermissions() {
         PermissionHelper.checkAllPermissions { allGranted in
             if allGranted {
@@ -184,18 +201,34 @@ struct PermissionView: View {
         }
     }
     
-    private func requestPermissions() {
+    // 순차적 권한 요청
+    private func requestPermissionsSequentially() {
         Logger.info("권한 요청을 시작합니다.")
         isPermissionRequested = true
+        currentPermissionStep = 1
         
-        PermissionHelper.requestAllPermissions { success in
-            Logger.info("권한 요청 완료: \(success)")
+        // 1단계: 알림 권한 요청 - 사용자가 결정할 때까지 대기
+        PermissionHelper.requestNotificationPermission { granted in
+            Logger.info("알림 권한 요청 완료: \(granted)")
             
-            // 권한 요청 화면을 보여줬음을 기록
-            PermissionHelper.markPermissionRequestShown()
-            
-            // 권한이 거부되어도 진행 (선택적 권한이므로)
-            onPermissionsGranted()
+            // 알림 권한 처리 완료 후, 즉시 사진 권한 요청
+            DispatchQueue.main.async {
+                self.currentPermissionStep = 2
+                
+                // 2단계: 사진 권한 요청 - 사용자가 결정할 때까지 대기
+                PermissionHelper.requestPhotoLibraryPermission { photoGranted in
+                    Logger.info("사진 권한 요청 완료: \(photoGranted)")
+                    Logger.info("모든 권한 요청 완료")
+                    
+                    DispatchQueue.main.async {
+                        // 권한 요청 화면을 보여줬음을 기록
+                        PermissionHelper.markPermissionRequestShown()
+                        
+                        // 권한이 거부되어도 진행 (선택적 권한이므로)
+                        self.onPermissionsGranted()
+                    }
+                }
+            }
         }
     }
 }

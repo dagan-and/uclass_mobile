@@ -16,6 +16,7 @@ struct SNSLoginView: View {
     @State private var animationColor = Color(red: 0.0, green: 0.48, blue: 1.0)
 
     private func apiError(error: String) {
+        showLoadingView = false
         Logger.dev("인증 실패: \(error)")
         // 인증 실패 시 저장된 로그인 정보 초기화
         UserDefaultsManager.clearLoginInfo()
@@ -28,7 +29,9 @@ struct SNSLoginView: View {
     }
 
     private func apiSNSCheck() {
-
+        
+        showLoadingView = true
+        
         Logger.dev("=== 계정확인 ===")
         Logger.dev("SNS Type: \(UserDefaultsManager.getSNSType())")
         Logger.dev("SNS ID: \(UserDefaultsManager.getSNSId())")
