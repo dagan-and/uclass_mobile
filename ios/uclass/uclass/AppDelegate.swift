@@ -26,6 +26,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // FCM 설정
         FirebaseApp.configure()
         Messaging.messaging().delegate = self
+        UNUserNotificationCenter.current().delegate = self
+
         
         // FCM 토큰 받기 위해서는 remote notification 등록
         application.registerForRemoteNotifications()
@@ -96,6 +98,7 @@ extension AppDelegate: MessagingDelegate {
         Logger.dev("FCM Token:: \(fcmToken ?? "nil")")
         Constants.fcmToken = fcmToken
     }
+
 }
 
 
@@ -104,8 +107,9 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     // 앱이 포그라운드에 있을 때 알림 수신
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         
-        Logger.dev("📱 포그라운드에서 알림 수신")
         let userInfo = notification.request.content.userInfo
+        Logger.dev("📱 포그라운드에서 알림 수신")
+        Logger.dev("📩 willPresent 페이로드: \(userInfo)")
         
         // 푸시 처리
         PushNotificationManager.shared.handlePushNotification(userInfo: userInfo)
@@ -117,9 +121,9 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     // 사용자가 알림을 탭했을 때
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         
-        Logger.dev("📱 사용자가 알림을 탭함")
         let userInfo = response.notification.request.content.userInfo
-        
+        Logger.dev("📱 사용자가 알림을 탭함")
+        Logger.dev("📩 didReceive 페이로드: \(userInfo)")
         // 푸시 처리
         PushNotificationManager.shared.handlePushNotification(userInfo: userInfo , fromAction : true)
         

@@ -31,12 +31,12 @@ struct SNSLoginView: View {
 
         Logger.dev("=== 계정확인 ===")
         Logger.dev("SNS Type: \(UserDefaultsManager.getSNSType())")
-        Logger.dev("SNS ID: \(UserDefaultsManager.getUserId())")
+        Logger.dev("SNS ID: \(UserDefaultsManager.getSNSId())")
         Logger.dev("================")
 
         networkViewModel.callSNSCheck(
             snsType: UserDefaultsManager.getSNSType(),
-            snsId: UserDefaultsManager.getUserId(),
+            snsId: UserDefaultsManager.getSNSId(),
             onSuccess: { result in
 
                 if let resultData = result as? BaseData<SNSCheckData> {
@@ -59,20 +59,21 @@ struct SNSLoginView: View {
 
         networkViewModel.callSNSLogin(
             snsType: UserDefaultsManager.getSNSType(),
-            snsId: UserDefaultsManager.getUserId(),
+            snsId: UserDefaultsManager.getSNSId(),
             onSuccess: { result in
                 if let resultData = result as? BaseData<SNSLoginData> {
                     
                     Constants.jwtToken = resultData.data?.accessToken
+                    Constants.setUserId(resultData.data?.userId ?? 0)
+                    Constants.setBranchId(resultData.data?.branchId ?? 0)
+                    Constants.setBranchName(resultData.data?.branchName ?? "")
                     
-                    Logger.dev("로그인 성공")
-                    Logger.dev("jwtToken:: " + (Constants.jwtToken ?? "nil"))
-                    
+                    Logger.dev("로그인 성공")                    
                     
                     if let loginData = resultData.data {
                             let message = """
-                            사용자: \(loginData.userName)
-                            지점: \(loginData.branchName)
+                            사용자: \(loginData.userName) (\(loginData.userId))
+                            지점: \(loginData.branchName)(\(loginData.branchId))
                             승인 상태: \(loginData.approvalStatus)
                             로그인 시간: \(loginData.loginAt)
                             """
@@ -95,7 +96,7 @@ struct SNSLoginView: View {
 
         networkViewModel.callSNSRegister(
             snsType: UserDefaultsManager.getSNSType(),
-            snsId: UserDefaultsManager.getUserId(),
+            snsId: UserDefaultsManager.getSNSId(),
             name: UserDefaultsManager.getUserName(),
             email: UserDefaultsManager.getUserEmail(),
             onSuccess: { result in
@@ -139,28 +140,28 @@ struct SNSLoginView: View {
             // 앱 시작 시 저장된 로그인 정보 확인
             checkSavedLoginInfo()
         }
-        .onChange(of: kakaoLoginManager.isLoggedIn) {
-            if kakaoLoginManager.isLoggedIn {
+        .onChange(of: kakaoLoginManager.isLoggedIn) { newValue in
+            if newValue {
                 apiSNSCheck()
             }
         }
-        .onChange(of: appleLoginManager.isLoggedIn) {
-            if appleLoginManager.isLoggedIn {
+        .onChange(of: appleLoginManager.isLoggedIn) { newValue in
+            if newValue {
                 apiSNSCheck()
             }
         }
-        .onChange(of: naverLoginManager.isLoggedIn) {
-            if naverLoginManager.isLoggedIn {
+        .onChange(of: naverLoginManager.isLoggedIn) { newValue in
+            if newValue {
                 apiSNSCheck()
             }
         }
-        .onChange(of: networkViewModel.isCompleted) {
-            if networkViewModel.isCompleted {
+        .onChange(of: networkViewModel.isCompleted) { newValue in
+            if newValue {
                 startWebViewLoading()
             }
         }
-        .onChange(of: webViewManager.isLoaded) {
-            if webViewManager.isLoaded && showLoadingView {
+        .onChange(of: webViewManager.isLoaded) { newValue in
+            if newValue && showLoadingView {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     navigateToMain = true
                     showLoadingView = false

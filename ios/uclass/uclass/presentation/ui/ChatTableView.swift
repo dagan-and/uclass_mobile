@@ -9,6 +9,9 @@ struct ChatTableView: UIViewRepresentable {
     @Binding var tableViewRef: UITableView?
     @Binding var isLoadingPreviousMessages: Bool
     
+    // 스크롤 최상단 감지 시 호출할 콜백 추가
+    let onScrollToTop: (() -> Void)?
+    
     func makeUIView(context: Context) -> UITableView {
         let tableView = UITableView()
         tableView.delegate = context.coordinator
@@ -108,9 +111,6 @@ struct ChatTableView: UIViewRepresentable {
                 }
                 
                 chatItems.append(.message(message))
-                if index < 3 || index >= messages.count - 3 {
-                    Logger.dev("📝 [ITEMS] 메시지 추가 [\(index)]: '\(message.text)' (내 메시지: \(message.isMe))")
-                }
             }
             
             Logger.dev("✅ [ITEMS] ChatItems 업데이트 완료 - 총 \(chatItems.count)개")
@@ -124,7 +124,7 @@ struct ChatTableView: UIViewRepresentable {
             // 역순으로 표시 (최신 메시지가 아래에 오도록)
             let reverseIndex = chatItems.count - 1 - indexPath.row
             guard reverseIndex >= 0 && reverseIndex < chatItems.count else {
-                Logger.dev("❌ [CELL] 인덱스 범위 오류: reverseIndex=\(reverseIndex), chatItems.count=\(chatItems.count)")
+                Logger.dev("⌚ [CELL] 인덱스 범위 오류: reverseIndex=\(reverseIndex), chatItems.count=\(chatItems.count)")
                 return UITableViewCell()
             }
             
@@ -240,98 +240,17 @@ struct ChatTableView: UIViewRepresentable {
             let isAtTop = contentOffset >= maxOffset - 50
             
             if isAtTop && contentHeight > frameHeight {
-                Logger.dev("⬆️ [SCROLL_TOP] 스크롤 최상단 감지 - 더미 데이터 로딩 시작")
+                Logger.dev("⬆️ [SCROLL_TOP] 스크롤 최상단 감지 - 데이터 로딩 시작")
                 hasCheckedTopScroll = true
-                loadMoreDummyData()
+                
+                // 👇 여기서 ChatScreen으로 콜백 전달
+                parent.onScrollToTop?()
             }
-        }
-        
-        /// 더미 데이터 추가 로딩
-        private func loadMoreDummyData() {
-            guard !isLoadingMoreData else { return }
-            
-            isLoadingMoreData = true
-            Logger.dev("⏳ [LOAD_DATA] 더미 데이터 로딩 시작 (1초 후)")
-            
-            // ChatScreen에 로딩 상태 알림
-            DispatchQueue.main.async { [weak self] in
-                self?.parent.isLoadingPreviousMessages = true
-            }
-            
-            // 1초 후 더미 데이터 추가
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.addDummyMessages()
-            }
-        }
-        
-        /// 더미 메시지 생성 및 추가
-        private func addDummyMessages() {
-            Logger.dev("📝 [DUMMY_DATA] 더미 메시지 생성 시작")
-            
-            let newMessages = generateDummyMessages()
-            
-            // 기존 메시지 앞쪽에 새로운 메시지들 추가 (시간순으로 정렬 유지)
-            let updatedMessages = newMessages + parent.messages
-            
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                
-                Logger.dev("✅ [DUMMY_DATA] \(newMessages.count)개의 더미 메시지 추가 완료")
-                
-                // 메시지 업데이트
-                self.parent.messages = updatedMessages
-                
-                // 로딩 상태 해제
-                self.isLoadingMoreData = false
-                
-                // ChatScreen에 로딩 완료 알림
-                self.parent.isLoadingPreviousMessages = false
-                
-                // 스크롤 위치 조정 (새로 추가된 데이터로 인한 위치 변경 방지)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self.adjustScrollPositionAfterDataLoad(newMessageCount: newMessages.count)
-                }
-            }
-        }
-        
-        /// 더미 메시지 생성
-        private func generateDummyMessages() -> [ChatMessage] {
-            var messages: [ChatMessage] = []
-            let messageTexts = [
-                "이전 메시지입니다", "더 오래된 대화", "과거의 채팅 기록",
-                "며칠 전 대화", "이전 대화 내용", "예전에 나눈 이야기",
-                "지난주 대화", "과거 메시지", "이전 채팅 로그",
-                "오래된 대화 기록"
-            ]
-            
-            // 기존 가장 오래된 메시지보다 이전 시간으로 설정
-            let oldestExistingDate = parent.messages.first?.timestamp ?? Date()
-            let calendar = Calendar.current
-            
-            for i in 0..<20 {
-                // 기존 메시지보다 1-20시간 전으로 설정
-                let hoursBack = 20 - i
-                let messageDate = calendar.date(byAdding: .hour, value: -hoursBack, to: oldestExistingDate) ?? oldestExistingDate
-                
-                let isMe = i % 4 == 0 // 대략 1/4은 내 메시지
-                let text = messageTexts[i % messageTexts.count] + " #\(i + 1)"
-                
-                let message = ChatMessage(
-                    text: text,
-                    isMe: isMe,
-                    timestamp: messageDate
-                )
-                
-                messages.append(message)
-            }
-            
-            Logger.dev("📦 [DUMMY_GEN] \(messages.count)개의 더미 메시지 생성 완료")
-            return messages
         }
         
         /// 데이터 로딩 후 스크롤 위치 조정
         private func adjustScrollPositionAfterDataLoad(newMessageCount: Int) {
-            Logger.dev("📐 [SCROLL_ADJUST] 스크롤 위치 조정 시작 (새 메시지: \(newMessageCount)개)")
+            Logger.dev("📍 [SCROLL_ADJUST] 스크롤 위치 조정 시작 (새 메시지: \(newMessageCount)개)")
             
             // 스크롤 위치를 새로 추가된 메시지만큼 아래로 이동
             // 이렇게 하면 사용자가 보고 있던 메시지가 그대로 화면에 유지됨

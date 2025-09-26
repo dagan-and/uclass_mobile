@@ -4,7 +4,7 @@ class UserDefaultsManager {
     private enum Keys {
         static let snsType = "sns_type"
         static let snsToken = "sns_token"
-        static let userId = "user_id"
+        static let snsId = "sns_id"
         static let userEmail = "user_email"
         static let userName = "user_name"
         static let isLoggedIn = "is_logged_in"
@@ -33,13 +33,13 @@ class UserDefaultsManager {
     }
     
     /// 사용자 ID 저장
-    static func setUserId(_ userId: String) {
-        UserDefaults.standard.set(userId, forKey: Keys.userId)
+    static func setSNSId(_ userId: String) {
+        UserDefaults.standard.set(userId, forKey: Keys.snsId)
     }
     
     /// 사용자 ID 조회
-    static func getUserId() -> String {
-        return UserDefaults.standard.string(forKey: Keys.userId) ?? ""
+    static func getSNSId() -> String {
+        return UserDefaults.standard.string(forKey: Keys.snsId) ?? ""
     }
     
     /// 사용자 이메일 저장
@@ -78,7 +78,7 @@ class UserDefaultsManager {
     static func saveLoginInfo(snsType: String, snsToken: String, userId: String, email: String, name: String) {
         setSNSType(snsType)
         setSNSToken(snsToken)
-        setUserId(userId)
+        setSNSId(userId)
         setUserEmail(email)
         setUserName(name)
         setLoggedIn(true)
@@ -88,7 +88,7 @@ class UserDefaultsManager {
     static func clearLoginInfo() {
         UserDefaults.standard.removeObject(forKey: Keys.snsType)
         UserDefaults.standard.removeObject(forKey: Keys.snsToken)
-        UserDefaults.standard.removeObject(forKey: Keys.userId)
+        UserDefaults.standard.removeObject(forKey: Keys.snsId)
         UserDefaults.standard.removeObject(forKey: Keys.userEmail)
         UserDefaults.standard.removeObject(forKey: Keys.userName)
         setLoggedIn(false)
@@ -99,7 +99,7 @@ class UserDefaultsManager {
         Logger.dev("=== 저장된 로그인 정보 ===")
         Logger.dev("SNS Type: \(getSNSType())")
         Logger.dev("SNS Token: \(getSNSToken())")
-        Logger.dev("User ID: \(getUserId())")
+        Logger.dev("User ID: \(getSNSId())")
         Logger.dev("Email: \(getUserEmail())")
         Logger.dev("Name: \(getUserName())")
         Logger.dev("Is Logged In: \(isLoggedIn())")
@@ -113,7 +113,7 @@ class UserDefaultsManager {
         return [
             "snsType": getSNSType(),
             "snsToken": getSNSToken(),
-            "userId": getUserId(),
+            "userId": getSNSId(),
             "email": getUserEmail(),
             "name": getUserName(),
             "isLoggedIn": isLoggedIn()
@@ -132,7 +132,7 @@ class UserDefaultsManager {
     
     /// 사용자 정보가 완전한지 확인
     static func hasCompleteUserInfo() -> Bool {
-        return !getUserId().isEmpty && !getUserEmail().isEmpty
+        return !getSNSId().isEmpty && !getUserEmail().isEmpty
     }
     
     /// 로그인 시간 저장 (선택사항)

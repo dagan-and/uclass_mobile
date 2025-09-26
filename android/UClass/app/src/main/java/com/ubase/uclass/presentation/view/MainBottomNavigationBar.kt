@@ -126,12 +126,7 @@ fun MainBottomNavigationBar(
             },
             label = { Text("공지사항") },
             selected = selectedTab == 2,
-            onClick = {
-                val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:01234561492"))
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // ApplicationContext로 실행 시 필요
-                App.context().startActivity(intent)
-                ViewCallbackManager.notifyResult(NAVIGATION, NOTICE)
-                      },
+            onClick = { ViewCallbackManager.notifyResult(NAVIGATION, NOTICE) },
             colors = NavigationBarItemDefaults.colors(
                 selectedTextColor = Color.Black,
                 unselectedTextColor = Color.Gray,

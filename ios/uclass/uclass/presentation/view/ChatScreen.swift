@@ -14,65 +14,36 @@ struct ChatScreen: View {
     @State private var tableViewRef: UITableView?
     @State private var messageCount: Int = 0
     @State private var isLoadingPreviousMessages: Bool = false
+    @State private var currentMaxMessageSeq: Int = 0
+    @State private var pageItemCount: Int = 30
+    @State private var pageCount: Int = 0
+    @State private var isMoreLoading = false
     
-    // 새로운 메시지 대기열 관련 상태 - 수정된 부분
+
+    // 새로운 메시지 대기열 관련 상태
     @State private var pendingMessages: [ChatMessage] = []
     @State private var showPendingMessagesAlert: Bool = false
     @State private var isProcessingPendingMessages: Bool = false
-    @State private var processingQueue: [ChatMessage] = [] // 처리 중인 메시지들의 복사본
+    @State private var processingQueue: [ChatMessage] = []
+    
+    // ChatInit API 관련 상태
+    @StateObject private var networkViewModel = NetworkViewModel(identifier: "ChatScreen")
+    @State private var isInitializing: Bool = false
+    
+    // 소켓 연결 상태 관련 추가
+    @State private var isSocketConnecting: Bool = false
+    @ObservedObject private var socketManager = SocketManager.shared
+    
+    // 브랜치명을 위한 상태 추가
+    @State private var branchName: String = "채팅"
 
     @Environment(\.presentationMode) var presentationMode
     let onBack: () -> Void
 
     init(onBack: @escaping () -> Void) {
         self.onBack = onBack
-        // 200개의 더미 테스트 메시지 생성 (9월 1일 ~ 9월 10일)
-        _messages = State(initialValue: generateDummyMessages())
     }
     
-    // 더미 메시지 생성 함수
-    private func generateDummyMessages() -> [ChatMessage] {
-        var messages: [ChatMessage] = []
-        let calendar = Calendar.current
-        let baseDate = calendar.date(from: DateComponents(year: 2024, month: 9, day: 1))!
-        
-        let messageTexts = [
-            "안녕하세요!", "오늘 날씨가 정말 좋네요", "점심 뭐 드실 예정이세요?",
-            "회의 시간이 변경되었습니다", "네, 알겠습니다", "감사합니다",
-            "내일 일정 확인 부탁드려요", "지금 출발합니다", "조금 늦을 것 같아요",
-            "괜찮습니다", "화이팅!", "수고하세요", "좋은 하루 되세요",
-            "프로젝트 진행 상황은 어떤가요?", "거의 완료되었습니다",
-            "훌륭하네요", "다음 주에 발표 예정입니다", "준비 잘 부탁드려요",
-            "물론입니다", "도움이 필요하면 언제든 말씀해주세요"
-        ]
-        
-        for i in 0..<200 {
-            // 10일 동안 균등하게 분배
-            let dayOffset = i / 20
-            let messageInDay = i % 20
-            
-            // 하루 안에서 시간 분산 (9시 ~ 18시)
-            let hourOffset = messageInDay / 2
-            let minuteOffset = (messageInDay % 2) * 30
-            
-            let messageDate = calendar.date(byAdding: .day, value: dayOffset, to: baseDate)!
-            let finalDate = calendar.date(byAdding: .hour, value: 9 + hourOffset, to: messageDate)!
-            let timestampDate = calendar.date(byAdding: .minute, value: minuteOffset, to: finalDate)!
-            
-            let isMe = i % 3 == 0 // 대략 1/3은 내 메시지
-            let text = messageTexts[i % messageTexts.count]
-            
-            let message = ChatMessage(
-                text: text,
-                isMe: isMe,
-                timestamp: timestampDate
-            )
-            
-            messages.append(message)
-        }
-        
-        return messages
-    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -83,10 +54,37 @@ struct ChatScreen: View {
                 }
                 .background(Color.white)
                 
-                // 이전 메시지 로딩 상태 표시 (Z축으로 떠있음)
+                // ChatInit 로딩 상태 표시
+                if isInitializing || isSocketConnecting {
+                    VStack {
+                        Spacer().frame(height: navigationBarHeight + 8)
+                        
+                        HStack(spacing: 8) {
+                            Text("채팅을 불러오는 중...")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.white)
+                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .top).combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                        .animation(.easeInOut(duration: 0.3), value: isInitializing)
+                        
+                        Spacer()
+                    }
+                }
+                
+                // 이전 메시지 로딩 상태 표시
                 if isLoadingPreviousMessages {
                     VStack {
-                        Spacer().frame(height: navigationBarHeight + 8) // titleBar 높이만큼 + 여백
+                        Spacer().frame(height: navigationBarHeight + 8)
                         
                         HStack(spacing: 8) {
                             Text("이전 메시지를 불러오는 중...")
@@ -123,20 +121,22 @@ struct ChatScreen: View {
                     }
             )
             .onAppear {
+                Logger.dev("🎬 [CHAT_SCREEN] ChatScreen 나타남 - ChatInit API 호출")
                 NotificationCenter.default.post(
                     name: Notification.Name("ChatBadgeOff"),
                     object: false
                 )
                 messageCount = messages.count
+                
+                // ChatScreen이 나타날 때마다 ChatInit API 호출
+                initializeChat()
             }
-            .onChange(of: isScrollAtBottom) { _, newValue in
+            .onDisappear {
+                Logger.dev("🚪 [CHAT_SCREEN] ChatScreen 사라짐 - 소켓 연결 해제")
+                disconnectSocket()
+            }
+            .onChange(of: isScrollAtBottom) { newValue in
                 handleScrollToBottom(newValue)
-            }
-            .onChange(of: messages.count) { oldCount, newCount in
-                // 메시지 수가 변경될 때마다 로그 출력
-                if newCount != oldCount {
-                    Logger.dev("📊 [MSG_COUNT] 메시지 수 변경: \(oldCount) -> \(newCount)")
-                }
             }
         }
     }
@@ -154,7 +154,7 @@ struct ChatScreen: View {
 
             Spacer().frame(width: 8)
 
-            Text("채팅")
+            Text(branchName)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.black)
 
@@ -173,17 +173,23 @@ struct ChatScreen: View {
                     messages: $messages,
                     isScrollAtBottom: $isScrollAtBottom,
                     tableViewRef: $tableViewRef,
-                    isLoadingPreviousMessages: $isLoadingPreviousMessages
+                    isLoadingPreviousMessages: $isLoadingPreviousMessages,
+                    onScrollToTop: {
+                       // 👇 스크롤 최상단 감지 시 ChatScreen에서 처리할 로직
+                       handleScrollToTop()
+                   }
                 )
                 .onTapGesture {
                     hideKeyboard()
                 }
-                .onChange(of: text) { _, newValue in
+                .onChange(of: text) { newValue in
                     updateTextEditorHeight(for: newValue)
                 }
                 
-                // 입력창
+                // 입력창 (초기화 중일 때 비활성화)
                 inputView
+                    .disabled(isInitializing || !socketManager.isConnected())
+                    .opacity((isInitializing || !socketManager.isConnected()) ? 0.6 : 1.0)
             }
             
             // 대기 중인 메시지 알림 (Z축으로 떠있음)
@@ -245,7 +251,7 @@ struct ChatScreen: View {
                         .background(Color.clear)
                         .font(.system(size: 16))
                         .frame(height: textEditorHeight)
-                        .onChange(of: text) { oldValue, newValue in
+                        .onChange(of: text) { newValue in
                             updateTextEditorHeight(for: newValue)
                         }
                         .modifier(HideTextEditorBackground())
@@ -261,27 +267,249 @@ struct ChatScreen: View {
                     .foregroundColor(text.isEmpty ? .gray : .blue)
                     .frame(width: 36, height: 36)
                 }
-                .disabled(text.isEmpty)
+                .disabled(text.isEmpty || isInitializing || !socketManager.isConnected())
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
     }
 
-    // MARK: - 메시지 대기열 관련 함수들 - 수정된 부분
+    // MARK: - ChatInit API 관련 함수들
+    
+    /// ChatInit API 호출
+    private func initializeChat() {
+        Logger.dev("🚀 [CHAT_INIT] ChatInit API 호출 시작")
+        
+        // 상태 초기화
+        isInitializing = true
+        
+        // 현재 메시지 클리어 (새로 불러올 예정)
+        messages.removeAll()
+        pendingMessages.removeAll()
+        showPendingMessagesAlert = false
+        
+        let userId = Constants.getUserId()
+        
+        networkViewModel.callChatInit(
+            userId: String(userId),
+            onSuccess: { [self] result in
+                Logger.dev("✅ [CHAT_INIT] ChatInit API 성공")
+                DispatchQueue.main.async {
+                    self.isInitializing = false
+                    
+                    // 결과 파싱 및 메시지 설정
+                    if let resultData = result as? BaseData<ChatInitData>,
+                       let chatData = resultData.data {
+                        Logger.dev("📋 [CHAT_INIT] 채팅 데이터 파싱 성공")
+                        self.pageCount = 0
+                        self.isMoreLoading = chatData.hasMore
+                        self.setupInitialMessages(from: chatData)
+                    } else {
+                        Logger.warning("⚠️ [CHAT_INIT] 채팅 데이터 파싱 실패 - 빈 채팅방으로 시작")
+                        self.messages = []
+                    }
+                    
+                    // 스크롤을 하단으로 이동
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        self.scrollToBottom()
+                    }
+                    
+                    // ChatInit 성공 후 소켓 연결 시작
+                    self.connectSocket()
+                }
+            },
+            onError: { [self] error in
+                Logger.error("❌ [CHAT_INIT] ChatInit API 실패: \(error)")
+                DispatchQueue.main.async {
+                    self.isInitializing = false
+                    
+                    Logger.error("💥 [CHAT_INIT] 초기화 실패: \(error)")
+                    
+                    // Alert로 에러 표시
+                    CustomAlertManager.shared.showErrorAlert(
+                        title: "채팅 로드 실패",
+                        message: "채팅을 불러오지 못했습니다.\n다시 시도해주세요.",
+                        completion: {
+                            // 다시 시도하거나 뒤로가기 옵션 제공
+                            CustomAlertManager.shared.showConfirmAlert(
+                                title: "다시 시도",
+                                message: "채팅 초기화를 다시 시도하시겠습니까?",
+                                confirmTitle: "다시 시도",
+                                cancelTitle: "뒤로가기",
+                                onConfirm: {
+                                    self.initializeChat()
+                                },
+                                onCancel: {
+                                    self.onBack()
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+        )
+    }
+
+    
+    /// 초기 메시지 설정
+    private func setupInitialMessages(from chatInitData: ChatInitData) {
+        Logger.dev("📋 [CHAT_INIT] 채팅방 정보 - Room: \(chatInitData.roomId), Branch: \(chatInitData.branchName)")
+        
+        // 브랜치명 업데이트
+        self.branchName = chatInitData.branchName
+        
+        // messageSeq를 기준으로 안전하게 정렬 (nil 값은 0으로 처리)
+        let initialMessages = Array(
+            chatInitData.messages
+                .sorted { lhs, rhs in
+                    let lhsSeq = lhs.messageSeq ?? 0
+                    let rhsSeq = rhs.messageSeq ?? 0
+                    return lhsSeq > rhsSeq  // 내림차순 정렬
+                }
+                .reversed()  // 역순으로 변환 (결과적으로 오름차순)
+        )
+        
+        Logger.dev("📦 [CHAT_INIT] 초기 메시지 \(initialMessages.count)개 로드됨 (messageSeq 정렬 적용)")
+        
+        self.messages = initialMessages
+    }
+    
+    
+    private func handleScrollToTop() {
+        if(!isMoreLoading) {
+            return
+        }
+        
+        pageCount = pageCount + 1
+        
+        networkViewModel.callChatMessage(
+            userId: String(Constants.getUserId()),
+            branchId: String(Constants.getBranchId()),
+            page: pageCount,
+            size: 30,
+            onSuccess: { result in
+                Logger.dev("✅ [CHAT_MESSAGE] 메시지 응답: \(String(describing: result))")
+                DispatchQueue.main.async {
+                    self.isLoadingPreviousMessages = false
+                    
+                    // 결과 파싱 및 메시지 설정
+                    if let resultData = result as? BaseData<ChatMessageData>,
+                       let chatData = resultData.data {
+                        Logger.dev("📋 [CHAT_MESSAGE] 채팅 데이터 파싱 성공")
+                        
+                        self.isMoreLoading = chatData.hasMore
+                        
+                        // messageSeq를 기준으로 안전하게 정렬 (nil 값은 0으로 처리)
+                        let addMessages = Array(
+                            chatData.messages
+                                .sorted { lhs, rhs in
+                                    let lhsSeq = lhs.messageSeq ?? 0
+                                    let rhsSeq = rhs.messageSeq ?? 0
+                                    return lhsSeq > rhsSeq  // 내림차순 정렬
+                                }
+                                .reversed()  // 역순으로 변환 (결과적으로 오름차순)
+                        )
+                                                
+                        // 기존 메시지 앞에 붙이기
+                        self.messages.insert(contentsOf: addMessages, at: 0)
+                    }
+                    
+                }
+            },
+            onError: { error in
+                Logger.error("❌ [CHAT_MESSAGE] API 실패: \(error)")
+            }
+        )
+    }
+
+    // MARK: - 소켓 연결 관련 함수들
+    
+    /// 소켓 연결
+    private func connectSocket() {
+        Logger.dev("🔌 [SOCKET] 소켓 연결 시작")
+        
+        isSocketConnecting = true
+        
+        // SocketManager 초기화
+        socketManager.initialize()
+        
+        // 소켓 연결 - 메시지 콜백과 함께
+        socketManager.connect(
+            onDmMessage: { [self] chatMessage in
+                Logger.dev("📨 [SOCKET_MSG] 소켓으로부터 새 메시지 수신")
+                DispatchQueue.main.async {
+                    self.addNewMessage(chatMessage)
+                }
+            },
+            onConnected: { [self] connected in
+                Logger.dev("👋 [SOCKET_CONNECT]")
+                DispatchQueue.main.async {
+                    self.isSocketConnecting = false
+                }
+            }
+        )
+        
+        // 연결 상태 모니터링
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
+            if self.isSocketConnecting {
+                // 10초 후에도 연결 중이면 실패로 처리
+                self.handleSocketConnectionError()
+            }
+        }
+    }
+    
+    /// 소켓 연결 실패 처리
+    private func handleSocketConnectionError() {
+        DispatchQueue.main.async {
+            self.isSocketConnecting = false
+            
+            Logger.error("💥 [SOCKET] 소켓 연결 실패")
+            
+            // Alert로 에러 표시
+            CustomAlertManager.shared.showErrorAlert(
+                title: "연결 실패",
+                message: "채팅 서버에 연결하지 못했습니다.\n다시 시도해주세요.",
+                completion: {
+                    CustomAlertManager.shared.showConfirmAlert(
+                        title: "다시 연결",
+                        message: "채팅 서버에 다시 연결하시겠습니까?",
+                        confirmTitle: "다시 연결",
+                        cancelTitle: "뒤로가기",
+                        onConfirm: {
+                            self.connectSocket()
+                        },
+                        onCancel: {
+                            self.onBack()
+                        }
+                    )
+                }
+            )
+        }
+    }
+    
+    /// 소켓 연결 해제
+    private func disconnectSocket() {
+        Logger.dev("🔌 [SOCKET] 소켓 연결 해제")
+        socketManager.disconnect()
+        isSocketConnecting = false
+    }
+
+    // MARK: - 메시지 대기열 관련 함수들
     
     /// 새로운 메시지를 추가 (대기열 방식)
     private func addNewMessage(_ message: ChatMessage) {
         Logger.dev("📩 [NEW_MSG] 새 메시지 수신 : '\(message.text)' (내 메시지: \(message.isMe))")
+        currentMaxMessageSeq = currentMaxMessageSeq + 1
+        let messageWithSeq = message.withMessageSeq(currentMaxMessageSeq)
         
-        if message.isMe {
+        if messageWithSeq.isMe {
             // 내가 보낸 메시지는 항상 즉시 추가
             Logger.dev("⬇️ [ADD_DIRECT] 내 메시지 즉시 추가")
-            messages.append(message)
+            messages.append(messageWithSeq)
         } else {
             // 상대방 메시지는 항상 대기열에 추가 (순서 보장을 위해)
             Logger.dev("⏳ [ADD_PENDING] 상대방 메시지 대기열에 추가")
-            pendingMessages.append(message)
+            pendingMessages.append(messageWithSeq)
             
             if isScrollAtBottom && !isProcessingPendingMessages {
                 // 최하단에 있으면 즉시 처리 (알림 없이)
@@ -303,7 +531,7 @@ struct ChatScreen: View {
         }
     }
     
-    /// 대기 중인 메시지들을 보여주기 - 수정된 부분
+    /// 대기 중인 메시지들을 보여주기
     private func showPendingMessages() {
         guard !pendingMessages.isEmpty && !isProcessingPendingMessages else { return }
         
@@ -326,7 +554,7 @@ struct ChatScreen: View {
         }
     }
     
-    /// 사용자 액션으로 스크롤을 하단으로 이동 - 새로 추가된 함수
+    /// 사용자 액션으로 스크롤을 하단으로 이동
     private func scrollToBottomAsUserAction() {
         Logger.dev("👆 [USER_SCROLL] 사용자 액션으로 스크롤 이동")
         
@@ -343,7 +571,7 @@ struct ChatScreen: View {
         }
     }
     
-    /// 대기 메시지들을 애니메이션과 함께 순차적으로 추가 - 수정된 부분
+    /// 대기 메시지들을 애니메이션과 함께 순차적으로 추가
     private func addPendingMessagesWithAnimation() {
         guard !processingQueue.isEmpty else {
             Logger.dev("✅ [PENDING_COMPLETE] 모든 대기 메시지 추가 완료")
@@ -401,13 +629,47 @@ struct ChatScreen: View {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return }
 
-        let myMessage = ChatMessage(text: text, isMe: true, timestamp: Date())
+        // 소켓이 연결되어 있는지 확인
+        guard socketManager.isConnected() else {
+            Logger.error("❌ [SEND_MSG] 소켓이 연결되지 않음")
+            CustomAlertManager.shared.showErrorAlert(
+                message: "서버 연결이 끊어졌습니다.\n채팅을 다시 시작해주세요."
+            )
+            return
+        }
+
+        // 새 메시지 생성 - 실제 API 스펙에 맞게 생성
+        let currentTime = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        currentMaxMessageSeq = currentMaxMessageSeq + 1
+        
+        let receiverId = Constants.getBranchId()
+        let messageContent = text
+        let myMessage = ChatMessage(
+            messageId: UUID().uuidString,
+            senderId: Constants.getUserId(),
+            senderType: "STUDENT",
+            senderName: "나",
+            receiverId: receiverId,
+            receiverType: "admin",
+            receiverName: "관리자",
+            branchId: receiverId,
+            branchName: Constants.getBranchName(),
+            content: messageContent,
+            isRead: false,
+            readAt: nil,
+            sentAt: dateFormatter.string(from: currentTime),
+            roomId: "default_room",
+            messageSeq: currentMaxMessageSeq
+        )
         
         // 내 메시지는 항상 즉시 추가 (대기열 방식 사용)
         addNewMessage(myMessage)
 
-        //TODO 삭제할 내용
-        if(text == "로그아웃") {
+        // 로그아웃 테스트 코드
+        if(messageContent == "로그아웃") {
             Logger.dev("🚪 로그아웃 처리 시작")
             // 1. 로그인 정보 삭제
             UserDefaultsManager.clearLoginInfo()
@@ -419,59 +681,30 @@ struct ChatScreen: View {
                     object: nil
                 )
             }
-            return
-        }
-        
-        // 자동 메시지 테스트 시작
-        if(text == "자동테스트") {
-            autoMessage()
             text = ""
             textEditorHeight = ChatScreen.textEditorDefault
             return
         }
         
-        text = ""
-        textEditorHeight = ChatScreen.textEditorDefault
-        
-        // 자동 응답 (테스트용) - 대기열 방식 사용
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            let autoReply = ChatMessage(
-                text: "[[\(myMessage.text)]]",
-                isMe: false,
-                timestamp: Date()
-            )
-            addNewMessage(autoReply)
-        }
-    }
-    
-    private func autoMessage() {
-        Logger.dev("🤖 [AUTO_TEST] 자동 메시지 테스트 시작 - 100개 메시지 전송")
-        
-        sendAutoMessageRecursively(index: 1)
-    }
-    
-    private func sendAutoMessageRecursively(index: Int) {
-        guard index <= 100 else {
-            Logger.dev("✅ [AUTO_TEST] 자동 메시지 테스트 완료")
+        // 전화 테스트 코드
+        if(messageContent == "전화") {
+            if let url = URL(string: "tel://01075761690") {
+                if UIApplication.shared.canOpenURL(url) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            text = ""
+            textEditorHeight = ChatScreen.textEditorDefault
             return
         }
         
-        let messageText = String(repeating: "\(index)", count: index)
+        // 실제 소켓을 통한 메시지 전송
+        Logger.dev("📤 [SEND_MSG] 소켓으로 메시지 전송: \(messageContent)")
+        socketManager.sendDmMessage(messageContent)
         
-        let autoReply = ChatMessage(
-            text: messageText,
-            isMe: false,
-            timestamp: Date()
-        )
-        addNewMessage(autoReply)
-        
-        Logger.dev("📤 [AUTO_MSG] \(index)번째 메시지 전송: '\(messageText)'")
-        
-        // 0.5초 ~ 2초 사이의 랜덤 지연 후 다음 메시지 전송
-        let randomDelay = Double.random(in: 0.5...2.0)
-        DispatchQueue.main.asyncAfter(deadline: .now() + randomDelay) {
-            sendAutoMessageRecursively(index: index + 1)
-        }
+        // 입력창 초기화
+        text = ""
+        textEditorHeight = ChatScreen.textEditorDefault
     }
     
     private func scrollToBottom() {

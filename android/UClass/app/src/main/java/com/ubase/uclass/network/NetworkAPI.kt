@@ -1,10 +1,12 @@
 package com.ubase.uclass.network
 
+import androidx.annotation.Size
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import com.ubase.uclass.network.request.ChatInit
+import com.ubase.uclass.network.request.ChatMessage
 import com.ubase.uclass.network.request.SNSLogin
 import com.ubase.uclass.network.request.SNSRegister
 import com.ubase.uclass.network.response.BaseData
@@ -286,6 +288,32 @@ object NetworkAPI {
         executePostRequest(
             endpoint = NetworkAPIManager.Endpoint.API_DM_NATIVE_INIT,
             responseCode = NetworkAPIManager.ResponseCode.API_DM_NATIVE_INIT,
+            requestBody = requestBody,
+            responseType = responseType
+        )
+    }
+
+    /**
+     * POST /api/auth/sns/register
+     */
+    fun chatMessage(
+        useId: Int,
+        branchId: Int,
+        page: Int,
+        size: Int
+    ){
+        val requestBody = ChatMessage(
+            userId = useId,
+            branchId = branchId,
+            page = page,
+            size = size
+        )
+
+        val responseType = object : TypeToken<BaseData<ChatInitData>>() {}.type
+
+        executePostRequest(
+            endpoint = NetworkAPIManager.Endpoint.API_DM_NATIVE_MESSAGES,
+            responseCode = NetworkAPIManager.ResponseCode.API_DM_NATIVE_MESSAGES,
             requestBody = requestBody,
             responseType = responseType
         )

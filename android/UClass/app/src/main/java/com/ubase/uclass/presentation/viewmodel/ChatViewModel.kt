@@ -60,9 +60,6 @@ class ChatViewModel : ViewModel() {
     private val _hasMoreMessages = MutableStateFlow(false)
     val hasMoreMessages: StateFlow<Boolean> = _hasMoreMessages.asStateFlow()
 
-    private val _messageCounter = MutableStateFlow(0)
-    val messageCounter: StateFlow<Int> = _messageCounter.asStateFlow()
-
     // 브랜치명 저장
     private val _branchName = MutableStateFlow("")
     val branchName: StateFlow<String> = _branchName.asStateFlow()
@@ -74,6 +71,7 @@ class ChatViewModel : ViewModel() {
     // 초기화 상태 관리
     private var isSocketConnected = false
     private var callbackId: String? = null
+    private var pageCount = 0
 
     init {
         Logger.dev("ChatViewModel 생성")
@@ -232,11 +230,15 @@ class ChatViewModel : ViewModel() {
             _isLoadingMore.value = true
             Logger.dev("더 많은 메시지 로드 시작")
 
-            try {
-                // TODO: 실제 서버에서 이전 메시지 로드 API 호출
-                kotlinx.coroutines.delay(1000) // 임시 지연
+            pageCount += 1
 
-                Logger.dev("이전 메시지 로드 완료 (현재는 빈 구현)")
+            try {
+                NetworkAPI.chatMessage(
+                    Constants.getUserId(),
+                    Constants.getBranchId(),
+                    pageCount,
+                    30
+                )
 
             } catch (e: Exception) {
                 Logger.error("이전 메시지 로드 오류: ${e.message}")
@@ -263,22 +265,44 @@ class ChatViewModel : ViewModel() {
                                 if (response.isSuccess) {
                                     Logger.dev("채팅 초기화 API 성공")
 
-                                    // 브랜치명 업데이트
                                     response.data?.branchName?.let { branchName ->
                                         _branchName.value = branchName
                                     }
 
+                                    response.data?.hasMore?.let { hasMore ->
+                                        _hasMoreMessages.value = hasMore
+                                    }
+
                                     if(response.data?.messages != null) {
                                         _messages.value = response.data.messages
-                                        _messageCounter.value = response.data.messages.size
                                     }
 
                                     // WebSocket 연결 및 메시지 수신 콜백 설정
                                     connectWebSocket()
                                     _isChatInitialized.value = true
                                     _isInitializingChat.value = false
+                                    pageCount = 0
 
                                     Logger.dev("채팅 초기화 완료")
+                                }
+                            }
+                        }
+                    }
+                    NetworkAPIManager.ResponseCode.API_DM_NATIVE_MESSAGES -> {
+                        // API 성공 후 소켓 연결
+                        viewModelScope.launch {
+                            result.asBaseData<ChatInitData>()?.let { response ->
+                                if (response.isSuccess) {
+                                    Logger.dev("채팅 메시지 추가 로드 성공")
+                                    response.data?.hasMore?.let { hasMore ->
+                                        _hasMoreMessages.value = hasMore
+                                    }
+                                    response.data?.page?.let { page ->
+                                        pageCount = page
+                                    }
+                                    if(response.data?.messages != null) {
+                                        _messages.value += response.data.messages
+                                    }
                                 }
                             }
                         }
@@ -313,10 +337,6 @@ class ChatViewModel : ViewModel() {
             onDmMessage = { chatMessage ->
                 // WebSocket으로 받은 메시지 처리
                 handleNewWebSocketMessage(chatMessage)
-            },
-            onJoined = { joinMessage ->
-                Logger.dev("방 입장 메시지 수신: $joinMessage")
-                // 필요시 입장 처리 로직 추가
             }
         )
 

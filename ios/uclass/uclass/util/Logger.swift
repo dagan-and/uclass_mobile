@@ -29,40 +29,40 @@ class Logger {
         let logMessage = "[DEV] \(message)"
         if Constants.isDebug {
             print(logMessage)
+            writeToFile(logMessage)
         }
-        writeToFile(logMessage)
     }
     
     static func error(_ error: Error) {
         let logMessage = "[ERROR] \(error.localizedDescription)"
         if Constants.isDebug {
             print(logMessage)
+            writeToFile(logMessage)
         }
-        writeToFile(logMessage)
     }
     
     static func error(_ message: String) {
         let logMessage = "[ERROR] \(message)"
         if Constants.isDebug {
             print(logMessage)
+            writeToFile(logMessage)
         }
-        writeToFile(logMessage)
     }
     
     static func info(_ message: String) {
         let logMessage = "[INFO] \(message)"
         if Constants.isDebug {
             print(logMessage)
+            writeToFile(logMessage)
         }
-        writeToFile(logMessage)
     }
     
     static func warning(_ message: String) {
         let logMessage = "[WARNING] \(message)"
         if Constants.isDebug {
             print(logMessage)
+            writeToFile(logMessage)
         }
-        writeToFile(logMessage)
     }
     
     static func isEnable() -> Bool {

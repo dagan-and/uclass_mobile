@@ -65,7 +65,7 @@ class NetworkViewModel: ObservableObject, NetworkAPIManager.NetworkCallback {
         phoneNumber: String = "010-1234-5678",
         profileImageUrl: String = "",
         userType: String = "STUDENT",
-        branchId: Int = 1,
+        branchId: Int = 10000001,
         termsAgreed: Bool = true,
         privacyAgreed: Bool = true,
         onSuccess: ((Any?) -> Void)? = nil,
@@ -85,6 +85,33 @@ class NetworkViewModel: ObservableObject, NetworkAPIManager.NetworkCallback {
             termsAgreed: termsAgreed,
             privacyAgreed: privacyAgreed
         )
+    }
+    
+    /**
+     * 채팅방 초기 데이터 호출
+     */
+    func callChatInit(
+        userId: String,
+        onSuccess: ((Any?) -> Void)? = nil,
+        onError: ((String) -> Void)? = nil
+    ) {
+        executeAPI(targetCode: NetworkAPIManager.ResponseCode.API_DM_NATIVE_INIT, onSuccess: onSuccess, onError: onError)
+        NetworkAPI.shared.chatInit(userId: userId)
+    }
+    
+    /**
+     * 채팅 추가 메시지 호출
+     */
+    func callChatMessage(
+        userId: String,
+        branchId: String,
+        page: Int,
+        size: Int,
+        onSuccess: ((Any?) -> Void)? = nil,
+        onError: ((String) -> Void)? = nil
+    ) {
+        executeAPI(targetCode: NetworkAPIManager.ResponseCode.API_DM_NATIVE_MESSAGES, onSuccess: onSuccess, onError: onError)
+        NetworkAPI.shared.chatMessage(userId: userId, branchId: branchId, page: page, size: size)
     }
     
     /**

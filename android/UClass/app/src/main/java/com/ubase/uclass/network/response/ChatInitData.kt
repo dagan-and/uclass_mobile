@@ -12,6 +12,18 @@ data class ChatInitData(
     @SerializedName("branchName")
     val branchName: String,
 
+    @SerializedName("hasMore")
+    val hasMore: Boolean,
+
+    @SerializedName("page")
+    val page: Int,
+
+    @SerializedName("totalPages")
+    val totalPages: Int,
+
+    @SerializedName("totalMessageCount")
+    val totalMessageCount: Int,
+
     @SerializedName("messages")
     val messages: List<ChatMessage>
 )

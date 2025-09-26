@@ -134,10 +134,6 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             AppUtil.setFCMIntent(intentForPushActionActivity , null , null, message.data)
             updateChatBadge(message.data)
 
-            // 현재 배지 카운트 가져오기
-            BadgeManager.getInstance().incrementBadgeCount(this)
-            val badgeCount = BadgeManager.getInstance().getBadgeCount(this)
-
             val pendingIntent = PendingIntent.getActivity(this, 1234, intentForPushActionActivity, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             builder.setContentTitle(title)
                 .setContentText(body)
@@ -149,10 +145,19 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 .setDefaults(Notification.DEFAULT_ALL)
                 .setCategory(NotificationCompat.CATEGORY_CALL) //Heads-up 알림을 크게 보여줌
                 .setAutoCancel(true)
-                .setNumber(badgeCount)
+                .setNumber(1)
                 .setFullScreenIntent(pendingIntent ,true)
             val notification: Notification = builder.build()
-            notificationManager.notify(Random.nextInt(), notification)
+
+            if(isChatType(message.data)) {
+                // 현재 배지 카운트 가져오기
+                BadgeManager.getInstance().incrementBadgeCount(this)
+                notification.number = BadgeManager.getInstance().getBadgeCount(this)
+                notificationManager.notify(123456, notification)
+            } else {
+                notificationManager.notify(Random.nextInt(), notification)
+            }
+
         } catch (e : Exception) {
             Logger.error(e)
         }
@@ -180,8 +185,16 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
+    private fun isChatType(map: Map<String, String>?) : Boolean {
+        return if(map.isNullOrEmpty() || !map.containsKey("type") || !map["type"].equals("CHAT",true)) {
+            false
+        } else {
+            true
+        }
+    }
+
     private fun updateChatBadge(map: Map<String, String>?) {
-        if(map.isNullOrEmpty() || !map.containsKey("type") || !map["type"].equals("CHAT",true)) {
+        if(!isChatType(map)) {
             return
         }
 

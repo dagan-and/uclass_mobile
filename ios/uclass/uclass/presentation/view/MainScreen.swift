@@ -52,7 +52,7 @@ struct MainScreen: View {
         }
         .background(Color.white)
         .navigationBarHidden(true)
-        .onChange(of: selectedTab) { oldTab, newTab in
+        .onChange(of: selectedTab) { newTab in
             // 채팅 탭이 아닌 다른 탭 선택 시 채팅 화면 닫기
             if showChatScreen && newTab != 1 {
                 Logger.dev("🔄 다른 탭 선택으로 채팅 화면 닫기")

@@ -21,8 +21,8 @@
 #-renamesourcefileattribute SourceFile
 
 # 네트워크 관련 클래스 보호
--keep class com.ubase.uclass.network.response.** { *; }
--keep class com.ubase.uclass.network.request.** { *; }
+-keep class com.ubase.uclass.network.** { *; }
+-keep class com.ubase.uclass.presentation.viewmodel.** { *; }
 
 # Compose 관련
 -keep class androidx.compose.** { *; }

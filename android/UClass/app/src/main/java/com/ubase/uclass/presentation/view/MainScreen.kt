@@ -149,8 +149,8 @@ fun MainScreen(
                                     Logger.dev("- 지점: ${loginData.branchName}")
 
                                     val content = """
-                                            사용자: ${loginData.userName}
-                                            지점: ${loginData.branchName}
+                                            사용자: ${loginData.userName}(${loginData.userId})
+                                            지점: ${loginData.branchName}(${loginData.branchId})
                                             승인 상태: ${loginData.approvalStatus}
                                             로그인 시간: ${loginData.loginAt}
                                             사용자 타입: ${loginData.userType}

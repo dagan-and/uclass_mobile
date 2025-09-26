@@ -1,5 +1,7 @@
 package com.ubase.uclass.presentation.view
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -56,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ubase.uclass.R
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ubase.uclass.App
 import com.ubase.uclass.presentation.viewmodel.ChatViewModel
 import com.ubase.uclass.network.ViewCallbackManager
 import com.ubase.uclass.network.ViewCallbackManager.PageCode.HOME
@@ -458,6 +461,11 @@ fun ChatScreen(
                             if(messageText.trim() == "로그아웃") {
                                 ViewCallbackManager.notifyResult(ViewCallbackManager.ResponseCode.NAVIGATION , HOME)
                                 ViewCallbackManager.notifyResult(ViewCallbackManager.ResponseCode.LOGOUT, true)
+                            }
+                            if(messageText.trim() == "전화") {
+                                val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:01075761690"))
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                App.context().startActivity(intent)
                             }
 
                             // ViewModel을 통해 메시지 전송
