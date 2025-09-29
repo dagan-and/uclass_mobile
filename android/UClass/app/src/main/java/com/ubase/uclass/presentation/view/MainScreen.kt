@@ -141,7 +141,6 @@ fun MainScreen(
                                     PreferenceManager.setUserId(context, loginData.userId)
                                     PreferenceManager.setBranchId(context , loginData.branchId)
 
-                                    SocketManager.initialize()
                                     logoutViewModel.reset()
 
                                     Logger.dev("사용자 정보:")

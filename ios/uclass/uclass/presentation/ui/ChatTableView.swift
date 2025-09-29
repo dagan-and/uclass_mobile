@@ -44,7 +44,6 @@ struct ChatTableView: UIViewRepresentable {
         coordinator.parent = self
         coordinator.updateChatItems()
 
-        Logger.dev("📄 [RELOAD] 리로드 실행")
         uiView.reloadData()
     }
     
@@ -73,7 +72,6 @@ struct ChatTableView: UIViewRepresentable {
         
         // 메시지 배열을 ChatItem 배열로 변환 (날짜 구분선 포함)
         func updateChatItems() {
-            Logger.dev("📄 [ITEMS] ChatItems 업데이트 시작")
             chatItems.removeAll()
             
             guard !messages.isEmpty else {

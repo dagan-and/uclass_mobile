@@ -2,6 +2,7 @@ package com.ubase.uclass.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.airbnb.lottie.parser.IntegerParser
 import com.ubase.uclass.network.NetworkAPI
 import com.ubase.uclass.network.NetworkAPIManager
 import com.ubase.uclass.network.SocketManager
@@ -9,6 +10,7 @@ import com.ubase.uclass.network.response.BaseData
 import com.ubase.uclass.network.response.ChatInitData
 import com.ubase.uclass.network.response.ChatMessage
 import com.ubase.uclass.network.response.ErrorData
+import com.ubase.uclass.presentation.ui.CustomAlertManager
 import com.ubase.uclass.presentation.view.asBaseData
 import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
@@ -67,6 +69,9 @@ class ChatViewModel : ViewModel() {
     // 자동 스크롤 트리거
     private val _shouldScrollToBottom = MutableStateFlow<Long>(0L)
     val shouldScrollToBottom: StateFlow<Long> = _shouldScrollToBottom.asStateFlow()
+
+    private val _shouldExitChat = MutableStateFlow(false)
+    val shouldExitChat: StateFlow<Boolean> = _shouldExitChat.asStateFlow()
 
     // 초기화 상태 관리
     private var isSocketConnected = false
@@ -255,73 +260,88 @@ class ChatViewModel : ViewModel() {
         // API 응답을 위한 콜백 등록
         callbackId = "Chat_${System.currentTimeMillis()}"
 
-        NetworkAPIManager.registerCallback(callbackId!!, object : NetworkAPIManager.NetworkCallback {
-            override fun onResult(code: Int, result: Any?) {
-                when (code) {
-                    NetworkAPIManager.ResponseCode.API_DM_NATIVE_INIT -> {
-                        // API 성공 후 소켓 연결
-                        viewModelScope.launch {
-                            result.asBaseData<ChatInitData>()?.let { response ->
-                                if (response.isSuccess) {
-                                    Logger.dev("채팅 초기화 API 성공")
+        NetworkAPIManager.registerCallback(
+            callbackId!!,
+            object : NetworkAPIManager.NetworkCallback {
+                override fun onResult(code: Int, result: Any?) {
+                    viewModelScope.launch {
+                        try {
+                            when (code) {
+                                NetworkAPIManager.ResponseCode.API_DM_NATIVE_INIT -> {
+                                    // API 성공 후 소켓 연결
+                                    result.asBaseData<ChatInitData>()?.let { response ->
+                                        if (response.isSuccess) {
+                                            Logger.dev("채팅 초기화 API 성공")
 
-                                    response.data?.branchName?.let { branchName ->
-                                        _branchName.value = branchName
-                                    }
+                                            response.data?.branchName?.let { branchName ->
+                                                _branchName.value = branchName
+                                            }
 
-                                    response.data?.hasMore?.let { hasMore ->
-                                        _hasMoreMessages.value = hasMore
-                                    }
+                                            response.data?.hasMore?.let { hasMore ->
+                                                _hasMoreMessages.value = hasMore
+                                            }
 
-                                    if(response.data?.messages != null) {
-                                        _messages.value = response.data.messages
-                                    }
+                                            if (response.data?.messages != null) {
+                                                _messages.value = response.data.messages
+                                            }
 
-                                    // WebSocket 연결 및 메시지 수신 콜백 설정
-                                    connectWebSocket()
-                                    _isChatInitialized.value = true
-                                    _isInitializingChat.value = false
-                                    pageCount = 0
+                                            // WebSocket 연결 및 메시지 수신 콜백 설정
+                                            connectWebSocket()
+                                            _isChatInitialized.value = true
+                                            _isInitializingChat.value = false
+                                            pageCount = 0
 
-                                    Logger.dev("채팅 초기화 완료")
-                                }
-                            }
-                        }
-                    }
-                    NetworkAPIManager.ResponseCode.API_DM_NATIVE_MESSAGES -> {
-                        // API 성공 후 소켓 연결
-                        viewModelScope.launch {
-                            result.asBaseData<ChatInitData>()?.let { response ->
-                                if (response.isSuccess) {
-                                    Logger.dev("채팅 메시지 추가 로드 성공")
-                                    response.data?.hasMore?.let { hasMore ->
-                                        _hasMoreMessages.value = hasMore
-                                    }
-                                    response.data?.page?.let { page ->
-                                        pageCount = page
-                                    }
-                                    if(response.data?.messages != null) {
-                                        _messages.value += response.data.messages
+                                            Logger.dev("채팅 초기화 완료")
+                                        }
                                     }
                                 }
-                            }
-                        }
-                    }
-                    NetworkAPIManager.ResponseCode.API_ERROR -> {
-                        Logger.error("ChatInit API 실패: $result")
-                        if (result is ErrorData) {
-                            if(result.code == NetworkAPIManager.ResponseCode.API_DM_NATIVE_INIT) {
-                                Logger.error("API 오류: ${result.code}::${result.msg}")
-                                viewModelScope.launch {
-                                    _isInitializingChat.value = false
-                                    _isChatInitialized.value = true // 에러 시에도 UI 사용 가능
+
+                                NetworkAPIManager.ResponseCode.API_DM_NATIVE_MESSAGES -> {
+                                    // API 성공 후 소켓 연결
+                                    result.asBaseData<ChatInitData>()?.let { response ->
+                                        if (response.isSuccess) {
+                                            Logger.dev("채팅 메시지 추가 로드 성공")
+                                            response.data?.hasMore?.let { hasMore ->
+                                                _hasMoreMessages.value = hasMore
+                                            }
+                                            response.data?.page?.let { page ->
+                                                pageCount = page
+                                            }
+                                            if (response.data?.messages != null) {
+                                                _messages.value += response.data.messages
+                                            }
+                                        }
+                                    }
+                                }
+
+                                NetworkAPIManager.ResponseCode.API_ERROR -> {
+                                    Logger.error("ChatInit API 실패: $result")
+                                    if (result is ErrorData) {
+                                        if (result.code == NetworkAPIManager.ResponseCode.API_DM_NATIVE_INIT) {
+                                            Logger.error("API 오류: ${result.code}::${result.msg}")
+                                            _isInitializingChat.value = false
+                                            _isChatInitialized.value = false
+                                            CustomAlertManager.showAlert(
+                                                content = "채팅을 불러오지 못했습니다.",
+                                                onConfirm = {
+                                                    _shouldExitChat.value = true  // 플래그 설정
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
                             }
+                        } catch (e: Exception) {
+                            CustomAlertManager.showAlert(
+                                content = "채팅을 불러오지 못했습니다.",
+                                onConfirm = {
+                                    _shouldExitChat.value = true  // 플래그 설정
+                                }
+                            )
                         }
                     }
                 }
-            }
-        })
+            })
     }
 
     /**
@@ -385,6 +405,10 @@ class ChatViewModel : ViewModel() {
                 Logger.error("ChatViewModel cleanup 중 오류: ${e.message}")
             }
         }
+    }
+
+    fun initShouldExitChat() {
+        _shouldExitChat.value = false
     }
 
     /**

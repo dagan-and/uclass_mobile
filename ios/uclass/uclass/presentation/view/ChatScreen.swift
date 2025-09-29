@@ -60,7 +60,7 @@ struct ChatScreen: View {
                         Spacer().frame(height: navigationBarHeight + 8)
                         
                         HStack(spacing: 8) {
-                            Text("채팅을 불러오는 중...")
+                            Text("채팅 연결 로딩중...")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.gray)
                         }

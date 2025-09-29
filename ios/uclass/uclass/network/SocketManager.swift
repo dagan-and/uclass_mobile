@@ -150,6 +150,7 @@ class SocketManager: NSObject, ObservableObject {
         }
 
         var request = URLRequest(url: url)
+        request.setValue(Constants.jwtToken, forHTTPHeaderField: "JWT-TOKEN")
         request.timeoutInterval = 30
 
         webSocketTask = urlSession?.webSocketTask(with: request)
