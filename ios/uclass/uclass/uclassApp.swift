@@ -44,7 +44,7 @@ struct uclassApp: App {
                 }
                 .overlay(AlertContainer())  // 여기에 AlertContainer 추가
                 .overlay(LoadingContainer())  // Loading 컨테이너 추가
-    
+
         }
     }
 

@@ -61,8 +61,6 @@ class MainActivity : ComponentActivity() {
             NetworkAPI.initialize()
         }
 
-        SocketManager.initialize()
-
         val splashScreen = installSplashScreen()
 
         // 자동 로그인 체크

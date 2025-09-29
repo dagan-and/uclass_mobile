@@ -5,6 +5,7 @@ import UserNotifications
 import NidThirdPartyLogin
 import Firebase
 import FirebaseMessaging
+import FirebaseCrashlytics
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     
@@ -25,6 +26,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         // FCM 설정
         FirebaseApp.configure()
+
+
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
 

@@ -309,11 +309,7 @@ struct ChatScreen: View {
                         self.messages = []
                     }
                     
-                    // 스크롤을 하단으로 이동
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        self.scrollToBottom()
-                    }
-                    
+
                     // ChatInit 성공 후 소켓 연결 시작
                     self.connectSocket()
                 }
@@ -326,23 +322,10 @@ struct ChatScreen: View {
                     Logger.error("💥 [CHAT_INIT] 초기화 실패: \(error)")
                     
                     // Alert로 에러 표시
-                    CustomAlertManager.shared.showErrorAlert(
-                        title: "채팅 로드 실패",
-                        message: "채팅을 불러오지 못했습니다.\n다시 시도해주세요.",
+                    CustomAlertManager.shared.showAlert(
+                        message: "채팅을 불러오지 못했습니다.",
                         completion: {
-                            // 다시 시도하거나 뒤로가기 옵션 제공
-                            CustomAlertManager.shared.showConfirmAlert(
-                                title: "다시 시도",
-                                message: "채팅 초기화를 다시 시도하시겠습니까?",
-                                confirmTitle: "다시 시도",
-                                cancelTitle: "뒤로가기",
-                                onConfirm: {
-                                    self.initializeChat()
-                                },
-                                onCancel: {
-                                    self.onBack()
-                                }
-                            )
+                            self.onBack()
                         }
                     )
                 }
@@ -465,22 +448,10 @@ struct ChatScreen: View {
             Logger.error("💥 [SOCKET] 소켓 연결 실패")
             
             // Alert로 에러 표시
-            CustomAlertManager.shared.showErrorAlert(
-                title: "연결 실패",
-                message: "채팅 서버에 연결하지 못했습니다.\n다시 시도해주세요.",
+            CustomAlertManager.shared.showAlert(
+                message: "채팅 서버에 연결하지 못했습니다.",
                 completion: {
-                    CustomAlertManager.shared.showConfirmAlert(
-                        title: "다시 연결",
-                        message: "채팅 서버에 다시 연결하시겠습니까?",
-                        confirmTitle: "다시 연결",
-                        cancelTitle: "뒤로가기",
-                        onConfirm: {
-                            self.connectSocket()
-                        },
-                        onCancel: {
-                            self.onBack()
-                        }
-                    )
+                    self.onBack()
                 }
             )
         }
@@ -707,6 +678,9 @@ struct ChatScreen: View {
         // 입력창 초기화
         text = ""
         textEditorHeight = ChatScreen.textEditorDefault
+        
+        // 스크롤을 하단으로 이동
+        self.scrollToBottom()
     }
     
     private func scrollToBottom() {

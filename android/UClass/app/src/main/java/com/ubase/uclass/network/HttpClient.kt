@@ -104,10 +104,10 @@ class HttpClient private constructor(private val call: Call) {
 
             // JWT 토큰 헤더 추가
             if (addJWTToken && !TextUtils.isEmpty(Constants.jwtToken)) {
-                requestBuilder.addHeader("JWT_TOKEN", Constants.jwtToken ?: "")
+                requestBuilder.addHeader("JWT-TOKEN", Constants.jwtToken ?: "")
                 requestBuilder.addHeader("Authorization", Constants.jwtToken ?: "")
             } else {
-                requestBuilder.addHeader("JWT_TOKEN", "")
+                requestBuilder.addHeader("JWT-TOKEN", "")
             }
             requestBuilder.addHeader("User-Agent", "ANDROID")
 

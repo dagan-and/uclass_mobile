@@ -146,6 +146,7 @@ object SocketManager {
 
             val wsUrl = buildSockJSUrl(serverUrl)
             val request = Request.Builder()
+                .addHeader("JWT-TOKEN", Constants.jwtToken)
                 .url(wsUrl)
                 .build()
 

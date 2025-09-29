@@ -174,10 +174,10 @@ class NetworkAPI {
 
             // JWT 토큰 헤더 추가
             if let jwtToken = Constants.jwtToken, !jwtToken.isEmpty {
-                headers["JWT_TOKEN"] = jwtToken
+                headers["JWT-TOKEN"] = jwtToken
                 headers["Authorization"] = jwtToken
             } else {
-                headers["JWT_TOKEN"] = ""
+                headers["JWT-TOKEN"] = ""
             }
 
             self.sessionManager?.request(

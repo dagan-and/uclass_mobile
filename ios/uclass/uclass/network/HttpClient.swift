@@ -93,15 +93,15 @@ class HttpClient {
             
             // HTTP Headers 설정
             var httpHeaders: HTTPHeaders = [
-                "User-Agent": "iOS"
+                "User-Agent": "IOS"
             ]
             
             // JWT 토큰 헤더 추가
             if addJWTToken, let jwtToken = Constants.jwtToken, !jwtToken.isEmpty {
-                httpHeaders["JWT_TOKEN"] = jwtToken
+                httpHeaders["JWT-TOKEN"] = jwtToken
                 httpHeaders["Authorization"] = jwtToken
             } else {
-                httpHeaders["JWT_TOKEN"] = ""
+                httpHeaders["JWT-TOKEN"] = ""
             }
             
             // 추가 헤더 설정

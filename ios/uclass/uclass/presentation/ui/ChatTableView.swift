@@ -38,29 +38,14 @@ struct ChatTableView: UIViewRepresentable {
     
     func updateUIView(_ uiView: UITableView, context: Context) {
         let coordinator = context.coordinator
-        let previousMessageCount = coordinator.messages.count
-        let currentMessageCount = messages.count
-        
 
         // 데이터 업데이트
         coordinator.messages = messages
         coordinator.parent = self
         coordinator.updateChatItems()
-        
-        let isNewMessage = currentMessageCount > previousMessageCount
-        let shouldAutoScroll = isNewMessage && (messages.last?.isMe == true || isScrollAtBottom)
-        
+
         Logger.dev("📄 [RELOAD] 리로드 실행")
         uiView.reloadData()
-        
-        // 자동 스크롤 처리
-        if shouldAutoScroll && !coordinator.chatItems.isEmpty {
-            DispatchQueue.main.async {
-                coordinator.willStartProgrammaticScroll()
-                let indexPath = IndexPath(row: 0, section: 0)
-                uiView.scrollToRow(at: indexPath, at: .top, animated: true)
-            }
-        }
     }
     
     func makeCoordinator() -> Coordinator {

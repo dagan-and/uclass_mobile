@@ -9,6 +9,8 @@ target 'uclass' do
   pod 'Alamofire', '~> 5.2'
   pod 'Firebase/Core'       #FCM 공통
   pod 'Firebase/Messaging'  #FCM 메시지
+  pod 'Firebase/Crashlytics'#크래시 리포트
+  pod 'Firebase/Analytics'  #크래시 리포트
   pod 'KakaoSDKCommon'      #카카오 공통
   pod 'KakaoSDKUser'        #카카오 로그인
   pod 'KakaoSDKAuth'        #카카오 사용자 인증

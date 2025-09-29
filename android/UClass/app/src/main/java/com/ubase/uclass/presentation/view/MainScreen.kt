@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ubase.uclass.network.NetworkAPI
 import com.ubase.uclass.network.NetworkAPIManager
+import com.ubase.uclass.network.SocketManager
 import com.ubase.uclass.network.ViewCallbackManager
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
 import com.ubase.uclass.network.response.BaseData
@@ -140,6 +141,7 @@ fun MainScreen(
                                     PreferenceManager.setUserId(context, loginData.userId)
                                     PreferenceManager.setBranchId(context , loginData.branchId)
 
+                                    SocketManager.initialize()
                                     logoutViewModel.reset()
 
                                     Logger.dev("사용자 정보:")
