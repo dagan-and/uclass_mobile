@@ -274,16 +274,16 @@ struct SNSLoginView: View {
                             naverLoginManager.startNaverLogin()
                         }
 
-                        // 애플 로그인 버튼
-                        SNSLoginButton(
-                            title: "애플 로그인",
-                            backgroundColor: .black,
-                            textColor: .white,
-                            isLoading: appleLoginManager.isLoading
-                        ) {
-                            Logger.dev("애플 로그인 버튼 클릭")
-                            appleLoginManager.startAppleLogin()
-                        }
+                        // 애플 로그인 버튼(기획정해지면 확인)
+//                        SNSLoginButton(
+//                            title: "애플 로그인",
+//                            backgroundColor: .black,
+//                            textColor: .white,
+//                            isLoading: appleLoginManager.isLoading
+//                        ) {
+//                            Logger.dev("애플 로그인 버튼 클릭")
+//                            appleLoginManager.startAppleLogin()
+//                        }
                     }
                     .padding(.horizontal, 32)
                 }

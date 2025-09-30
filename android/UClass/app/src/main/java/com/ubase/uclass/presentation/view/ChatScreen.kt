@@ -425,7 +425,7 @@ fun ChatScreen(
                 modifier = Modifier
                     .weight(1f)
                     .background(
-                        color = if (isChatInitialized) Color(0xFFF0F0F0) else Color(0xFFE0E0E0), // 초기화 완료 여부에 따라 색상 변경
+                        color = Color(0xFFF0F0F0) , // 초기화 완료 여부에 따라 색상 변경
                         shape = RoundedCornerShape(24.dp)
                     )
                     .padding(horizontal = 16.dp, vertical = 12.dp) // 내부 패딩
@@ -440,18 +440,18 @@ fun ChatScreen(
                         .onFocusChanged { isFocused = it.isFocused },
                     textStyle = TextStyle(
                         fontSize = 16.sp,
-                        color = if (isChatInitialized) Color.Black else Color.Gray
+                        color = Color.Black
                     ),
                     maxLines = 6,
                     singleLine = false,
-                    cursorBrush = SolidColor(if (isChatInitialized) Color.Black else Color.Gray),
+                    cursorBrush = SolidColor(Color.Black),
                     enabled = isChatInitialized // 초기화 완료 후에만 활성화
                 )
 
                 // Placeholder
                 if (messageText.isEmpty() && !isFocused) {
                     Text(
-                        text = if (isChatInitialized) "메시지 입력" else "채팅 준비 중...",
+                        text = "메시지 입력",
                         color = Color.Gray,
                         fontSize = 16.sp
                     )
