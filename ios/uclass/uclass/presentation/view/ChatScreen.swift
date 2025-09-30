@@ -473,9 +473,14 @@ struct ChatScreen: View {
         let messageWithSeq = message.withMessageSeq(currentMaxMessageSeq)
         
         if messageWithSeq.isMe {
-            // 내가 보낸 메시지는 항상 즉시 추가
-            Logger.dev("⬇️ [ADD_DIRECT] 내 메시지 즉시 추가")
-            messages.append(messageWithSeq)
+            if(showPendingMessagesAlert) {
+                Logger.dev("⏳ [ADD_PENDING] 내 메시지 대기열에 추가")
+                pendingMessages.append(messageWithSeq)
+                showPendingMessages()
+            } else {
+                Logger.dev("⬇️ [ADD_DIRECT] 내 메시지 즉시 추가")
+                messages.append(messageWithSeq)
+            }
         } else {
             // 상대방 메시지는 항상 대기열에 추가 (순서 보장을 위해)
             Logger.dev("⏳ [ADD_PENDING] 상대방 메시지 대기열에 추가")

@@ -311,6 +311,7 @@ class SocketManager: NSObject, ObservableObject {
                     serverUrl.dropFirst(6).split(separator: "/").first ?? ""
                 ),
                 "login": String(userId),
+                "JWT-TOKEN" : Constants.jwtToken ?? ""
             ],
             body: ""
         )

@@ -183,7 +183,8 @@ object SocketManager {
                 "accept-version" to "1.0,1.1,1.2",
                 "heart-beat" to "$clientHeartbeatInterval,$serverHeartbeatInterval",
                 "host" to serverUrl.substringAfter("://").substringBefore("/"),
-                "login" to userId.toString()
+                "login" to userId.toString(),
+                "JWT-TOKEN" to Constants.jwtToken
             ),
             body = ""
         )
