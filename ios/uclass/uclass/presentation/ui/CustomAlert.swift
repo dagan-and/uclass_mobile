@@ -1,5 +1,6 @@
 import SwiftUI
 
+
 // MARK: - Alert Data Models
 struct AlertData {
     let id = UUID()
@@ -128,7 +129,7 @@ class CustomAlertManager: ObservableObject {
     
     // 에러 알림
     func showErrorAlert(
-        title: String = "오류",
+        title: String = "알림",
         message: String,
         completion: (() -> Void)? = nil
     ) {
@@ -228,94 +229,105 @@ struct CustomAlertView: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 20)
-                
-                // 구분선
-                Divider()
-                    .background(Color.gray.opacity(0.3))
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 20)
                 
                 // 버튼 영역
                 buttonArea
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             }
             .background(Color.white)
-            .cornerRadius(14)
-            .frame(maxWidth: 270)
-            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4)
+            .cornerRadius(16)
+            .frame(maxWidth: 300)
+            .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 10)
         }
-        .transition(.opacity.combined(with:.scale(scale: 0.8)))
-        .animation(.easeInOut(duration: 0.2), value: true)
+        .transition(.opacity.combined(with:.scale(scale: 0.9)))
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: true)
     }
     
     @ViewBuilder
     private var buttonArea: some View {
         if alertData.buttons.count == 1 {
             // 단일 버튼
-            singleButton(alertData.buttons[0])
+            singleButtonView(alertData.buttons[0])
         } else if alertData.buttons.count == 2 {
             // 두 개 버튼 (가로 배치)
-            HStack(spacing: 0) {
-                alertButton(alertData.buttons[0])
-                
-                Divider()
-                    .background(Color.gray.opacity(0.3))
-                    .frame(width: 1)
-                
-                alertButton(alertData.buttons[1])
+            HStack(spacing: 8) {
+                customButton(alertData.buttons[0])
+                customButton(alertData.buttons[1])
             }
-            .frame(height: 44)
         } else {
             // 다중 버튼 (세로 배치)
-            VStack(spacing: 0) {
-                ForEach(Array(alertData.buttons.enumerated()), id: \.offset) { index, button in
-                    if index > 0 {
-                        Divider()
-                            .background(Color.gray.opacity(0.3))
-                    }
-                    
-                    alertButton(button)
-                        .frame(height: 44)
+            VStack(spacing: 8) {
+                ForEach(Array(alertData.buttons.enumerated()), id: \.offset) { _, button in
+                    customButton(button)
                 }
             }
         }
     }
     
-    private func singleButton(_ button: AlertButton) -> some View {
-         Button(action: {
-             button.action?()
-             onDismiss()
-         }) {
-             Text(button.title)
-                 .font(.system(size: 17, weight: button.style == .cancel ? .regular : .medium))
-                 .foregroundColor(colorForButtonStyle(button.style))
-                 .frame(maxWidth: .infinity, minHeight: 44)
-                 .contentShape(Rectangle())
-         }
-         .buttonStyle(PlainButtonStyle())
-     }
+    private func singleButtonView(_ button: AlertButton) -> some View {
+        Button(action: {
+            button.action?()
+            onDismiss()
+        }) {
+            Text(button.title)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(backgroundColorForButton(button.style))
+                .cornerRadius(12)
+        }
+    }
     
-    private func alertButton(_ button: AlertButton) -> some View {
-         Button(action: {
-             button.action?()
-             onDismiss()
-         }) {
-             Text(button.title)
-                 .font(.system(size: 17, weight: button.style == .cancel ? .regular : .medium))
-                 .foregroundColor(colorForButtonStyle(button.style))
-                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                 .contentShape(Rectangle()) 
-         }
-         .buttonStyle(PlainButtonStyle())
-     }
+    private func customButton(_ button: AlertButton) -> some View {
+        Button(action: {
+            button.action?()
+            onDismiss()
+        }) {
+            Text(button.title)
+                .font(.system(size: 16, weight: button.style == .cancel ? .medium : .semibold))
+                .foregroundColor(textColorForButton(button.style))
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(backgroundColorForButton(button.style))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(borderColorForButton(button.style), lineWidth: button.style == .cancel ? 1 : 0)
+                )
+        }
+    }
     
-    private func colorForButtonStyle(_ style: AlertButton.AlertButtonStyle) -> Color {
+    private func backgroundColorForButton(_ style: AlertButton.AlertButtonStyle) -> Color {
         switch style {
         case .default:
-            return Color(red: 0x4F/255.0, green: 0x63/255.0, blue: 0xD2/255.0) // #4F63D2
+            return Color("mainColor")
         case .destructive:
-            return Color.red
+            return Color("mainColor")
         case .cancel:
-            return Color.black
+            return Color.white
+        }
+    }
+    
+    private func textColorForButton(_ style: AlertButton.AlertButtonStyle) -> Color {
+        switch style {
+        case .default, .destructive:
+            return .white
+        case .cancel:
+            return Color("defaultText")
+        }
+    }
+    
+    private func borderColorForButton(_ style: AlertButton.AlertButtonStyle) -> Color {
+        switch style {
+        case .cancel:
+            return Color("defaultText")
+        default:
+            return Color.clear
         }
     }
 }
@@ -405,12 +417,17 @@ extension View {
 //        NavigationView {
 //            VStack(spacing: 20) {
 //                Button("기본 알림") {
-//                    CustomAlertManager.shared.showAlert(message: "저장이 완료되었습니다.")
+//                    CustomAlertManager.shared.showAlert(
+//                        title: "불러오기",
+//                        message: "저장 승인 완료인 정기일정을 불러옵니다.\n\n현재 등록 또는 승인 되어있는 정기일정은 삭제됩니다."
+//                    )
 //                }
-//                
+//
 //                Button("확인/취소 알림") {
 //                    CustomAlertManager.shared.showConfirmAlert(
-//                        message: "정말 삭제하시겠습니까?",
+//                        title: "정기일정 삭제",
+//                        message: "현재 등록 및 승인 되어있는 정기일정은 삭제됩니다.\n\n승인일정 삭제 시 출결에 반영되지 않습니다.",
+//                        confirmTitle: "삭제",
 //                        onConfirm: {
 //                            Logger.dev("삭제 확인됨")
 //                        },
@@ -419,19 +436,19 @@ extension View {
 //                        }
 //                    )
 //                }
-//                
+//
 //                Button("에러 알림") {
 //                    CustomAlertManager.shared.showErrorAlert(
 //                        message: "네트워크 연결에 실패했습니다."
 //                    )
 //                }
-//                
+//
 //                Button("웹뷰 스타일 알림") {
 //                    CustomAlertManager.shared.showWebAlert(
 //                        message: "웹뷰에서 alert() 안녕"
 //                    )
 //                }
-//                
+//
 //                Button("다중 선택 알림") {
 //                    CustomAlertManager.shared.showMultipleChoiceAlert(
 //                        title: "옵션 선택",

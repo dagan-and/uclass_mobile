@@ -1,6 +1,7 @@
 package com.ubase.uclass.presentation.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -165,9 +166,11 @@ fun CustomAlert() {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     // 제목
                     Text(
                         text = data.title,
@@ -205,15 +208,16 @@ fun CustomAlert() {
                                 onClick = { CustomAlertManager.hideAlert() },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp),
+                                    .height(44.dp)
+                                    .border(1.dp, Color(0xFF303030), RoundedCornerShape(8.dp)),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFF5F5F5)
+                                    containerColor = Color(0xFFFFFFFF)
                                 ),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
                                     text = data.cancelText,
-                                    color = Color(0xFF666666),
+                                    color = Color(0xFF303030),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium
                                 )

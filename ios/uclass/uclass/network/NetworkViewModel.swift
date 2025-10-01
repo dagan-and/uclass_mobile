@@ -216,7 +216,7 @@ class NetworkViewModel: ObservableObject, NetworkAPIManager.NetworkCallback {
             let errorMessage = errorData.getMsg() ?? "알 수 없는 오류가 발생했습니다."
             
             Logger.error("API Error - Code: \(errorCode), Message: \(errorMessage)")
-            errorMsg = "오류: \(errorMessage)"
+            errorMsg = "\(errorMessage)"
         } else {
             Logger.error("Unknown API error occurred")
             errorMsg = "네트워크 오류가 발생했습니다. 다시 시도해주세요."

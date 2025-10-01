@@ -9,6 +9,7 @@ class NetworkAPI {
     private var operationQueue: OperationQueue?
     private var sessionManager: Session?
     private var isInitialized = false
+    private var timeout: TimeInterval = 15
 
     private init() {}
 
@@ -263,13 +264,37 @@ class NetworkAPI {
                             self.sendCallback(code: responseCode, data: nil)
                         }
                     } else {
+                     
                         let statusCode = response.response?.statusCode ?? -1
                         let statusMessage = HTTPURLResponse.localizedString(
                             forStatusCode: statusCode
                         )
+                        var errorMessage = "HTTP \(statusCode): \(statusMessage)"
+
+                        if !responseBody.isEmpty {
+                            do {
+                                if let jsonData = responseBody.data(using: .utf8) {
+                                    let jsonObject = try JSONSerialization.jsonObject(
+                                        with: jsonData,
+                                        options: []
+                                    ) as? [String: Any]
+                                    
+                                    // message 키가 있는지 확인하고 값 추출
+                                    if let message = jsonObject?["message"] as? String, !message.isEmpty {
+                                        errorMessage = message
+                                    } else if let error = jsonObject?["error"] as? String, !error.isEmpty {
+                                        // message가 없으면 error 필드 사용
+                                        errorMessage = error
+                                    }
+                                }
+                            } catch {
+                                Logger.error("에러 응답 파싱 실패: \(error.localizedDescription)")
+                            }
+                        }
+                        
                         let errorData = ErrorData(
                             code: responseCode,
-                            msg: "HTTP \(statusCode): \(statusMessage)"
+                            msg: errorMessage
                         )
                         self.sendCallback(
                             code: NetworkAPIManager.ResponseCode.API_ERROR,
