@@ -47,7 +47,6 @@ struct uclassApp: App {
                     )
                 ) { _ in
                     Logger.dev("🔄 앱이 활성화됨 - 뱃지 리셋")
-                    PushNotificationManager.shared.displayResetBadge()
                 }
                 .overlay(AlertContainer())
                 .overlay(LoadingContainer())

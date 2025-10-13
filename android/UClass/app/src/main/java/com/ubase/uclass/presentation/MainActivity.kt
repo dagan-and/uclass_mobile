@@ -166,8 +166,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 앱이 포그라운드로 올 때마다 배지 초기화
-        BadgeManager.getInstance().clearBadgeCount(this)
     }
 
     /**

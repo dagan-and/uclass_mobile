@@ -4,6 +4,7 @@ import com.ubase.uclass.App
 
 object Constants {
     var baseURL = "https://dev-umanager.ubase.kr"
+    val webURL = "http://uclass.ubase.kr"
     var jwtToken : String = ""
     var fcmToken : String = ""
     var refreshToken : String = ""

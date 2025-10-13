@@ -67,6 +67,7 @@ import com.ubase.uclass.network.response.ChatMessage
 import com.ubase.uclass.presentation.ui.ChatBubble
 import com.ubase.uclass.presentation.ui.CustomLoadingManager
 import com.ubase.uclass.presentation.ui.DateSeparator
+import com.ubase.uclass.util.BadgeManager
 import com.ubase.uclass.util.DateUtils
 import com.ubase.uclass.util.Logger
 import com.ubase.uclass.util.PreferenceManager
@@ -111,6 +112,9 @@ fun ChatScreen(
         } else {
             Logger.error("사용자 ID가 없어 채팅 초기화를 건너뜁니다")
         }
+
+        // 채팅방 진입시 뱃지 초기화
+        BadgeManager.getInstance().clearBadgeCount(context)
     }
 
     // 화면에서 나갈 때 리소스 정리

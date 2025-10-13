@@ -53,7 +53,7 @@ struct SpinnerView: View {
                 .trim(from: trimStart, to: trimEnd)
                 .stroke(
                     AngularGradient(
-                        gradient: Gradient(colors: [Color.green.opacity(0.3), Color.green]),
+                        gradient: Gradient(colors: [Color("mainColor").opacity(0.3), Color("mainColor")]),
                         center: .center
                     ),
                     style: StrokeStyle(lineWidth: 6, lineCap: .round)

@@ -3,6 +3,7 @@ import WebKit
 
 struct WebViewScreen: View {
     @EnvironmentObject var webViewManager: WebViewManager
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,6 +25,8 @@ struct WebViewScreen: View {
     }
 
     private func parseAndHandleScriptMessage(_ message: String) {
+        Logger.dev("📩 웹뷰에서 받은 메시지: \(message)")
+        
         guard let data = message.data(using: .utf8) else {
             Logger.dev("❌ Failed to convert message to data")
             return
@@ -36,26 +39,86 @@ struct WebViewScreen: View {
             ) as? [String: Any],
                 let action = json["action"] as? String
             {
-                if action.caseInsensitiveCompare("showLoading") == .orderedSame{
+                Logger.dev("📌 Action: \(action)")
+                
+                let actionLowercase = action.lowercased()
+                
+                switch actionLowercase {
+                case "showloading":
                     CustomLoadingManager.shared.showLoading()
-                } else if action.caseInsensitiveCompare("hideLoading") == .orderedSame{
+                    
+                case "hideloading":
                     CustomLoadingManager.shared.hideLoading()
-                } else if action.caseInsensitiveCompare("showAlert") == .orderedSame{
-                    if let alertMessage = json["message"] as? String {
-                        CustomAlertManager.shared.showConfirmAlert(
-                            message: alertMessage,
-                            onConfirm: {},
-                            onCancel: {}
-                        )
-                    }
-                } else {
+                    
+                case "showalert":
+                    let alertTitle = json["title"] as? String ?? ""
+                    let alertMessage = json["message"] as? String ?? ""
+                    let callback = json["callback"] as? String ?? ""
+                    
+                    CustomAlertManager.shared.showAlert(
+                        title: alertTitle,
+                        message: alertMessage,
+                        completion: {
+                            handleCallback(callback)
+                        }
+                    )
+                    
+                case "showconfirm":
+                    let alertTitle = json["title"] as? String ?? ""
+                    let alertMessage = json["message"] as? String ?? ""
+                    let callback = json["callback"] as? String ?? ""
+                    
+                    CustomAlertManager.shared.showConfirmAlert(
+                        title: alertTitle,
+                        message: alertMessage,
+                        onConfirm: {
+                            handleCallback(callback)
+                        },
+                        onCancel: {
+                            Logger.dev("사용자가 확인 다이얼로그를 취소함")
+                        }
+                    )
+                    
+                case "goclose":
+                    // 웹뷰 닫기
+                    Logger.dev("웹뷰 닫기 요청")
+                    dismiss()
+                    
+                default:
                     Logger.dev("⚠️ Unknown action: \(action)")
                 }
             } else {
                 Logger.dev("❌ Invalid JSON format or missing 'action' key")
             }
         } catch {
-            Logger.dev("❌ JSON parsing error: \(error.localizedDescription)")
+            Logger.error("❌ JSON parsing error: \(error.localizedDescription)")
+        }
+    }
+    
+    private func handleCallback(_ callback: String) {
+        guard !callback.isEmpty,
+              let webView = webViewManager.getWebView() else {
+            return
+        }
+        
+        // JavaScript 콜백 실행
+        if callback.hasPrefix("javascript:") {
+            // JavaScript 코드 실행
+            let jsCode = callback.replacingOccurrences(of: "javascript:", with: "")
+            webView.evaluateJavaScript(jsCode) { result, error in
+                if let error = error {
+                    Logger.error("JavaScript 실행 오류: \(error.localizedDescription)")
+                } else {
+                    Logger.dev("JavaScript 콜백 실행 완료")
+                }
+            }
+        } else if let url = URL(string: callback) {
+            // URL 로드
+            let request = URLRequest(url: url)
+            webView.load(request)
+            Logger.dev("Callback URL 로드: \(callback)")
+        } else {
+            Logger.dev("⚠️ 유효하지 않은 callback: \(callback)")
         }
     }
 }

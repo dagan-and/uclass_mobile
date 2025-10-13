@@ -30,7 +30,7 @@ fun SNSLoginScreen(
     onGoogleLogin: () -> Unit,
     isLoading: Boolean = false,
     isAutoLogin: Boolean = false,
-    autoLoginType: String? = null
+    autoLoginType: String? = null,
 ) {
     Box(
         modifier = Modifier

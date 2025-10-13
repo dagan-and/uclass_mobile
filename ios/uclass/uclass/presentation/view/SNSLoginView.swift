@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SNSLoginView: View {
-    var shouldStartAutoLogin: Bool = false  // ✅ 추가
+    var shouldStartAutoLogin: Bool = false
 
     @StateObject private var kakaoLoginManager = KakaoLoginManager()
     @StateObject private var appleLoginManager = AppleLoginManager()
@@ -13,6 +13,7 @@ struct SNSLoginView: View {
 
     @State private var navigateToMain = false
     @State private var showLoadingView = false
+    @State private var showRegistrationWebView = false  // 회원가입 웹뷰 표시 상태
     @State private var animationColor = Color(red: 0.0, green: 0.48, blue: 1.0)
 
     private func apiError(error: String) {
@@ -71,7 +72,7 @@ struct SNSLoginView: View {
                     Constants.setBranchId(resultData.data?.branchId ?? 0)
                     Constants.setBranchName(resultData.data?.branchName ?? "")
                     
-                    Logger.dev("로그인 성공")                    
+                    Logger.dev("로그인 성공")
                     
                     if let loginData = resultData.data {
                             let message = """
@@ -96,20 +97,13 @@ struct SNSLoginView: View {
     }
 
     private func apiSNSRegister() {
-
-        networkViewModel.callSNSRegister(
-            snsType: UserDefaultsManager.getSNSType(),
-            snsId: UserDefaultsManager.getSNSId(),
-            name: UserDefaultsManager.getUserName(),
-            email: UserDefaultsManager.getUserEmail(),
-            onSuccess: { result in
-
-                apiSNSLogin()
-            },
-            onError: { error in
-                apiError(error: error)
-            }
-        )
+        Logger.dev("신규 사용자 - 회원가입 웹뷰 표시")
+        showLoadingView = false
+        
+        // 회원가입 웹뷰 표시
+        DispatchQueue.main.async {
+            showRegistrationWebView = true
+        }
     }
 
     // 모든 로그인 상태 초기화
@@ -132,6 +126,20 @@ struct SNSLoginView: View {
                 if navigateToMain {
                     MainScreen()
                         .environmentObject(webViewManager)
+                } else if showRegistrationWebView {
+                    // 회원가입 웹뷰 화면
+                    RegisterWebViewScreen(
+                        onRegistrationComplete: {
+                            Logger.dev("회원가입 완료 - 자동 로그인 시도")
+                            showRegistrationWebView = false
+                            apiSNSLogin()
+                        },
+                        onClose: {
+                            Logger.dev("회원가입 취소")
+                            showRegistrationWebView = false
+                            resetAllLoginStates()
+                        }
+                    )
                 } else {
                     loginContentView
                 }
@@ -206,13 +214,13 @@ struct SNSLoginView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                // 앱 아이콘 영역 (Android 스타일)
-                Image("splash")  // 앱 아이콘 이미지
+                // 앱 아이콘 영역
+                Image("splash")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity)
-                    .frame(width: UIScreen.main.bounds.width * 0.4)  // 화면 너비의 50%
-                    .aspectRatio(1, contentMode: .fit)  // 정사각형 유지
+                    .frame(width: UIScreen.main.bounds.width * 0.4)
+                    .aspectRatio(1, contentMode: .fit)
 
                 Spacer()
 
@@ -220,7 +228,7 @@ struct SNSLoginView: View {
                 if networkViewModel.isLoading || showLoadingView
                     || shouldStartAutoLogin
                 {
-                    // 로딩 상태 =
+                    // 로딩 상태
                     VStack(spacing: 0) {
                         ProgressView()
                             .progressViewStyle(
@@ -238,7 +246,7 @@ struct SNSLoginView: View {
                                 Color(red: 0.4, green: 0.4, blue: 0.4)
                             )
                     }
-                    .frame(height: 200)  // 로그인 버튼과 동일 높이
+                    .frame(height: 200)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 32)
                 } else {
@@ -274,16 +282,16 @@ struct SNSLoginView: View {
                             naverLoginManager.startNaverLogin()
                         }
 
-                        // 애플 로그인 버튼(기획정해지면 확인)
-//                        SNSLoginButton(
-//                            title: "애플 로그인",
-//                            backgroundColor: .black,
-//                            textColor: .white,
-//                            isLoading: appleLoginManager.isLoading
-//                        ) {
-//                            Logger.dev("애플 로그인 버튼 클릭")
-//                            appleLoginManager.startAppleLogin()
-//                        }
+                        // 애플 로그인 버튼
+                        SNSLoginButton(
+                            title: "애플 로그인",
+                            backgroundColor: .black,
+                            textColor: .white,
+                            isLoading: appleLoginManager.isLoading
+                        ) {
+                            Logger.dev("애플 로그인 버튼 클릭")
+                            appleLoginManager.startAppleLogin()
+                        }
                     }
                     .padding(.horizontal, 32)
                 }
@@ -332,7 +340,7 @@ struct SNSLoginButton: View {
             }
             .frame(height: 56)
             .background(backgroundColor)
-            .cornerRadius(28)  // 더 둥근 모서리
+            .cornerRadius(28)
         }
         .disabled(isLoading)
         .opacity(isLoading ? 0.8 : 1.0)

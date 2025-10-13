@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ubase.uclass.network.NetworkAPI
 import com.ubase.uclass.network.NetworkAPIManager
-import com.ubase.uclass.network.SocketManager
 import com.ubase.uclass.network.ViewCallbackManager
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
 import com.ubase.uclass.network.response.BaseData
@@ -65,6 +64,7 @@ fun MainScreen(
     var loginSuccess by remember { mutableStateOf(false) }
     var isAPIInitialized by remember { mutableStateOf(false) }
     var isAutoLogin by remember { mutableStateOf(autoLoginInfo != null) }
+    var showRegistrationWebView by remember { mutableStateOf(false) }
 
     // API 오류 처리 함수
     fun handleAPIError(errorMessage: String) {
@@ -91,7 +91,6 @@ fun MainScreen(
             override fun onResult(code: Int, result: Any?) {
                 when (code) {
                     NetworkAPIManager.ResponseCode.API_AUTH_SNS_CHECK -> {
-                        // BaseData<SNSCheckData>로 안전한 캐스팅
                         result.asBaseData<SNSCheckData>()?.let { response ->
                             if (response.isSuccess) {
                                 Logger.dev("SNS 체크 성공: ${response.message}")
@@ -103,20 +102,9 @@ fun MainScreen(
                                         val userId = PreferenceManager.getSNSId(context)
                                         NetworkAPI.snsLogin(snsType, userId)
                                     } else {
-                                        Logger.dev("신규 사용자 - 회원가입 API 호출")
-                                        val snsType = PreferenceManager.getSNSType(context)
-                                        val userId = PreferenceManager.getSNSId(context)
-                                        var userName = PreferenceManager.getUserName(context)
-                                        var userEmail = PreferenceManager.getUserEmail(context)
-
-                                        if (TextUtils.isEmpty(userName)) {
-                                            userName = "기본값"
-                                        }
-                                        if (TextUtils.isEmpty(userEmail)) {
-                                            userEmail = "default@default.com"
-                                        }
-
-                                        NetworkAPI.snsRegister(snsType, userId, userName, userEmail)
+                                        Logger.dev("신규 사용자 - 회원가입 웹뷰 표시")
+                                        isWebViewLoading = false
+                                        showRegistrationWebView = true
                                     }
                                 }
                             } else {
@@ -130,7 +118,6 @@ fun MainScreen(
                     }
 
                     NetworkAPIManager.ResponseCode.API_AUTH_SNS_LOGIN -> {
-                        // BaseData<SNSLoginData>로 안전한 캐스팅
                         result.asBaseData<SNSLoginData>()?.let { response ->
                             if (response.isSuccess) {
                                 Logger.dev("로그인 성공: ${response.message}")
@@ -139,7 +126,7 @@ fun MainScreen(
                                     // JWT 토큰 저장
                                     Constants.jwtToken = loginData.accessToken
                                     PreferenceManager.setUserId(context, loginData.userId)
-                                    PreferenceManager.setBranchId(context , loginData.branchId)
+                                    PreferenceManager.setBranchId(context, loginData.branchId)
 
                                     logoutViewModel.reset()
 
@@ -156,9 +143,7 @@ fun MainScreen(
                                             로그인 시간: ${loginData.loginAt}
                                             사용자 타입: ${loginData.userType}
                                         """.trimIndent()
-                                    CustomAlertManager.showAlert(
-                                        content = content
-                                    )
+                                    CustomAlertManager.showAlert(content = content)
 
                                     // API 초기화 완료 표시
                                     isAPIInitialized = true
@@ -174,7 +159,6 @@ fun MainScreen(
                     }
 
                     NetworkAPIManager.ResponseCode.API_AUTH_SNS_REGISTER -> {
-                        // BaseData<EmptyData>로 안전한 캐스팅
                         result.asBaseData<EmptyData>()?.let { response ->
                             if (response.isSuccess) {
                                 Logger.dev("회원가입 성공: ${response.message}")
@@ -195,9 +179,10 @@ fun MainScreen(
 
                     NetworkAPIManager.ResponseCode.API_ERROR -> {
                         if (result is ErrorData) {
-                            if(result.code == NetworkAPIManager.ResponseCode.API_AUTH_SNS_CHECK ||
+                            if (result.code == NetworkAPIManager.ResponseCode.API_AUTH_SNS_CHECK ||
                                 result.code == NetworkAPIManager.ResponseCode.API_AUTH_SNS_LOGIN ||
-                                result.code == NetworkAPIManager.ResponseCode.API_AUTH_SNS_REGISTER) {
+                                result.code == NetworkAPIManager.ResponseCode.API_AUTH_SNS_REGISTER
+                            ) {
                                 Logger.error("API 오류: ${result.code}::${result.msg}")
                                 handleAPIError("${result.msg}")
                             }
@@ -225,6 +210,7 @@ fun MainScreen(
             loginSuccess = false
             isWebViewLoading = false
             isAutoLogin = false
+            showRegistrationWebView = false
         }
     }
 
@@ -243,7 +229,7 @@ fun MainScreen(
         Logger.info("## handleLoginSuccess 호출됨 - 수동 로그인")
         loginSuccess = true
         isWebViewLoading = true
-        isAutoLogin = false // 수동 로그인이므로 자동 로그인 플래그 해제
+        isAutoLogin = false
         webViewManager.preloadWebView()
     }
 
@@ -253,6 +239,29 @@ fun MainScreen(
         isWebViewLoading = false
         loginSuccess = false
         isAutoLogin = false
+    }
+
+    // 회원가입 완료 후 처리
+    val handleRegistrationComplete = {
+        Logger.dev("회원가입 완료 - 로그인 시도")
+        showRegistrationWebView = false
+
+        // 회원가입 완료 후 다시 SNS 체크 진행
+        isWebViewLoading = true
+        isAutoLogin = false
+        webViewManager.preloadWebView()
+
+        val snsType = PreferenceManager.getSNSType(context)
+        val userId = PreferenceManager.getSNSId(context)
+        NetworkAPI.snsLogin(snsType, userId)
+    }
+
+    // 회원가입 취소 처리
+    val handleCloseRegistration = {
+        Logger.dev("회원가입 취소")
+        showRegistrationWebView = false
+        isWebViewLoading = false
+        loginSuccess = false
     }
 
     // 상태 변화 모니터링 및 메인 화면 전환 로직
@@ -287,38 +296,52 @@ fun MainScreen(
     }
 
     // UI 렌더링
-    if (!isLoggedIn) {
-        // 로그인 화면 표시
-        SNSLoginScreen(
-            onKakaoLogin = {
-                onKakaoLogin(
-                    { handleLoginSuccess() },
-                    { handleLoginFailure() }
-                )
-            },
-            onNaverLogin = {
-                onNaverLogin(
-                    { handleLoginSuccess() },
-                    { handleLoginFailure() }
-                )
-            },
-            onGoogleLogin = {
-                onGoogleLogin(
-                    { handleLoginSuccess() },
-                    { handleLoginFailure() }
-                )
-            },
-            isLoading = isWebViewLoading,
-            isAutoLogin = isAutoLogin,
-            autoLoginType = autoLoginInfo?.first
-        )
-    } else {
+    when {
+        // ✅ 회원가입 웹뷰 표시
+        showRegistrationWebView -> {
+            Logger.info("## 회원가입 웹뷰 화면 렌더링")
+            RegisterWebViewScreen(
+                onRegistrationComplete = handleRegistrationComplete,
+                onClose = handleCloseRegistration
+            )
+        }
+
+        // 로그인 화면
+        !isLoggedIn -> {
+            Logger.info("## 로그인 화면 렌더링")
+            SNSLoginScreen(
+                onKakaoLogin = {
+                    onKakaoLogin(
+                        { handleLoginSuccess() },
+                        { handleLoginFailure() }
+                    )
+                },
+                onNaverLogin = {
+                    onNaverLogin(
+                        { handleLoginSuccess() },
+                        { handleLoginFailure() }
+                    )
+                },
+                onGoogleLogin = {
+                    onGoogleLogin(
+                        { handleLoginSuccess() },
+                        { handleLoginFailure() }
+                    )
+                },
+                isLoading = isWebViewLoading,
+                isAutoLogin = isAutoLogin,
+                autoLoginType = autoLoginInfo?.first
+            )
+        }
+
         // 메인 앱 화면
-        Logger.info("## 메인 화면 렌더링")
-        MainContent(
-            webViewManager = webViewManager,
-            initialNavigationTarget = initialNavigationTarget
-        )
+        else -> {
+            Logger.info("## 메인 화면 렌더링")
+            MainContent(
+                webViewManager = webViewManager,
+                initialNavigationTarget = initialNavigationTarget
+            )
+        }
     }
 }
 
@@ -328,7 +351,7 @@ private fun MainContent(
     initialNavigationTarget: Int? = null
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    var previousTab by remember { mutableStateOf(0) } // 이전 탭 저장
+    var previousTab by remember { mutableStateOf(0) }
 
     // FCM으로 인한 채팅 화면 이동 처리
     LaunchedEffect(Unit) {
@@ -350,7 +373,7 @@ private fun MainContent(
         ChatScreen(
             modifier = Modifier,
             onBack = {
-                selectedTab = previousTab // 이전 탭으로 이동
+                selectedTab = previousTab
                 ViewCallbackManager.notifyResult(NAVIGATION, selectedTab)
             }
         )

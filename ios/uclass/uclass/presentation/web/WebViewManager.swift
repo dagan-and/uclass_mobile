@@ -2,7 +2,7 @@ import Foundation
 import WebKit
 import Combine
 
-class WebViewManager: NSObject, ObservableObject {
+class WebViewManager: NSObject, ObservableObject, WKUIDelegate {
     @Published var isLoaded = false
     @Published var isLoading = false
     @Published var loadingProgress = 0
@@ -49,6 +49,7 @@ class WebViewManager: NSObject, ObservableObject {
         webView?.scrollView.backgroundColor = UIColor.white
         webView?.isOpaque = false
         webView?.allowsBackForwardNavigationGestures = true
+        webView?.uiDelegate = self
         
         if Constants.isDebug {
             if #available(iOS 16.4, *) {
@@ -115,5 +116,32 @@ extension WebViewManager: WKNavigationDelegate {
             self.isLoading = false
             Logger.dev("WebView failed to load: \(error.localizedDescription)")
         }
+    }
+    
+    func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+        DispatchQueue.main.async {
+                    let alertController = UIAlertController(
+                        title: message,
+                        message: nil,
+                        preferredStyle: .alert
+                    )
+                    
+                    alertController.addAction(UIAlertAction(
+                        title: "확인",
+                        style: .cancel,
+                        handler: { _ in
+                            completionHandler()
+                        }
+                    ))
+                    
+                    // ✅ 최상위 ViewController 찾아서 present
+                    if let topVC = UIApplication.shared.topViewController() {
+                        topVC.present(alertController, animated: true, completion: nil)
+                    } else {
+                        Logger.error("topViewController를 찾을 수 없음")
+                        completionHandler()
+                    }
+                }
     }
 }

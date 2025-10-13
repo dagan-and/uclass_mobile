@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.text.TextUtils
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -40,6 +41,9 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         super.onNewToken(token)
         Logger.dev("FirebaseMessagingService::FCM_TOEKN::" +token)
 
+        if(TextUtils.isEmpty(token)) {
+            return
+        }
         Constants.fcmToken = token
 
         try {

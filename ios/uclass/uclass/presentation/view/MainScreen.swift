@@ -62,7 +62,6 @@ struct MainScreen: View {
         .onAppear {
             Logger.dev("📱 MainScreen 나타남")
             PushNotificationManager.shared.setMainScreenActive(true)
-            PushNotificationManager.shared.displayResetBadge()
         }
         .onDisappear {
             Logger.dev("📱 MainScreen 사라짐")

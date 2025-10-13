@@ -8,24 +8,26 @@ import android.webkit.WebView
 import android.webkit.WebView.setWebContentsDebuggingEnabled
 import android.webkit.WebViewClient
 import androidx.compose.runtime.mutableStateOf
+import com.ubase.uclass.presentation.ui.CustomLoadingManager
 import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
 
-class WebViewManager(private val context: Context) {
+class RegisterWebViewManager(private val context: Context) {
 
     var preloadedWebView: WebView? = null
         private set
 
     val isWebViewLoaded = mutableStateOf(false)
     val isWebViewLoading = mutableStateOf(false)
+    val registrationCompleted = mutableStateOf(false)
 
-    // JS Alert 메시지 전달용 상태
+    // JS 메시지 전달용 상태
     val scriptMessage = mutableStateOf<String?>(null)
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    fun preloadWebView(url: String = "https://m.naver.com") {
-        Logger.info("## WebView preload 시작: $url")
+    fun preloadWebView(url: String) {
+        Logger.info("## RegisterWebView preload 시작: $url")
         isWebViewLoading.value = true
         isWebViewLoaded.value = false
 
@@ -33,19 +35,21 @@ class WebViewManager(private val context: Context) {
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                     super.onPageStarted(view, url, favicon)
-                    Logger.info("## WebView onPageStarted: $url")
+                    Logger.info("## RegisterWebView onPageStarted: $url")
                     isWebViewLoading.value = true
+                    CustomLoadingManager.showLoading()
                 }
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    Logger.info("## WebView onPageFinished: $url")
+                    Logger.info("## RegisterWebView onPageFinished: $url")
 
                     // Handler.post 사용하여 다음 프레임에 상태 업데이트
                     mainHandler.post {
-                        Logger.info("## WebView 상태 업데이트: loading=false, loaded=true")
+                        Logger.info("## RegisterWebView 상태 업데이트: loading=false, loaded=true")
                         isWebViewLoading.value = false
                         isWebViewLoaded.value = true
+                        CustomLoadingManager.hideLoading()
                     }
                 }
 
@@ -56,13 +60,21 @@ class WebViewManager(private val context: Context) {
                     failingUrl: String?
                 ) {
                     super.onReceivedError(view, errorCode, description, failingUrl)
-                    Logger.info("## WebView onReceivedError: $errorCode - $description")
+                    Logger.error("## RegisterWebView onReceivedError: $errorCode - $description")
 
                     // 에러가 발생해도 로딩 완료로 처리
                     mainHandler.post {
                         isWebViewLoading.value = false
                         isWebViewLoaded.value = true
+                        CustomLoadingManager.hideLoading()
                     }
+                }
+
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    url?.let { currentUrl ->
+                        Logger.dev("웹뷰 네비게이션: $currentUrl")
+                    }
+                    return false
                 }
             }
 
@@ -90,7 +102,7 @@ class WebViewManager(private val context: Context) {
             // JS 인터페이스 연결
             addJavascriptInterface(
                 UclassJsInterface(context) { msg ->
-                    Logger.info("웹에서 받은 메시지: $msg")
+                    Logger.info("회원가입 웹뷰에서 받은 메시지: $msg")
                     scriptMessage.value = msg
                     Handler(Looper.getMainLooper()).postDelayed({
                         scriptMessage.value = ""
@@ -99,26 +111,33 @@ class WebViewManager(private val context: Context) {
                 "uclass" // window.uclass 로 접근 가능
             )
 
-            Logger.info("## WebView loadUrl 호출: $url")
+            Logger.info("## RegisterWebView loadUrl 호출: $url")
             loadUrl(url)
         }
     }
 
+    fun setRegistrationCompleted(completed: Boolean) {
+        mainHandler.post {
+            registrationCompleted.value = completed
+        }
+    }
+
     fun reload() {
-        Logger.info("## WebView reload")
+        Logger.info("## RegisterWebView reload")
         preloadedWebView?.reload()
     }
 
     fun loadUrl(url: String) {
-        Logger.info("## WebView loadUrl: $url")
+        Logger.info("## RegisterWebView loadUrl: $url")
         preloadedWebView?.loadUrl(url)
     }
 
     fun destroy() {
-        Logger.info("## WebView destroy")
+        Logger.info("## RegisterWebView destroy")
         preloadedWebView?.destroy()
         preloadedWebView = null
         isWebViewLoaded.value = false
         isWebViewLoading.value = false
+        registrationCompleted.value = false
     }
 }

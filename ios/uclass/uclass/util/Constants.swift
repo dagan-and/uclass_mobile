@@ -5,6 +5,7 @@ import Foundation
  */
 struct Constants {
     static var baseURL = "https://dev-umanager.ubase.kr"
+    static var webURL = "http://dev-uclass.ubase.kr"
     static var isDebug = false
     static var jwtToken: String? = nil
     static var fcmToken: String? = nil

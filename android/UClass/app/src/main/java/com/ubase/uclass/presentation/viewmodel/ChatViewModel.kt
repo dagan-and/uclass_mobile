@@ -100,7 +100,7 @@ class ChatViewModel : ViewModel() {
             try {
                 // SocketManager 초기화 (한 번만)
                 if (!isSocketConnected) {
-                    SocketManager.initialize()
+                    SocketManager.initialize(Constants.getUserId(), Constants.getBranchId())
                 }
 
                 // NetworkAPI의 chatInit 호출

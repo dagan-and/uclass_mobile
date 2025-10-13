@@ -279,6 +279,9 @@ struct ChatScreen: View {
     /// ChatInit API 호출
     private func initializeChat() {
         Logger.dev("🚀 [CHAT_INIT] ChatInit API 호출 시작")
+
+        //채팅 뱃지 초기화
+        PushNotificationManager.shared.displayResetBadge()
         
         // 상태 초기화
         isInitializing = true

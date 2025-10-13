@@ -98,7 +98,9 @@ object SocketManager {
     /**
      * SocketManager 초기화
      */
-    fun initialize() {
+    fun initialize(userId : Int , branchId : Int) {
+        this.userId = userId
+        this.branchId = branchId
         if (!isInitialized) {
             okHttpClient = OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)

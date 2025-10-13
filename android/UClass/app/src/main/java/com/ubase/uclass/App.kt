@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.provider.Settings
+import android.text.TextUtils
 import android.util.Log
 import androidx.core.app.ActivityCompat.finishAffinity
 import com.ubase.uclass.presentation.fcm.PushRelayActivity
@@ -58,7 +59,9 @@ class App : Application() {
         FirebaseMessaging.getInstance().token.addOnCompleteListener(OnCompleteListener { task ->
             if (task.isSuccessful) {
                 Log.i("UCLASS_INFO", "FCM_TOKEN::" + task.result)
-
+                if(TextUtils.isEmpty(task.result)) {
+                    return@OnCompleteListener
+                }
                 Constants.fcmToken = task.result
 
                 try {
