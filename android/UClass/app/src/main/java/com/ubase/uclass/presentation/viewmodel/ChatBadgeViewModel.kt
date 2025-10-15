@@ -4,8 +4,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import com.ubase.uclass.App
 import com.ubase.uclass.network.ViewCallbackManager
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
+import com.ubase.uclass.util.BadgeManager
 
 class ChatBadgeViewModel : ViewModel() {
 
@@ -23,6 +25,13 @@ class ChatBadgeViewModel : ViewModel() {
                 }
             }
         })
+        initBadge()
+    }
+
+    private fun initBadge() {
+        if(BadgeManager.getInstance().getBadgeCount(App.context()) > 0) {
+            chatBadgeVisible = true
+        }
     }
 
     fun hideBadge() {

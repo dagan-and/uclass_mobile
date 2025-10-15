@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 object DateUtils {
-    private val dateFormat = SimpleDateFormat("yyyy년 MM월 dd일", Locale.KOREA)
+    private val dateFormat = SimpleDateFormat("yyyy년 MM월 dd일 EEEE", Locale.KOREA)
     private val timeFormat = SimpleDateFormat("a h:mm", Locale.KOREA)
 
     // 입력 문자열 파싱용 포맷터 (API에서 오는 "2025-09-19 22:59:19" 형태)

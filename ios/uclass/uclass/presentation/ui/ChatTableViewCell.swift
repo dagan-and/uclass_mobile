@@ -84,7 +84,7 @@ class ChatTableViewCell: UITableViewCell {
         
         if message.isMe {
             // 내 메시지 (오른쪽 정렬, 시간은 왼쪽)
-            bubbleView.backgroundColor = UIColor.systemBlue
+            bubbleView.backgroundColor = UIColor(red: 0.00, green: 0.13, blue: 0.93, alpha: 1.0)
             messageLabel.textColor = .white
             
             // 시간 + 버블 순서

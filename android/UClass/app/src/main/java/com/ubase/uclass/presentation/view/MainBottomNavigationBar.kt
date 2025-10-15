@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.startActivity
@@ -68,7 +69,7 @@ fun MainBottomNavigationBar(
             selected = selectedTab == 0,
             onClick = { ViewCallbackManager.notifyResult(NAVIGATION, HOME) },
             colors = NavigationBarItemDefaults.colors(
-                selectedTextColor = Color.Black,
+                selectedTextColor = colorResource(id = R.color.mainColor),
                 unselectedTextColor = Color.Gray,
                 indicatorColor = Color.White,
             )
@@ -82,7 +83,7 @@ fun MainBottomNavigationBar(
                         painter = painterResource(
                             id = if (selectedTab == 1) R.drawable.navi_chat_on else R.drawable.navi_chat_off
                         ),
-                        contentDescription = "쪽지",
+                        contentDescription = "DM",
                         tint = Color.Unspecified
                     )
 
@@ -92,7 +93,7 @@ fun MainBottomNavigationBar(
                             painter = painterResource(id = R.drawable.navi_icon_new),
                             contentDescription = "새 메시지",
                             modifier = Modifier
-                                .size(12.dp)
+                                .size(6.dp)
                                 .offset(x = 5.dp, y = (-5).dp)
                                 .align(Alignment.TopEnd),
                             tint = Color.Unspecified
@@ -100,14 +101,14 @@ fun MainBottomNavigationBar(
                     }
                 }
             },
-            label = { Text("쪽지") },
+            label = { Text("DM") },
             selected = selectedTab == 1,
             onClick = {
                 ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
                 ViewCallbackManager.notifyResult(CHAT_BADGE, false)
             },
             colors = NavigationBarItemDefaults.colors(
-                selectedTextColor = Color.Black,
+                selectedTextColor = colorResource(id = R.color.mainColor),
                 unselectedTextColor = Color.Gray,
                 indicatorColor = Color.White
             )
@@ -120,15 +121,15 @@ fun MainBottomNavigationBar(
                     painter = painterResource(
                         id = if (selectedTab == 2) R.drawable.navi_info_on else R.drawable.navi_info_off
                     ),
-                    contentDescription = "공지사항",
+                    contentDescription = "사유",
                     tint = Color.Unspecified
                 )
             },
-            label = { Text("공지사항") },
+            label = { Text("사유") },
             selected = selectedTab == 2,
             onClick = { ViewCallbackManager.notifyResult(NAVIGATION, NOTICE) },
             colors = NavigationBarItemDefaults.colors(
-                selectedTextColor = Color.Black,
+                selectedTextColor = colorResource(id = R.color.mainColor),
                 unselectedTextColor = Color.Gray,
                 indicatorColor = Color.White
             )

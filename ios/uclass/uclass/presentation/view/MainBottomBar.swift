@@ -9,7 +9,7 @@ struct MainBottomBar: View {
     let iconPadding : CGFloat = 4
     let iconSize: CGFloat = 22
     let fontSize: CGFloat = 16
-    let badgeSize: CGFloat = 12
+    let badgeSize: CGFloat = 6
     
     var body: some View {
         HStack(spacing: 0) {
@@ -26,7 +26,7 @@ struct MainBottomBar: View {
                     Text("홈")
                         .font(.system(size: fontSize))
                 }
-                .foregroundColor(selectedTab == 0 ? .black : .gray)
+                .foregroundColor(selectedTab == 0 ? Color("mainColor") : .gray)
             }
             .frame(maxWidth: .infinity)
 
@@ -47,14 +47,14 @@ struct MainBottomBar: View {
                                     .resizable()
                                     .frame(width: badgeSize, height: badgeSize)
                                     .scaledToFit()
-                                    .offset(x: 8, y: -8) // 아이콘 우상단에 배치
+                                    .offset(x: 12, y: -12) // 아이콘 우상단에 배치
                             }
                         }
                         Spacer().frame(height: iconPadding)
-                        Text("쪽지")
+                        Text("DM")
                             .font(.system(size: fontSize))
                     }
-                    .foregroundColor(selectedTab == 1 ? .black : .gray)
+                    .foregroundColor(selectedTab == 1 ? Color("mainColor") : .gray)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -70,10 +70,10 @@ struct MainBottomBar: View {
                         .frame(width: iconSize, height: iconSize)
                         .scaledToFit()
                     Spacer().frame(height: iconPadding)
-                    Text("공지사항")
+                    Text("사유")
                         .font(.system(size: fontSize))
                 }
-                .foregroundColor(selectedTab == 2 ? .black : .gray)
+                .foregroundColor(selectedTab == 2 ? Color("mainColor") : .gray)
             }
             .frame(maxWidth: .infinity)
         }

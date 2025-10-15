@@ -43,7 +43,7 @@ fun ChatBubble(message: ChatMessage) {
             Box(
                 modifier = Modifier
                     .background(
-                        color = Color(0xFF2E7D32), // 진한 초록
+                        color = Color(0xFF0022EE),
                         shape = RoundedCornerShape(16.dp)
                     )
                     .padding(horizontal = 16.dp, vertical = 12.dp)

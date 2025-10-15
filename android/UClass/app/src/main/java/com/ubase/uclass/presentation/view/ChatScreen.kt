@@ -518,7 +518,7 @@ fun ChatScreen(
                 Icon(
                     painter = painterResource(id = iconRes),
                     contentDescription = "전송",
-                    tint = if (isChatInitialized && messageText.isNotEmpty()) Color.Unspecified else Color.Gray
+                    tint = if (isChatInitialized && messageText.isNotEmpty()) Color.Unspecified else Color.Unspecified
                 )
             }
         }

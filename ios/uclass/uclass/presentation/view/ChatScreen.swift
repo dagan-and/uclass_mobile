@@ -256,13 +256,9 @@ struct ChatScreen: View {
                         }
                         .modifier(HideTextEditorBackground())
                 }
-
                 // 전송 버튼
                 Button(action: sendMessage) {
-                    Image(
-                        systemName: text.isEmpty
-                            ? "paperplane" : "paperplane.fill"
-                    )
+                    Image(text.isEmpty ? "icon_send_off" : "icon_send_on")
                     .font(.system(size: 18))
                     .foregroundColor(text.isEmpty ? .gray : .blue)
                     .frame(width: 36, height: 36)
