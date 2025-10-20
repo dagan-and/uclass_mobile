@@ -3,7 +3,7 @@ package com.ubase.uclass.util
 import com.ubase.uclass.App
 
 object Constants {
-    var baseURL = "https://dev-umanager.ubase.kr"
+    var baseURL = "https://dev-uclass.ubase.kr"
     val webURL = "http://uclass.ubase.kr"
     var jwtToken : String = ""
     var fcmToken : String = ""

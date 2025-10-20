@@ -56,6 +56,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ubase.uclass.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ubase.uclass.App
@@ -85,6 +88,7 @@ fun ChatScreen(
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     // ViewModel 상태 구독
     val isChatInitialized by chatViewModel.isChatInitialized.collectAsState()
@@ -99,6 +103,26 @@ fun ChatScreen(
     val branchName by chatViewModel.branchName.collectAsState()
     val shouldScrollToBottom by chatViewModel.shouldScrollToBottom.collectAsState()
     val shouldExitChat by chatViewModel.shouldExitChat.collectAsState()
+
+    // 🔄 Lifecycle 이벤트 관찰 (onResume, onPause)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    Logger.dev("▶️ [LIFECYCLE] onResume - 화면 복귀")
+                    // 소켓 연결 상태 확인 후 재연결
+                    chatViewModel.reconnectSocketIfNeeded()
+                }
+                else -> {}
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // 화면 진입 시 채팅 초기화 및 소켓 연결
     LaunchedEffect(Unit) {
@@ -127,9 +151,9 @@ fun ChatScreen(
 
     val listState = rememberLazyListState()
 
-    //인터랙션 제거
+    // 인터랙션 제거
     val interactionSource = remember { MutableInteractionSource() }
-    //키보드 포커스
+    // 키보드 포커스
     val focusManager = LocalFocusManager.current
 
     // 뒤로가기 처리
@@ -429,7 +453,7 @@ fun ChatScreen(
                 modifier = Modifier
                     .weight(1f)
                     .background(
-                        color = Color(0xFFF0F0F0) , // 초기화 완료 여부에 따라 색상 변경
+                        color = Color(0xFFF0F0F0), // 초기화 완료 여부에 따라 색상 변경
                         shape = RoundedCornerShape(24.dp)
                     )
                     .padding(horizontal = 16.dp, vertical = 12.dp) // 내부 패딩

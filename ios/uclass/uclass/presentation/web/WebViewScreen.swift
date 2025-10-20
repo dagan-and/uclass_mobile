@@ -14,13 +14,19 @@ struct WebViewScreen: View {
             }
         }
         .onReceive(webViewManager.$scriptMessage) { scriptMessage in
-            // null, 공백 체크
             guard let message = scriptMessage,
                 !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             else {
                 return
             }
             parseAndHandleScriptMessage(message)
+        }
+        .onReceive(webViewManager.$isLoaded) { isLoaded in
+            // WebView 로딩 완료 시 대기 중인 푸시 URL 처리
+            if isLoaded {
+                Logger.dev("✅ WebView 로딩 완료 - 대기 중인 푸시 URL 확인")
+                PushNotificationManager.shared.handlePendingNavigationAfterWebViewLoaded()
+            }
         }
     }
 
@@ -80,9 +86,15 @@ struct WebViewScreen: View {
                     )
                     
                 case "goclose":
-                    // 웹뷰 닫기
                     Logger.dev("웹뷰 닫기 요청")
                     dismiss()
+                    
+                case "godm":
+                    Logger.dev("💬 채팅 화면 이동 요청")
+                    NotificationCenter.default.post(
+                        name: Notification.Name("NavigateToChat"),
+                        object: nil
+                    )
                     
                 default:
                     Logger.dev("⚠️ Unknown action: \(action)")
@@ -103,7 +115,6 @@ struct WebViewScreen: View {
         
         // JavaScript 콜백 실행
         if callback.hasPrefix("javascript:") {
-            // JavaScript 코드 실행
             let jsCode = callback.replacingOccurrences(of: "javascript:", with: "")
             webView.evaluateJavaScript(jsCode) { result, error in
                 if let error = error {
@@ -113,7 +124,6 @@ struct WebViewScreen: View {
                 }
             }
         } else if let url = URL(string: callback) {
-            // URL 로드
             let request = URLRequest(url: url)
             webView.load(request)
             Logger.dev("Callback URL 로드: \(callback)")

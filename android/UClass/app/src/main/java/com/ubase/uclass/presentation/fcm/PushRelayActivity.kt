@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import com.ubase.uclass.presentation.MainActivity
 import com.ubase.uclass.util.AppUtil
+import com.ubase.uclass.util.BadgeManager
 import com.ubase.uclass.util.Logger
 
 /**
@@ -17,6 +18,9 @@ class PushRelayActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         Logger.info("## PushRelayActivity 시작")
+
+        //알림 누르면 카운트 초기화
+        BadgeManager.getInstance().clearBadgeCount(this)
 
         // 앱이 이미 실행 중인지 확인
         val isAppRunning = isAppInForeground()

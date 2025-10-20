@@ -116,6 +116,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.lifecycle.compose)
 
     //파이어베이스
     implementation(platform(libs.firebase.bom))

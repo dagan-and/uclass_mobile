@@ -14,6 +14,7 @@ import com.ubase.uclass.presentation.ui.CustomAlertManager
 import com.ubase.uclass.presentation.view.asBaseData
 import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -109,6 +110,46 @@ class ChatViewModel : ViewModel() {
                 Logger.error("채팅 초기화 중 오류: ${e.message}")
                 _isInitializingChat.value = false
                 _isChatInitialized.value = true // 에러 시에도 UI 사용 가능
+            }
+        }
+    }
+
+    /**
+     * 소켓 연결 상태 확인 후 필요시 재연결
+     * onResume 시점에 호출됨
+     */
+    fun reconnectSocketIfNeeded() {
+        viewModelScope.launch {
+            try {
+                Logger.dev("🔄 소켓 연결 상태 확인 시작")
+
+                // 채팅이 초기화되지 않았으면 재연결 불필요
+                if (!_isChatInitialized.value) {
+                    Logger.dev("채팅이 초기화되지 않아 재연결 불필요")
+                    return@launch
+                }
+
+                // 소켓 연결 상태 확인
+                val isConnected = SocketManager.isConnected()
+
+                if (!isConnected) {
+                    Logger.dev("⚠️ 소켓 연결이 끊어져 있음 - 재연결 시도")
+
+                    // 기존 소켓 정리
+                    SocketManager.disconnect()
+
+                    // 잠시 대기 후 재연결
+                    delay(500)
+
+                    // WebSocket 재연결 및 메시지 수신 콜백 재설정
+                    connectWebSocket()
+
+                    Logger.dev("✅ 소켓 재연결 완료")
+                } else {
+                    Logger.dev("✅ 소켓이 정상적으로 연결되어 있음")
+                }
+            } catch (e: Exception) {
+                Logger.error("소켓 재연결 중 오류 발생: ${e.message}")
             }
         }
     }

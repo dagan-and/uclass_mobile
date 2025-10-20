@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import com.ubase.uclass.network.ViewCallbackManager
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.CHAT
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.HOME
+import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
 import com.ubase.uclass.presentation.ui.CustomAlertManager
 import com.ubase.uclass.presentation.ui.CustomLoadingManager
 import com.ubase.uclass.util.Logger
@@ -69,7 +73,10 @@ fun WebViewScreen(webViewManager: WebViewManager) {
                         "goclose" -> {
                             // 웹뷰 닫기
                             Logger.dev("웹뷰 닫기 요청")
+                        }
 
+                        "godm" -> {
+                            ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
                         }
 
                         else -> {

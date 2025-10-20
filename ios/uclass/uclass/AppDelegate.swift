@@ -128,6 +128,11 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         Logger.dev("📱 사용자가 알림을 탭함")
         Logger.dev("📩 didReceive 페이로드: \(userInfo)")
+        
+        //벳지 초기화
+        PushNotificationManager.shared.displayResetBadge()
+
+        
         // 푸시 처리
         PushNotificationManager.shared.handlePushNotification(userInfo: userInfo , fromAction : true)
         

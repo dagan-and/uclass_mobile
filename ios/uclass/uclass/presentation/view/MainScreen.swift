@@ -4,8 +4,8 @@ struct MainScreen: View {
     @EnvironmentObject var webViewManager: WebViewManager
     @StateObject private var chatBadgeViewModel = ChatBadgeViewModel.shared
     @State private var selectedTab = 0
-    @State private var previousTab = 0 // 이전 탭 저장
-    @State private var showChatScreen = false // 채팅 화면 표시 여부
+    @State private var previousTab = 0
+    @State private var showChatScreen = false
 
     var body: some View {
         ZStack {
@@ -16,7 +16,7 @@ struct MainScreen: View {
                     ChatScreen(onBack: {
                         Logger.dev("🔙 채팅 화면에서 뒤로가기")
                         showChatScreen = false
-                        selectedTab = previousTab // 이전 탭으로 복원
+                        selectedTab = previousTab
                     })
                 } else {
                     ZStack {
@@ -35,7 +35,7 @@ struct MainScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
 
-                    // 커스텀 하단 바 (채팅 화면일 때는 숨김)
+                    // 커스텀 하단 바
                     MainBottomBar(
                         selectedTab: $selectedTab,
                         showChatBadge: $chatBadgeViewModel.showChatBadge,
@@ -53,7 +53,6 @@ struct MainScreen: View {
         .background(Color.white)
         .navigationBarHidden(true)
         .onChange(of: selectedTab) { newTab in
-            // 채팅 탭이 아닌 다른 탭 선택 시 채팅 화면 닫기
             if showChatScreen && newTab != 1 {
                 Logger.dev("🔄 다른 탭 선택으로 채팅 화면 닫기")
                 showChatScreen = false
@@ -75,6 +74,46 @@ struct MainScreen: View {
             Logger.dev("🎯 알림으로 채팅 화면 이동")
             previousTab = selectedTab
             showChatScreen = true
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: Notification.Name("NavigateToHome")
+            )
+        ) { notification in
+            Logger.dev("🏠 홈 탭으로 이동")
+            
+            // 홈 탭으로 이동
+            if selectedTab != 0 {
+                selectedTab = 0
+            }
+            
+            // 채팅 화면이 열려있으면 닫기
+            if showChatScreen {
+                showChatScreen = false
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: Notification.Name("NavigateToUrl")
+            )
+        ) { notification in
+            Logger.dev("🎯 알림으로 URL 이동")
+            
+            // 홈 탭으로 이동
+            if selectedTab != 0 {
+                selectedTab = 0
+            }
+            
+            // 채팅 화면이 열려있으면 닫기
+            if showChatScreen {
+                showChatScreen = false
+            }
+            
+            // URL 로드
+            if let urlString = notification.object as? String {
+                Logger.dev("🌐 WebView URL 로드: \(urlString)")
+                webViewManager.loadUrl(urlString)
+            }
         }
         .onReceive(
             NotificationCenter.default.publisher(

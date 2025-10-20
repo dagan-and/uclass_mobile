@@ -40,14 +40,6 @@ struct uclassApp: App {
                         appKey = UUID()
                     }
                 }
-                // 🆕 백그라운드에서 포그라운드로 돌아올 때마다 뱃지 리셋
-                .onReceive(
-                    NotificationCenter.default.publisher(
-                        for: UIApplication.didBecomeActiveNotification
-                    )
-                ) { _ in
-                    Logger.dev("🔄 앱이 활성화됨 - 뱃지 리셋")
-                }
                 .overlay(AlertContainer())
                 .overlay(LoadingContainer())
         }

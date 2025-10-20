@@ -13,7 +13,7 @@
       "attributes": [],
       "versionCode": 1,
       "versionName": "1.0.0",
-      "outputFile": "UClass[dev]-1014-1.0.0.apk"
+      "outputFile": "UClass[dev]-1020-1.0.0.apk"
     }
   ],
   "elementType": "File",
@@ -22,14 +22,14 @@
       "minApi": 28,
       "maxApi": 30,
       "baselineProfiles": [
-        "baselineProfiles/1/UClass[dev]-1014-1.0.0.dm"
+        "baselineProfiles/1/UClass[dev]-1020-1.0.0.dm"
       ]
     },
     {
       "minApi": 31,
       "maxApi": 2147483647,
       "baselineProfiles": [
-        "baselineProfiles/0/UClass[dev]-1014-1.0.0.dm"
+        "baselineProfiles/0/UClass[dev]-1020-1.0.0.dm"
       ]
     }
   ],

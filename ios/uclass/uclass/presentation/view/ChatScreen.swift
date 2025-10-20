@@ -2,6 +2,8 @@ import Combine
 import SwiftUI
 
 struct ChatScreen: View {
+    @Environment(\.scenePhase) private var scenePhase
+    
     static let textEditorDefault: CGFloat = 42
     @State private var textEditorHeight: CGFloat = 42
     @State private var navigationBarHeight: CGFloat = 56
@@ -137,6 +139,19 @@ struct ChatScreen: View {
             }
             .onChange(of: isScrollAtBottom) { newValue in
                 handleScrollToBottom(newValue)
+            }
+            .onChange(of: scenePhase) { newPhase in
+                switch newPhase {
+                case .active:
+                    // 앱이 다시 활성화될 때 채팅 상태 확인
+                    Logger.dev("🔄 [RESUME] 소켓 연결 상태:: \(socketManager.isConnected())")
+                    if socketManager.isConnected() == false {
+                        Logger.dev("🔄 [RESUME] 소켓 재연결 시도")
+                        connectSocket()
+                    }
+                default:
+                    break
+                }
             }
         }
     }

@@ -18,6 +18,7 @@ import com.ubase.uclass.network.NetworkAPIManager
 import com.ubase.uclass.network.SocketManager
 import com.ubase.uclass.network.ViewCallbackManager
 import com.ubase.uclass.network.ViewCallbackManager.PageCode.CHAT
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.HOME
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.CHAT_BADGE
 import com.ubase.uclass.network.ViewCallbackManager.ResponseCode.NAVIGATION
 import com.ubase.uclass.presentation.ui.CustomAlert
@@ -45,6 +46,9 @@ class MainActivity : ComponentActivity() {
     // FCM에서 전달받은 초기 네비게이션 타겟 (MainContent에서 사용)
     var initialNavigationTarget: Int? = null
         private set
+
+    // FCM에서 전달받은 URL (WebView 로딩 완료 후 이동)
+    private var pendingFCMUrl: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,6 +82,9 @@ class MainActivity : ComponentActivity() {
         }
 
         webViewManager = WebViewManager(this)
+
+        // WebView 로딩 완료 감지 및 FCM URL 이동 처리
+        setupWebViewLoadingObserver()
 
         enableEdgeToEdge()
         setContent {
@@ -169,6 +176,48 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * WebView 로딩 완료 감지 및 FCM URL 이동 처리
+     */
+    private fun setupWebViewLoadingObserver() {
+        // WebView 로딩 상태 변경 감지를 위한 옵저버 설정
+        // (실제 구현은 WebViewManager의 isWebViewLoaded State를 관찰)
+        Handler(Looper.getMainLooper()).post {
+            observeWebViewLoadingState()
+        }
+    }
+
+    /**
+     * WebView 로딩 상태 관찰 및 FCM URL 이동 처리
+     */
+    private fun observeWebViewLoadingState() {
+        val handler = Handler(Looper.getMainLooper())
+        val checkRunnable = object : Runnable {
+            override fun run() {
+                // WebView가 로딩 완료되고 pendingFCMUrl이 있으면 URL 이동
+                if (webViewManager.isWebViewLoaded.value && !pendingFCMUrl.isNullOrEmpty()) {
+                    val url = pendingFCMUrl!!
+                    Logger.info("## WebView 로딩 완료 - FCM URL로 이동: $url")
+
+                    // 메인 스레드에서 URL 이동
+                    webViewManager.loadUrl(url)
+
+                    // pendingFCMUrl 초기화
+                    pendingFCMUrl = null
+
+                    //메인 탭으로 이동
+                    ViewCallbackManager.notifyResult(NAVIGATION, HOME)
+                } else if (!pendingFCMUrl.isNullOrEmpty()) {
+                    // WebView가 아직 로딩 중이면 0.5초 후 다시 체크
+                    handler.postDelayed(this, 500)
+                }
+            }
+        }
+
+        // 초기 체크 시작
+        handler.post(checkRunnable)
+    }
+
+    /**
      * 자동 로그인 수행
      */
     private fun performAutoLogin(autoLoginInfo: Pair<String, String>) {
@@ -225,8 +274,19 @@ class MainActivity : ComponentActivity() {
     fun setFCMIntent(bundle: Bundle?) {
         if (bundle != null) {
             Logger.info("## FCM 데이터 수신 : ${bundle.keySet().joinToString { "$it=${bundle.getString(it)}" }}")
-            if(bundle.containsKey("type") && bundle.getString("type").equals("CHAT", true)) {
+
+            if (bundle.containsKey("type") && bundle.getString("type").equals("CHAT", true)) {
                 ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
+            }
+
+            // URL이 있으면 pendingFCMUrl에 저장
+            if (bundle.containsKey("url")) {
+                val url = bundle.getString("url")
+                if (!url.isNullOrEmpty()) {
+                    Logger.info("## FCM URL 수신: $url")
+                    pendingFCMUrl = url
+                    observeWebViewLoadingState()
+                }
             }
         }
     }
@@ -237,8 +297,22 @@ class MainActivity : ComponentActivity() {
     private fun checkIntentForFCMData(intent: android.content.Intent?) {
         intent?.extras?.let { bundle ->
             Logger.info("## Intent에서 FCM 데이터 수신: ${bundle.keySet().joinToString { "$it=${bundle.getString(it)}" }}")
+
             if (bundle.containsKey("type") && bundle.getString("type").equals("CHAT", true)) {
                 initialNavigationTarget = CHAT
+            }
+
+            // 메인의 WebViewScreen 페이지에서 기본 URL 로딩이 완료된 후
+            // bundle의 getString("url")로 이동하게 처리
+            if (bundle.containsKey("url")) {
+                val url = bundle.getString("url")
+                if (!url.isNullOrEmpty()) {
+                    Logger.info("## FCM에서 받은 URL: $url")
+                    pendingFCMUrl = url
+
+                    // WebView 로딩 상태 관찰 시작
+                    observeWebViewLoadingState()
+                }
             }
         }
     }
@@ -281,5 +355,6 @@ class MainActivity : ComponentActivity() {
         loginSuccessCallback = null
         loginFailureCallback = null
         initialNavigationTarget = null
+        pendingFCMUrl = null
     }
 }
