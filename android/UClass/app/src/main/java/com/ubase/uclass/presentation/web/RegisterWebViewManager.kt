@@ -132,6 +132,10 @@ class RegisterWebViewManager(private val context: Context) {
         preloadedWebView?.loadUrl(url)
     }
 
+    fun getWebView() : WebView? {
+        return preloadedWebView
+    }
+
     fun destroy() {
         Logger.info("## RegisterWebView destroy")
         preloadedWebView?.destroy()

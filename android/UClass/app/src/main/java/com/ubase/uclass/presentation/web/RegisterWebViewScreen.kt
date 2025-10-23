@@ -1,6 +1,7 @@
 package com.ubase.uclass.presentation.view
 
 import android.text.TextUtils
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -23,6 +24,7 @@ import org.json.JSONObject
 
 @Composable
 fun RegisterWebViewScreen(
+    url: String,
     onRegistrationComplete: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -51,12 +53,19 @@ fun RegisterWebViewScreen(
         }
     }
 
-    DisposableEffect(Unit) {
-        webViewManager.preloadWebView("https://www.ggac.or.kr/?p=62#url")
+    DisposableEffect(url) {
+        Logger.info("## RegisterWebView URL로 로드: $url")
+        webViewManager.preloadWebView(url)
 
         onDispose {
             webViewManager.destroy()
         }
+    }
+
+    // 뒤로가기 처리
+    BackHandler {
+        Logger.dev("물리적 뒤로가기")
+        webViewManager.getWebView()?.evaluateJavascript("goBackPress()", null)
     }
 
     Box(
@@ -107,65 +116,67 @@ private fun parseAndHandleScriptMessage(
 ) {
     Logger.dev("📩 회원가입 웹뷰에서 받은 메시지: $message")
 
-    try {
-        val json = JSONObject(message)
-        val action = json.optString("action", "")
+    if (!TextUtils.isEmpty(message)) {
+        try {
+            val json = JSONObject(message)
+            val action = json.optString("action", "")
 
-        Logger.dev("📌 Action: $action")
+            Logger.dev("📌 Action: $action")
 
-        when (action.lowercase()) {
-            "gologin" -> {
-                // 회원가입 완료 메시지
-                Logger.dev("✅ 회원가입 완료 (JS 메시지)")
+            when (action.lowercase()) {
+                "gologin" -> {
+                    // 회원가입 완료 메시지
+                    Logger.dev("✅ 회원가입 완료 (JS 메시지)")
 
-                webViewManager.setRegistrationCompleted(true)
+                    webViewManager.setRegistrationCompleted(true)
+                }
+
+                "showloading" -> {
+                    CustomLoadingManager.showLoading()
+                }
+
+                "hideloading" -> {
+                    CustomLoadingManager.hideLoading()
+                }
+
+                "showalert" -> {
+                    val alertTitle = json.optString("title", "")
+                    val alertMessage = json.optString("message", "")
+                    val callBack = json.optString("callback", "")
+
+                    CustomAlertManager.showAlert(title = alertTitle, content = alertMessage ,
+                        onConfirm = {
+                            if(!TextUtils.isEmpty(callBack)) {
+                                webViewManager.preloadedWebView!!.loadUrl(callBack)
+                            }
+                        })
+                }
+
+                "showconfirm" -> {
+                    val alertTitle = json.optString("title", "")
+                    val alertMessage = json.optString("message", "")
+                    val callBack = json.optString("callback", "")
+
+                    CustomAlertManager.showConfirmAlert(title = alertTitle, content = alertMessage ,
+                        onConfirm = {
+                            if(!TextUtils.isEmpty(callBack)) {
+                                webViewManager.preloadedWebView!!.loadUrl(callBack)
+                            }
+                        })
+                }
+
+                "goclose" -> {
+                    // 웹뷰 닫기
+                    Logger.dev("웹뷰 닫기 요청")
+                    onClose()
+                }
+
+                else -> {
+                    Logger.dev("⚠️ Unknown action: $action")
+                }
             }
-
-            "showloading" -> {
-                CustomLoadingManager.showLoading()
-            }
-
-            "hideloading" -> {
-                CustomLoadingManager.hideLoading()
-            }
-
-            "showalert" -> {
-                val alertTitle = json.optString("title", "")
-                val alertMessage = json.optString("message", "")
-                val callBack = json.optString("callback", "")
-
-                CustomAlertManager.showAlert(title = alertTitle, content = alertMessage ,
-                    onConfirm = {
-                        if(!TextUtils.isEmpty(callBack)) {
-                            webViewManager.preloadedWebView!!.loadUrl(callBack)
-                        }
-                    })
-            }
-
-            "showconfirm" -> {
-                val alertTitle = json.optString("title", "")
-                val alertMessage = json.optString("message", "")
-                val callBack = json.optString("callback", "")
-
-                CustomAlertManager.showConfirmAlert(title = alertTitle, content = alertMessage ,
-                    onConfirm = {
-                        if(!TextUtils.isEmpty(callBack)) {
-                            webViewManager.preloadedWebView!!.loadUrl(callBack)
-                        }
-                    })
-            }
-
-            "goclose" -> {
-                // 웹뷰 닫기
-                Logger.dev("웹뷰 닫기 요청")
-                onClose()
-            }
-
-            else -> {
-                Logger.dev("⚠️ Unknown action: $action")
-            }
+        } catch (e: Exception) {
+            Logger.error("❌ JSON parsing error: ${e.message}")
         }
-    } catch (e: Exception) {
-        Logger.error("❌ JSON parsing error: ${e.message}")
     }
 }

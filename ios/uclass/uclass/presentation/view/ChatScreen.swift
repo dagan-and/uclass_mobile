@@ -41,8 +41,12 @@ struct ChatScreen: View {
 
     @Environment(\.presentationMode) var presentationMode
     let onBack: () -> Void
+    
+    // ✅ 화면 표시 여부를 받는 프로퍼티 추가
+    let isVisible: Bool
 
-    init(onBack: @escaping () -> Void) {
+    init(isVisible: Bool, onBack: @escaping () -> Void) {
+        self.isVisible = isVisible
         self.onBack = onBack
     }
     
@@ -122,25 +126,30 @@ struct ChatScreen: View {
                         }
                     }
             )
-            .onAppear {
-                Logger.dev("🎬 [CHAT_SCREEN] ChatScreen 나타남 - ChatInit API 호출")
-                NotificationCenter.default.post(
-                    name: Notification.Name("ChatBadgeOff"),
-                    object: false
-                )
-                messageCount = messages.count
-                
-                // ChatScreen이 나타날 때마다 ChatInit API 호출
-                initializeChat()
-            }
-            .onDisappear {
-                Logger.dev("🚪 [CHAT_SCREEN] ChatScreen 사라짐 - 소켓 연결 해제")
-                disconnectSocket()
+            // ✅ isVisible 변경 감지하여 소켓 연결/해제
+            .onChange(of: isVisible) { newValue in
+                if newValue {
+                    Logger.dev("🎬 [CHAT_SCREEN] ChatScreen 보임 - ChatInit API 호출")
+                    NotificationCenter.default.post(
+                        name: Notification.Name("ChatBadgeOff"),
+                        object: false
+                    )
+                    messageCount = messages.count
+                    
+                    // ChatScreen이 보일 때 ChatInit API 호출
+                    initializeChat()
+                } else {
+                    Logger.dev("🚪 [CHAT_SCREEN] ChatScreen 숨김 - 소켓 연결 해제")
+                    disconnectSocket()
+                }
             }
             .onChange(of: isScrollAtBottom) { newValue in
                 handleScrollToBottom(newValue)
             }
             .onChange(of: scenePhase) { newPhase in
+                // ✅ 화면이 보일 때만 앱 상태 변경 처리
+                guard isVisible else { return }
+                
                 switch newPhase {
                 case .active:
                     // 앱이 다시 활성화될 때 채팅 상태 확인
@@ -660,6 +669,21 @@ struct ChatScreen: View {
             UserDefaultsManager.clearLoginInfo()
             
             // 2. 앱 재시작 알림 발송
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NotificationCenter.default.post(
+                    name: Notification.Name("RestartApp"),
+                    object: nil
+                )
+            }
+            text = ""
+            textEditorHeight = ChatScreen.textEditorDefault
+            return
+        }
+        
+        //앱 재시작
+        if(messageContent == "리로드") {
+            
+            // 1. 앱 재시작 알림 발송
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 NotificationCenter.default.post(
                     name: Notification.Name("RestartApp"),

@@ -19,6 +19,8 @@ object ViewCallbackManager {
         const val NAVIGATION : Int = 2
         //로그아웃
         const val LOGOUT : Int = 3
+        //재로그인
+        const val RELOAD : Int = 4
     }
 
     // 페이지 코드 정의

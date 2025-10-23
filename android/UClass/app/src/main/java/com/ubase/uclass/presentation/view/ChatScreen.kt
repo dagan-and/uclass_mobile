@@ -516,6 +516,17 @@ fun ChatScreen(
                                 App.context().startActivity(intent)
                             }
 
+                            if (messageText.trim() == "리로드") {
+                                ViewCallbackManager.notifyResult(
+                                    ViewCallbackManager.ResponseCode.NAVIGATION,
+                                    HOME
+                                )
+                                ViewCallbackManager.notifyResult(
+                                    ViewCallbackManager.ResponseCode.RELOAD,
+                                    true
+                                )
+                            }
+
                             // ViewModel을 통해 메시지 전송
                             chatViewModel.sendMessage(messageText)
 

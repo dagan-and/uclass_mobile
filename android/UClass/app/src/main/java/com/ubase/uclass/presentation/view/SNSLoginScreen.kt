@@ -81,7 +81,7 @@ fun SNSLoginScreen(
                     )
                     Spacer(modifier = Modifier.height(32.dp))
                     Text(
-                        text = "앱을 준비하고 있습니다...",
+                        text = "로그인 중...",
                         color = Color(0xFF666666),
                         fontSize = 16.sp
                     )

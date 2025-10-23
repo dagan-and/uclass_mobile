@@ -11,7 +11,27 @@ struct WebViewScreen: View {
                 let webView = webViewManager.getWebView()
             {
                 WebViewRepresentable(webView: webView)
+            } else {
+                // ✅ 로딩 중 표시
+                VStack {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .scaleEffect(1.5)
+                    
+                    Text("페이지를 불러오는 중...")
+                        .font(.system(size: 16))
+                        .foregroundColor(.gray)
+                        .padding(.top, 20)
+                }
             }
+        }
+        .onAppear {
+            // ✅ 키보드 노티피케이션 등록
+            webViewManager.registerKeyboardNotifications()
+        }
+        .onDisappear {
+            // ✅ 키보드 노티피케이션 해제
+            webViewManager.unregisterKeyboardNotifications()
         }
         .onReceive(webViewManager.$scriptMessage) { scriptMessage in
             guard let message = scriptMessage,
@@ -25,8 +45,38 @@ struct WebViewScreen: View {
             // WebView 로딩 완료 시 대기 중인 푸시 URL 처리
             if isLoaded {
                 Logger.dev("✅ WebView 로딩 완료 - 대기 중인 푸시 URL 확인")
+                
+                // ✅ JWT 토큰 설정
+                setJWTTokenToWebView()
+                
+                // 대기 중인 푸시 URL 처리
                 PushNotificationManager.shared.handlePendingNavigationAfterWebViewLoaded()
             }
+        }
+    }
+    
+    /**
+     * WebView에 JWT 토큰 설정
+     */
+    private func setJWTTokenToWebView() {
+        guard let webView = webViewManager.getWebView() else {
+            Logger.error("WebView를 가져올 수 없음 - JWT 토큰 설정 실패")
+            return
+        }
+        
+        // JWT 토큰이 있는 경우에만 설정
+        if let jwtToken = Constants.jwtToken, !jwtToken.isEmpty {
+            let jsCode = "setToken('\(jwtToken)')"
+            
+            webView.evaluateJavaScript(jsCode) { result, error in
+                if let error = error {
+                    Logger.error("JWT 토큰 설정 실패: \(error.localizedDescription)")
+                } else {
+                    Logger.dev("✅ JWT 토큰 설정 완료: \(jwtToken.prefix(20))...")
+                }
+            }
+        } else {
+            Logger.dev("⚠️ JWT 토큰이 없음 - 토큰 설정 스킵")
         }
     }
 

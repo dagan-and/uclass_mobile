@@ -2,7 +2,11 @@ package com.ubase.uclass.presentation.view
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -14,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
@@ -46,93 +51,108 @@ fun MainBottomNavigationBar(
 
     // navigation 값이 변경될 때 onTabSelected 호출
     LaunchedEffect(navigation) {
-        Logger.dev("navigation 값이 변경되었습니다: $navigation")
         onTabSelected(navigation)
     }
 
-    NavigationBar(
-        containerColor = Color.White,
-        contentColor = Color.White,
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        // 홈
-        NavigationBarItem(
-            icon = {
-                Icon(
-                    painter = painterResource(
-                        id = if (selectedTab == 0) R.drawable.navi_home_on else R.drawable.navi_home_off
-                    ),
-                    contentDescription = "홈",
-                    tint = Color.Unspecified
+        // 상단 그림자 효과를 위한 구분선
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(0.5.dp)
+                .background(Color(0xFFE0E0E0))
+                .shadow(
+                    elevation = 4.dp,
+                    spotColor = Color.Black.copy(alpha = 0.1f)
                 )
-            },
-            label = { Text("홈") },
-            selected = selectedTab == 0,
-            onClick = { ViewCallbackManager.notifyResult(NAVIGATION, HOME) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedTextColor = colorResource(id = R.color.mainColor),
-                unselectedTextColor = Color.Gray,
-                indicatorColor = Color.White,
-            )
         )
 
-        // 쪽지 (뱃지 포함)
-        NavigationBarItem(
-            icon = {
-                Box {
+        NavigationBar(
+            containerColor = Color.White,
+            contentColor = Color.White,
+        ) {
+            // 홈
+            NavigationBarItem(
+                icon = {
                     Icon(
                         painter = painterResource(
-                            id = if (selectedTab == 1) R.drawable.navi_chat_on else R.drawable.navi_chat_off
+                            id = if (selectedTab == 0) R.drawable.navi_home_on else R.drawable.navi_home_off
                         ),
-                        contentDescription = "DM",
+                        contentDescription = "홈",
                         tint = Color.Unspecified
                     )
+                },
+                label = { Text("홈") },
+                selected = selectedTab == 0,
+                onClick = { ViewCallbackManager.notifyResult(NAVIGATION, HOME) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedTextColor = colorResource(id = R.color.mainColor),
+                    unselectedTextColor = Color.Gray,
+                    indicatorColor = Color.White,
+                )
+            )
 
-                    // 뱃지 표시
-                    if (chatBadgeVisible) {
+            // 쪽지 (뱃지 포함)
+            NavigationBarItem(
+                icon = {
+                    Box {
                         Icon(
-                            painter = painterResource(id = R.drawable.navi_icon_new),
-                            contentDescription = "새 메시지",
-                            modifier = Modifier
-                                .size(6.dp)
-                                .offset(x = 5.dp, y = (-5).dp)
-                                .align(Alignment.TopEnd),
+                            painter = painterResource(
+                                id = if (selectedTab == 1) R.drawable.navi_chat_on else R.drawable.navi_chat_off
+                            ),
+                            contentDescription = "DM",
                             tint = Color.Unspecified
                         )
-                    }
-                }
-            },
-            label = { Text("DM") },
-            selected = selectedTab == 1,
-            onClick = {
-                ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
-                ViewCallbackManager.notifyResult(CHAT_BADGE, false)
-            },
-            colors = NavigationBarItemDefaults.colors(
-                selectedTextColor = colorResource(id = R.color.mainColor),
-                unselectedTextColor = Color.Gray,
-                indicatorColor = Color.White
-            )
-        )
 
-        // 공지사항
-        NavigationBarItem(
-            icon = {
-                Icon(
-                    painter = painterResource(
-                        id = if (selectedTab == 2) R.drawable.navi_info_on else R.drawable.navi_info_off
-                    ),
-                    contentDescription = "사유",
-                    tint = Color.Unspecified
+                        // 뱃지 표시
+                        if (chatBadgeVisible) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.navi_icon_new),
+                                contentDescription = "새 메시지",
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .offset(x = 5.dp, y = (-5).dp)
+                                    .align(Alignment.TopEnd),
+                                tint = Color.Unspecified
+                            )
+                        }
+                    }
+                },
+                label = { Text("DM") },
+                selected = selectedTab == 1,
+                onClick = {
+                    ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
+                    ViewCallbackManager.notifyResult(CHAT_BADGE, false)
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedTextColor = colorResource(id = R.color.mainColor),
+                    unselectedTextColor = Color.Gray,
+                    indicatorColor = Color.White
                 )
-            },
-            label = { Text("사유") },
-            selected = selectedTab == 2,
-            onClick = { ViewCallbackManager.notifyResult(NAVIGATION, NOTICE) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedTextColor = colorResource(id = R.color.mainColor),
-                unselectedTextColor = Color.Gray,
-                indicatorColor = Color.White
             )
-        )
+
+            // 공지사항
+            NavigationBarItem(
+                icon = {
+                    Icon(
+                        painter = painterResource(
+                            id = if (selectedTab == 2) R.drawable.navi_info_on else R.drawable.navi_info_off
+                        ),
+                        contentDescription = "사유",
+                        tint = Color.Unspecified
+                    )
+                },
+                label = { Text("사유") },
+                selected = selectedTab == 2,
+                onClick = { ViewCallbackManager.notifyResult(NAVIGATION, NOTICE) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedTextColor = colorResource(id = R.color.mainColor),
+                    unselectedTextColor = Color.Gray,
+                    indicatorColor = Color.White
+                )
+            )
+        }
     }
 }

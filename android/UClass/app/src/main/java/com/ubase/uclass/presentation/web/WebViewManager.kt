@@ -4,10 +4,15 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings.LOAD_NO_CACHE
 import android.webkit.WebView
 import android.webkit.WebView.setWebContentsDebuggingEnabled
 import android.webkit.WebViewClient
 import androidx.compose.runtime.mutableStateOf
+import com.ubase.uclass.network.ViewCallbackManager
+import com.ubase.uclass.network.ViewCallbackManager.PageCode.HOME
 import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
 
@@ -24,7 +29,7 @@ class WebViewManager(private val context: Context) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    fun preloadWebView(url: String = "https://m.naver.com") {
+    fun preloadWebView(url: String) {
         Logger.info("## WebView preload 시작: $url")
         isWebViewLoading.value = true
         isWebViewLoaded.value = false
@@ -46,22 +51,31 @@ class WebViewManager(private val context: Context) {
                         Logger.info("## WebView 상태 업데이트: loading=false, loaded=true")
                         isWebViewLoading.value = false
                         isWebViewLoaded.value = true
+
+                        // 페이지 로딩 완료 후 JWT 토큰 설정
+                        setTokenToWebView()
                     }
                 }
 
-                override fun onReceivedError(
+                override fun onReceivedHttpError(
                     view: WebView?,
-                    errorCode: Int,
-                    description: String?,
-                    failingUrl: String?
+                    request: WebResourceRequest?,
+                    errorResponse: WebResourceResponse?
                 ) {
-                    super.onReceivedError(view, errorCode, description, failingUrl)
-                    Logger.info("## WebView onReceivedError: $errorCode - $description")
+                    super.onReceivedHttpError(view, request, errorResponse)
 
-                    // 에러가 발생해도 로딩 완료로 처리
-                    mainHandler.post {
-                        isWebViewLoading.value = false
-                        isWebViewLoaded.value = true
+                    if (request?.isForMainFrame == true) {
+                        if (errorResponse?.statusCode == 403) {
+                            Logger.error("🚫 403 Forbidden 발생!")
+                            ViewCallbackManager.notifyResult(
+                                ViewCallbackManager.ResponseCode.NAVIGATION,
+                                HOME
+                            )
+                            ViewCallbackManager.notifyResult(
+                                ViewCallbackManager.ResponseCode.RELOAD,
+                                true
+                            )
+                        }
                     }
                 }
             }
@@ -80,6 +94,7 @@ class WebViewManager(private val context: Context) {
                 setSupportZoom(false)
                 builtInZoomControls = true
                 displayZoomControls = false
+                cacheMode = LOAD_NO_CACHE
 
                 // 디버그 설정
                 if (Constants.isDebug) {
@@ -94,13 +109,35 @@ class WebViewManager(private val context: Context) {
                     scriptMessage.value = msg
                     Handler(Looper.getMainLooper()).postDelayed({
                         scriptMessage.value = ""
-                    },1000)
+                    }, 1000)
                 },
                 "uclass" // window.uclass 로 접근 가능
             )
 
             Logger.info("## WebView loadUrl 호출: $url")
-            loadUrl(url)
+            val headers = mapOf("JWT-TOKEN" to Constants.jwtToken)
+            loadUrl(url, headers)
+        }
+    }
+
+    /**
+     * 웹뷰에 JWT 토큰을 JavaScript로 전달
+     */
+    private fun setTokenToWebView() {
+        preloadedWebView?.let { webView ->
+            val token = Constants.jwtToken
+            if (token.isNotEmpty()) {
+                val script = "javascript:setToken('$token')"
+                Logger.info("## WebView setToken 실행: $script")
+
+                mainHandler.post {
+                    webView.evaluateJavascript(script) { result ->
+                        Logger.info("## setToken 실행 결과: $result")
+                    }
+                }
+            } else {
+                Logger.error("## JWT Token이 비어있어 setToken을 실행하지 않습니다")
+            }
         }
     }
 

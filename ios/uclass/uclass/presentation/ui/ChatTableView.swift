@@ -75,7 +75,6 @@ struct ChatTableView: UIViewRepresentable {
             chatItems.removeAll()
             
             guard !messages.isEmpty else {
-                Logger.dev("🔭 [ITEMS] 메시지가 비어있음")
                 return
             }
             

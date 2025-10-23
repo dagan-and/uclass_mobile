@@ -1,9 +1,7 @@
 package com.ubase.uclass.network
 
-import androidx.annotation.Size
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import com.ubase.uclass.network.request.ChatInit
 import com.ubase.uclass.network.request.ChatMessage
@@ -117,6 +115,24 @@ object NetworkAPI {
     }
 
     /**
+     * 엔드포인트가 채팅 관련 API인지 확인
+     */
+    private fun isChatEndpoint(endpoint: String): Boolean {
+        return endpoint.startsWith("/api/dm/")
+    }
+
+    /**
+     * 엔드포인트에 따라 적절한 베이스 URL 반환
+     */
+    private fun getBaseUrl(endpoint: String): String {
+        return if (isChatEndpoint(endpoint)) {
+            Constants.umanagerURL
+        } else {
+            Constants.uclassURL
+        }
+    }
+
+    /**
      * 공통 POST 요청 처리 함수 - BaseData<T> 구조용
      */
     private fun executePostRequest(
@@ -129,7 +145,8 @@ object NetworkAPI {
 
         executorService?.execute {
             try {
-                val url = Constants.baseURL + endpoint
+                val baseUrl = getBaseUrl(endpoint)
+                val url = baseUrl + endpoint
 
                 logRequest(requestBody)
 
@@ -197,6 +214,7 @@ object NetworkAPI {
 
     /**
      * POST /api/auth/sns/check
+     * 도메인: uclassURL
      */
     fun snsCheck(snsType: String, snsId: String) {
         val requestBody = SNSLogin(
@@ -217,6 +235,7 @@ object NetworkAPI {
 
     /**
      * POST /api/auth/sns/login
+     * 도메인: uclassURL
      */
     fun snsLogin(snsType: String, snsId: String) {
         val requestBody = SNSLogin(
@@ -237,6 +256,7 @@ object NetworkAPI {
 
     /**
      * POST /api/auth/sns/register
+     * 도메인: uclassURL
      */
     fun snsRegister(
         snsType: String,
@@ -274,7 +294,8 @@ object NetworkAPI {
     }
 
     /**
-     * POST /api/auth/sns/register
+     * POST /api/dm/native/init
+     * 도메인: umanagerURL
      */
     fun chatInit(
         useId: String,
@@ -294,7 +315,8 @@ object NetworkAPI {
     }
 
     /**
-     * POST /api/auth/sns/register
+     * POST /api/dm/native/messages
+     * 도메인: umanagerURL
      */
     fun chatMessage(
         useId: Int,

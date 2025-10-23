@@ -7,5 +7,8 @@ import com.google.gson.annotations.SerializedName
  */
 data class SNSCheckData(
     @SerializedName("existingUser")
-    val isExistingUser: Boolean
+    val isExistingUser: Boolean,
+
+    @SerializedName("redirectUrl")
+    val redirectUrl: String
 )

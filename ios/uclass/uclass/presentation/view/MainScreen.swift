@@ -9,46 +9,52 @@ struct MainScreen: View {
 
     var body: some View {
         ZStack {
+            // ✅ 메인 컨텐츠 (항상 존재)
             VStack(spacing: 0) {
-                // 메인 컨텐츠
-                if showChatScreen {
-                    // 채팅 화면을 전체 화면으로 표시
-                    ChatScreen(onBack: {
-                        Logger.dev("🔙 채팅 화면에서 뒤로가기")
-                        showChatScreen = false
-                        selectedTab = previousTab
-                    })
-                } else {
-                    ZStack {
-                        if selectedTab == 0 {
-                            WebViewScreen()
-                                .transition(.opacity)
-                                .zIndex(1)
-                        }
+                // ✅ 모든 탭을 ZStack으로 미리 생성하고 opacity로 제어
+                ZStack {
+                    // 홈 탭 (WebView)
+                    WebViewScreen()
+                        .opacity(selectedTab == 0 ? 1 : 0)
+                        .zIndex(selectedTab == 0 ? 1 : 0)
+                    
+                    // 공지사항 탭
+                    NoticeScreen()
+                        .opacity(selectedTab == 2 ? 1 : 0)
+                        .zIndex(selectedTab == 2 ? 1 : 0)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
 
-                        if selectedTab == 2 {
-                            NoticeScreen()
-                                .transition(.opacity)
-                                .zIndex(1)
+                // 커스텀 하단 바
+                MainBottomBar(
+                    selectedTab: $selectedTab,
+                    showChatBadge: $chatBadgeViewModel.showChatBadge,
+                    onChatTap: {
+                        Logger.dev("💬 채팅 탭 버튼 터치")
+                        previousTab = selectedTab
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showChatScreen = true
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-
-                    // 커스텀 하단 바
-                    MainBottomBar(
-                        selectedTab: $selectedTab,
-                        showChatBadge: $chatBadgeViewModel.showChatBadge,
-                        onChatTap: {
-                            Logger.dev("💬 채팅 탭 버튼 터치")
-                            previousTab = selectedTab
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                showChatScreen = true
-                            }
-                        }
-                    )
-                }
+                )
             }
+            .opacity(showChatScreen ? 0 : 1)
+            .zIndex(showChatScreen ? 0 : 1)
+            
+            // ✅ 채팅 화면 (항상 존재하지만 숨김, isVisible로 소켓 연결 제어)
+            ChatScreen(
+                isVisible: showChatScreen,  // ✅ 화면 표시 여부 전달
+                onBack: {
+                    Logger.dev("🔙 채팅 화면에서 뒤로가기")
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showChatScreen = false
+                    }
+                    selectedTab = previousTab
+                }
+            )
+            .opacity(showChatScreen ? 1 : 0)
+            .zIndex(showChatScreen ? 1 : 0)
         }
         .background(Color.white)
         .navigationBarHidden(true)

@@ -73,7 +73,7 @@ object SocketManager {
     // 설정값
     private val serverUrl: String
         get() {
-            val uri = java.net.URI(Constants.baseURL)
+            val uri = java.net.URI(Constants.umanagerURL)
             val host = uri.host ?: return ""
             return "wss://$host/ws"
         }

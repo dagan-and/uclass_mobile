@@ -65,7 +65,7 @@ class SocketManager: NSObject, ObservableObject {
 
     // 설정값
     private var serverUrl: String {
-        guard let url = URL(string: Constants.baseURL),
+        guard let url = URL(string: Constants.umanagerURL),
             let host = url.host
         else {
             return ""

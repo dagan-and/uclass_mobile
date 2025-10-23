@@ -12,6 +12,8 @@ struct SNSLoginData: Codable {
     let expiresIn: Int
     let userType: String
     let branchId: Int
+    let redirectUrl : String
+    let reasonUrl : String
     
     enum CodingKeys: String, CodingKey {
         case userId
@@ -24,5 +26,7 @@ struct SNSLoginData: Codable {
         case expiresIn
         case userType
         case branchId
+        case redirectUrl
+        case reasonUrl
     }
 }

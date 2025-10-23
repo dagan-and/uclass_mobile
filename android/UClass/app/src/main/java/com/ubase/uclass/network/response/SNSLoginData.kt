@@ -34,5 +34,11 @@ data class SNSLoginData(
     val userType: String,
 
     @SerializedName("branchId")
-    val branchId: Int
+    val branchId: Int,
+
+    @SerializedName("redirectUrl")
+    val redirectUrl: String,
+
+    @SerializedName("reasonUrl")
+    val reasonUrl: String
 )

@@ -2,6 +2,7 @@ package com.ubase.uclass.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.text.TextUtils
 import org.json.JSONObject
 import java.util.*
 
@@ -17,6 +18,7 @@ object PreferenceManager {
     private const val KEY_USER_EMAIL = "user_email"
     private const val KEY_USER_NAME = "user_name"
     private const val KEY_IS_LOGGED_IN = "is_logged_in"
+    private const val KEY_PHONE_NUMBER = "user_phone_number"
     private const val KEY_LOGIN_TIME = "login_time"
 
     private fun getPreferences(context: Context): SharedPreferences {
@@ -80,6 +82,16 @@ object PreferenceManager {
         return getPreferences(context).getInt(KEY_USER_ID, 0)
     }
 
+    /** 사용자 전화번호 조회 */
+    fun setPhoneNumber(context: Context, phone: String) {
+        getPreferences(context).edit().putString(KEY_PHONE_NUMBER , phone).apply()
+    }
+
+    /** 사용자 전화번호 조회 */
+    fun getPhoneNumber(context: Context): String {
+        return getPreferences(context).getString(KEY_PHONE_NUMBER, "") ?: ""
+    }
+
     /** 지점 ID 조회 */
     fun setBranchId(context: Context, userId: Int) {
         getPreferences(context).edit().putInt(KEY_BRANCH_ID , userId).apply()
@@ -132,11 +144,17 @@ object PreferenceManager {
     /** 현재 저장된 로그인 정보를 JSON으로 반환 */
     fun getLoginInfoAsJson(context: Context): JSONObject {
         val json = JSONObject()
-        json.put("snsType", getSNSType(context))
-        json.put("userId", getSNSId(context))
-        json.put("email", getUserEmail(context))
-        json.put("name", getUserName(context))
-        json.put("isLoggedIn", isLoggedIn(context))
+        json.put("provider", getSNSType(context))
+        json.put("snsId", getSNSId(context))
+        if(!TextUtils.isEmpty(getUserName(context))) {
+            json.put("name", getUserName(context))
+        }
+        if(!TextUtils.isEmpty(getUserEmail(context))) {
+            json.put("email", getUserEmail(context))
+        }
+        if(!TextUtils.isEmpty(getPhoneNumber(context))) {
+            json.put("phoneNumber", getPhoneNumber(context))
+        }
         return json
     }
 

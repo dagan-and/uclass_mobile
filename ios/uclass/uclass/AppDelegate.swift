@@ -16,8 +16,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
         // 앱 기본값 설정
-        Constants.baseURL = "https://dev-umanager.ubase.kr"
-        Constants.webURL = "http://dev-uclass.ubase.kr"
         Constants.isDebug = true
         NetworkAPI.shared.initialize()
         

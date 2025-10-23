@@ -1,6 +1,7 @@
 package com.ubase.uclass.presentation.view
 
-import android.text.TextUtils
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +27,8 @@ import com.ubase.uclass.network.response.SNSCheckData
 import com.ubase.uclass.network.response.SNSLoginData
 import com.ubase.uclass.presentation.ui.CustomAlertManager
 import com.ubase.uclass.presentation.viewmodel.LogoutViewModel
+import com.ubase.uclass.presentation.viewmodel.ReloadViewModel
+import com.ubase.uclass.presentation.web.NotificationScreen
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.presentation.web.WebViewScreen
 import com.ubase.uclass.util.Constants
@@ -49,7 +52,8 @@ fun MainScreen(
     onKakaoLogin: (successCallback: () -> Unit, failureCallback: () -> Unit) -> Unit,
     onNaverLogin: (successCallback: () -> Unit, failureCallback: () -> Unit) -> Unit,
     onGoogleLogin: (successCallback: () -> Unit, failureCallback: () -> Unit) -> Unit,
-    webViewManager: WebViewManager,
+    mainWebViewManager: WebViewManager,
+    notificationWebViewManager: WebViewManager,
     autoLoginInfo: Pair<String, String>? = null,
     initialNavigationTarget: Int? = null
 ) {
@@ -57,6 +61,7 @@ fun MainScreen(
 
     // LogoutViewModel 추가
     val logoutViewModel: LogoutViewModel = viewModel()
+    val reloadViewModel : ReloadViewModel = viewModel()
 
     // 상태 관리
     var isLoggedIn by remember { mutableStateOf(false) }
@@ -65,6 +70,7 @@ fun MainScreen(
     var isAPIInitialized by remember { mutableStateOf(false) }
     var isAutoLogin by remember { mutableStateOf(autoLoginInfo != null) }
     var showRegistrationWebView by remember { mutableStateOf(false) }
+    var registrationUrl by remember { mutableStateOf<String?>(null) }
 
     // API 오류 처리 함수
     fun handleAPIError(errorMessage: String) {
@@ -103,6 +109,9 @@ fun MainScreen(
                                         NetworkAPI.snsLogin(snsType, userId)
                                     } else {
                                         Logger.dev("신규 사용자 - 회원가입 웹뷰 표시")
+                                        Logger.dev("회원가입 URL: ${checkData.redirectUrl}")
+
+                                        registrationUrl = checkData.redirectUrl
                                         isWebViewLoading = false
                                         showRegistrationWebView = true
                                     }
@@ -129,13 +138,17 @@ fun MainScreen(
                                     PreferenceManager.setBranchId(context, loginData.branchId)
 
                                     logoutViewModel.reset()
+                                    reloadViewModel.reset()
 
                                     Logger.dev("사용자 정보:")
                                     Logger.dev("- ID: ${loginData.userId}")
                                     Logger.dev("- 이름: ${loginData.userName}")
                                     Logger.dev("- 승인상태: ${loginData.approvalStatus}")
                                     Logger.dev("- 지점: ${loginData.branchName}")
+                                    Logger.dev("- redirectUrl: ${loginData.redirectUrl}")
+                                    Logger.dev("- reasonUrl: ${loginData.reasonUrl}")
 
+                                    /**
                                     val content = """
                                             사용자: ${loginData.userName}(${loginData.userId})
                                             지점: ${loginData.branchName}(${loginData.branchId})
@@ -144,6 +157,15 @@ fun MainScreen(
                                             사용자 타입: ${loginData.userType}
                                         """.trimIndent()
                                     CustomAlertManager.showAlert(content = content)
+                                    **/
+
+                                    // ✅ 로그인 성공 시 메인 WebView 로드
+                                    loginSuccess = true
+
+                                    Handler(Looper.getMainLooper()).post({
+                                        mainWebViewManager.preloadWebView(loginData.redirectUrl)
+                                        notificationWebViewManager.preloadWebView(loginData.reasonUrl)
+                                    })
 
                                     // API 초기화 완료 표시
                                     isAPIInitialized = true
@@ -211,26 +233,52 @@ fun MainScreen(
             isWebViewLoading = false
             isAutoLogin = false
             showRegistrationWebView = false
+            registrationUrl = null
         }
     }
 
-    // 자동 로그인 초기 처리
+    //재로그인 하기
+    LaunchedEffect(reloadViewModel.reload) {
+        if (reloadViewModel.reload) {
+            Logger.dev("재시작 감지 - 로그인으로 이동")
+            Constants.jwtToken = ""
+
+            // 상태 초기화
+            isLoggedIn = false
+            isAPIInitialized = false
+            loginSuccess = false
+            isWebViewLoading = true
+            isAutoLogin = true
+
+            val snsType = PreferenceManager.getSNSType(context)
+            val userId = PreferenceManager.getSNSId(context)
+
+            if (snsType.isNotEmpty() && userId.isNotEmpty()) {
+                Logger.dev("저장된 SNS 정보로 자동 재로그인: $snsType, $userId")
+                NetworkAPI.snsCheck(snsType, userId)
+            } else {
+                // SNS 정보가 없으면 수동 로그인
+                isAutoLogin = false
+                isWebViewLoading = false
+            }
+        }
+    }
+
+    // 자동 로그인 초기 처리 (웹뷰 로드는 API 성공 후에만)
     LaunchedEffect(autoLoginInfo) {
         if (autoLoginInfo != null) {
             Logger.info("## 자동 로그인 시작: ${autoLoginInfo.first}")
-            loginSuccess = true
             isWebViewLoading = true
-            webViewManager.preloadWebView()
+            // 웹뷰 로드는 하지 않고 로딩 상태만 표시
         }
     }
 
     // 로그인 성공 후 공통 처리 함수
     val handleLoginSuccess = {
         Logger.info("## handleLoginSuccess 호출됨 - 수동 로그인")
-        loginSuccess = true
         isWebViewLoading = true
         isAutoLogin = false
-        webViewManager.preloadWebView()
+        // 웹뷰 로드는 API 성공 후에만 수행
     }
 
     // 로그인 실패 후 공통 처리 함수
@@ -245,11 +293,13 @@ fun MainScreen(
     val handleRegistrationComplete = {
         Logger.dev("회원가입 완료 - 로그인 시도")
         showRegistrationWebView = false
+        registrationUrl = null
 
         // 회원가입 완료 후 다시 SNS 체크 진행
         isWebViewLoading = true
         isAutoLogin = false
-        webViewManager.preloadWebView()
+
+        // 웹뷰 로드는 로그인 API 성공 후에만
 
         val snsType = PreferenceManager.getSNSType(context)
         val userId = PreferenceManager.getSNSId(context)
@@ -258,33 +308,42 @@ fun MainScreen(
 
     // 회원가입 취소 처리
     val handleCloseRegistration = {
-        Logger.dev("회원가입 취소")
+        Logger.dev("회원가입 취소 - SNS 정보 초기화 및 로그인 화면 복귀")
+
+        // SNS 정보 초기화
+        PreferenceManager.clearLoginInfo(context = context)
+
+        // 상태 초기화
         showRegistrationWebView = false
+        registrationUrl = null
         isWebViewLoading = false
         loginSuccess = false
+        isAutoLogin = false
+        isLoggedIn = false
+        isAPIInitialized = false
     }
 
     // 상태 변화 모니터링 및 메인 화면 전환 로직
     LaunchedEffect(
         isAPIInitialized,
         loginSuccess,
-        webViewManager.isWebViewLoaded.value,
-        webViewManager.isWebViewLoading.value
+        mainWebViewManager.isWebViewLoaded.value,
+        mainWebViewManager.isWebViewLoading.value
     ) {
         if (isAPIInitialized && loginSuccess) {
-            if (webViewManager.isWebViewLoaded.value) {
+            if (mainWebViewManager.isWebViewLoaded.value) {
                 Logger.info("## 모든 조건 만족 - 메인 화면으로 전환")
                 isLoggedIn = true
                 isWebViewLoading = false
             } else {
                 // 웹뷰 로딩 대기 - 최대 5초
                 var waitTime = 0
-                while (waitTime < 5000 && !webViewManager.isWebViewLoaded.value) {
+                while (waitTime < 5000 && !mainWebViewManager.isWebViewLoaded.value) {
                     delay(500)
                     waitTime += 500
                 }
 
-                if (webViewManager.isWebViewLoaded.value) {
+                if (mainWebViewManager.isWebViewLoaded.value) {
                     Logger.info("## 웹뷰 로딩 완료 - 메인 화면으로 전환")
                 } else {
                     Logger.info("## 웹뷰 로딩 타임아웃 - 강제로 메인 화면 진행")
@@ -298,9 +357,10 @@ fun MainScreen(
     // UI 렌더링
     when {
         // ✅ 회원가입 웹뷰 표시
-        showRegistrationWebView -> {
-            Logger.info("## 회원가입 웹뷰 화면 렌더링")
+        showRegistrationWebView && registrationUrl != null -> {
+            Logger.info("## 회원가입 웹뷰 화면 렌더링: $registrationUrl")
             RegisterWebViewScreen(
+                url = registrationUrl!!,
                 onRegistrationComplete = handleRegistrationComplete,
                 onClose = handleCloseRegistration
             )
@@ -338,7 +398,8 @@ fun MainScreen(
         else -> {
             Logger.info("## 메인 화면 렌더링")
             MainContent(
-                webViewManager = webViewManager,
+                mainWebViewManager = mainWebViewManager,
+                notificationWebViewManager = notificationWebViewManager,
                 initialNavigationTarget = initialNavigationTarget
             )
         }
@@ -347,8 +408,10 @@ fun MainScreen(
 
 @Composable
 private fun MainContent(
-    webViewManager: WebViewManager,
-    initialNavigationTarget: Int? = null
+    mainWebViewManager: WebViewManager,
+    notificationWebViewManager: WebViewManager,
+    initialNavigationTarget: Int? = null,
+    reasonUrl: String? = null
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var previousTab by remember { mutableStateOf(0) }
@@ -388,8 +451,8 @@ private fun MainContent(
                     .fillMaxWidth()
             ) {
                 when (selectedTab) {
-                    0 -> WebViewScreen(webViewManager = webViewManager)
-                    2 -> NotificationScreen()
+                    0 -> WebViewScreen(webViewManager = mainWebViewManager)
+                    2 -> NotificationScreen(webViewManager = notificationWebViewManager)
                 }
             }
 

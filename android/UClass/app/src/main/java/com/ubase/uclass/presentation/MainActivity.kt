@@ -34,7 +34,11 @@ import com.ubase.uclass.util.PreferenceManager
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var webViewManager: WebViewManager
+    // 메인 WebViewManager
+    private lateinit var mainWebViewManager: WebViewManager
+
+    // 공지사항 WebViewManager
+    private lateinit var notificationWebViewManager: WebViewManager
 
     // 로그인 성공/실패 상태를 관리하기 위한 콜백
     private var loginSuccessCallback: (() -> Unit)? = null
@@ -81,7 +85,9 @@ class MainActivity : ComponentActivity() {
             (shouldKeepSplash && !isAutoLoginAttempted)
         }
 
-        webViewManager = WebViewManager(this)
+        // WebViewManager 초기화
+        mainWebViewManager = WebViewManager(this)
+        notificationWebViewManager = WebViewManager(this)
 
         // WebView 로딩 완료 감지 및 FCM URL 이동 처리
         setupWebViewLoadingObserver()
@@ -90,7 +96,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             // 권한 화면 표시 여부를 관리하는 State (초기값을 미리 체크한 값으로 설정)
             var shouldShowPermissions by remember { mutableStateOf(shouldShowPermissionRequest) }
-
 
             Box(Modifier.safeDrawingPadding()) {
                 if (!shouldShowPermissions) {
@@ -143,7 +148,8 @@ class MainActivity : ComponentActivity() {
 
                             AppUtil.loginWithGoogle(this@MainActivity)
                         },
-                        webViewManager = webViewManager,
+                        mainWebViewManager = mainWebViewManager,
+                        notificationWebViewManager = notificationWebViewManager,
                         autoLoginInfo = autoLoginInfo,
                         initialNavigationTarget = initialNavigationTarget
                     )
@@ -194,12 +200,12 @@ class MainActivity : ComponentActivity() {
         val checkRunnable = object : Runnable {
             override fun run() {
                 // WebView가 로딩 완료되고 pendingFCMUrl이 있으면 URL 이동
-                if (webViewManager.isWebViewLoaded.value && !pendingFCMUrl.isNullOrEmpty()) {
+                if (mainWebViewManager.isWebViewLoaded.value && !pendingFCMUrl.isNullOrEmpty()) {
                     val url = pendingFCMUrl!!
                     Logger.info("## WebView 로딩 완료 - FCM URL로 이동: $url")
 
                     // 메인 스레드에서 URL 이동
-                    webViewManager.loadUrl(url)
+                    mainWebViewManager.loadUrl(url)
 
                     // pendingFCMUrl 초기화
                     pendingFCMUrl = null
@@ -236,6 +242,9 @@ class MainActivity : ComponentActivity() {
     private fun callSNSCheck() {
         val snsType = PreferenceManager.getSNSType(this)
         val userId = PreferenceManager.getSNSId(this)
+        //val userId = System.currentTimeMillis().toString()
+
+        Logger.dev(PreferenceManager.getLoginInfoAsJson(this).toString())
 
         if (snsType.isEmpty() || userId.isEmpty()) {
             Logger.info("## SNS 로그인 정보 없음 - API 호출 실패")
@@ -351,7 +360,11 @@ class MainActivity : ComponentActivity() {
         NetworkAPI.shutdown()
         NetworkAPIManager.clearAllCallbacks()
         SocketManager.cleanup()
-        webViewManager.destroy()
+
+        // 두 개의 WebViewManager 모두 destroy
+        mainWebViewManager.destroy()
+        notificationWebViewManager.destroy()
+
         loginSuccessCallback = null
         loginFailureCallback = null
         initialNavigationTarget = null

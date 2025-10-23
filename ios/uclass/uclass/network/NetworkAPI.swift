@@ -149,6 +149,19 @@ class NetworkAPI {
     }
 
     /**
+     * 엔드포인트에 따라 적절한 Base URL 반환
+     * 채팅 관련 API는 umanagerURL 사용
+     * 그 외는 uclassURL 사용
+     */
+    private func getBaseURL(for endpoint: String) -> String {
+        if endpoint.hasPrefix("/api/dm/") {
+            return Constants.umanagerURL
+        } else {
+            return Constants.uclassURL
+        }
+    }
+
+    /**
      * 공통 POST 요청 처리 함수
      */
     private func executePostRequest<T: Codable>(
@@ -162,7 +175,9 @@ class NetworkAPI {
         operationQueue?.addOperation { [weak self] in
             guard let self = self else { return }
 
-            let url = Constants.baseURL + endpoint
+            // 엔드포인트에 따라 적절한 Base URL 선택
+            let baseURL = self.getBaseURL(for: endpoint)
+            let url = baseURL + endpoint
 
             // 요청 로깅
             Logger.dev("URL:" + url)
@@ -264,34 +279,44 @@ class NetworkAPI {
                             self.sendCallback(code: responseCode, data: nil)
                         }
                     } else {
-                     
+
                         let statusCode = response.response?.statusCode ?? -1
                         let statusMessage = HTTPURLResponse.localizedString(
                             forStatusCode: statusCode
                         )
-                        var errorMessage = "HTTP \(statusCode): \(statusMessage)"
+                        var errorMessage =
+                            "HTTP \(statusCode): \(statusMessage)"
 
                         if !responseBody.isEmpty {
                             do {
-                                if let jsonData = responseBody.data(using: .utf8) {
-                                    let jsonObject = try JSONSerialization.jsonObject(
-                                        with: jsonData,
-                                        options: []
-                                    ) as? [String: Any]
-                                    
+                                if let jsonData = responseBody.data(
+                                    using: .utf8
+                                ) {
+                                    let jsonObject =
+                                        try JSONSerialization.jsonObject(
+                                            with: jsonData,
+                                            options: []
+                                        ) as? [String: Any]
+
                                     // message 키가 있는지 확인하고 값 추출
-                                    if let message = jsonObject?["message"] as? String, !message.isEmpty {
+                                    if let message = jsonObject?["message"]
+                                        as? String, !message.isEmpty
+                                    {
                                         errorMessage = message
-                                    } else if let error = jsonObject?["error"] as? String, !error.isEmpty {
+                                    } else if let error = jsonObject?["error"]
+                                        as? String, !error.isEmpty
+                                    {
                                         // message가 없으면 error 필드 사용
                                         errorMessage = error
                                     }
                                 }
                             } catch {
-                                Logger.error("에러 응답 파싱 실패: \(error.localizedDescription)")
+                                Logger.error(
+                                    "에러 응답 파싱 실패: \(error.localizedDescription)"
+                                )
                             }
                         }
-                        
+
                         let errorData = ErrorData(
                             code: responseCode,
                             msg: errorMessage

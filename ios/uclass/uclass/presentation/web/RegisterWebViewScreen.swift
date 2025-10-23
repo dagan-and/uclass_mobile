@@ -2,13 +2,14 @@ import SwiftUI
 import WebKit
 
 struct RegisterWebViewScreen: View {
+    let registrationUrl: String
+    let onRegistrationComplete: () -> Void
+    let onClose: () -> Void
+    
     @StateObject private var webViewManager = RegisterWebViewManager()
     @StateObject private var networkViewModel = NetworkViewModel(
         identifier: "RegisterWebViewScreen"
     )
-    
-    let onRegistrationComplete: () -> Void
-    let onClose: () -> Void
     
     var body: some View {
         ZStack {
@@ -29,7 +30,12 @@ struct RegisterWebViewScreen: View {
             }
         }
         .onAppear {
-            webViewManager.preloadWebView(url: "https://www.ggac.or.kr/?p=62#url")
+            Logger.dev("회원가입 웹뷰 로드: \(registrationUrl)")
+            webViewManager.preloadWebView(url: registrationUrl)
+            webViewManager.registerKeyboardNotifications() // ✅ 키보드 노티피케이션 등록
+        }
+        .onDisappear {
+            webViewManager.unregisterKeyboardNotifications() // ✅ 키보드 노티피케이션 해제
         }
         .onChange(of: webViewManager.registrationCompleted) { completed in
             if completed {
@@ -73,7 +79,6 @@ struct RegisterWebViewScreen: View {
                         snsType: UserDefaultsManager.getSNSType(),
                         snsId: UserDefaultsManager.getSNSId(),
                         onSuccess: { result in
-
                             webViewManager.registrationCompleted = true
                         },
                         onError: { error in
@@ -118,8 +123,8 @@ struct RegisterWebViewScreen: View {
                     )
                     
                 case "goclose":
-                    // 웹뷰 닫기
                     Logger.dev("웹뷰 닫기 요청")
+                    onClose()
                     
                 default:
                     Logger.dev("⚠️ Unknown action: \(action)")
@@ -140,7 +145,6 @@ struct RegisterWebViewScreen: View {
         
         // JavaScript 콜백 실행
         if callback.hasPrefix("javascript:") {
-            // JavaScript 코드 실행
             let jsCode = callback.replacingOccurrences(of: "javascript:", with: "")
             webView.evaluateJavaScript(jsCode) { result, error in
                 if let error = error {
@@ -150,7 +154,6 @@ struct RegisterWebViewScreen: View {
                 }
             }
         } else if let url = URL(string: callback) {
-            // URL 로드
             let request = URLRequest(url: url)
             webView.load(request)
             Logger.dev("Callback URL 로드: \(callback)")
@@ -166,10 +169,14 @@ class RegisterWebViewManager: NSObject, ObservableObject {
     @Published var isLoading = false
     @Published var currentURL: String = ""
     @Published var registrationCompleted = false
-    @Published var scriptMessage: String? = nil  // JavaScript 메시지
+    @Published var scriptMessage: String? = nil
     
     private var webView: WKWebView?
     private var jsInterface: UclassJsInterface?
+    
+    // ✅ 키보드 상태 추적 (중복 호출 방지)
+    private var isKeyboardVisible = false
+    private var currentKeyboardHeight: CGFloat = 0
     
     override init() {
         super.init()
@@ -180,19 +187,18 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
         
-        // ✅ JS 인터페이스 설정
+        // JS 인터페이스 설정
         jsInterface = UclassJsInterface { [weak self] message in
             DispatchQueue.main.async {
                 self?.scriptMessage = message
-                // ✅ 값 전달 후 바로 초기화
                 self?.scriptMessage = nil
             }
         }
         
-        // ✅ Script Message Handler 등록
+        // Script Message Handler 등록
         configuration.userContentController.add(jsInterface!, name: "uclass")
         
-        // ✅ JavaScript 인터페이스 코드 주입
+        // JavaScript 인터페이스 코드 주입
         let userScript = WKUserScript(
             source: UclassJsInterface.getJavaScriptCode(),
             injectionTime: .atDocumentEnd,
@@ -203,7 +209,16 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView?.navigationDelegate = self
         
-        // 웹뷰 초기 배경색을 흰색으로 설정
+        // ✅ 키보드 대응을 위한 ScrollView 설정
+        webView?.scrollView.keyboardDismissMode = .interactive
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never // ✅ 자동 조정 비활성화
+        
+        // ✅ 스크롤 바운스 제거
+        webView?.scrollView.bounces = false
+        webView?.scrollView.alwaysBounceVertical = false
+        webView?.scrollView.alwaysBounceHorizontal = false
+        
+        // 웹뷰 기본 설정
         webView?.backgroundColor = UIColor.white
         webView?.scrollView.backgroundColor = UIColor.white
         webView?.isOpaque = false
@@ -237,7 +252,106 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         return webView
     }
     
+    // MARK: - Keyboard Notifications
+    
+    /// 키보드 노티피케이션 등록
+    func registerKeyboardNotifications() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShow(notification:)),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide(notification:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+        
+        Logger.dev("✅ 키보드 노티피케이션 등록 완료")
+    }
+    
+    /// 키보드 노티피케이션 해제
+    func unregisterKeyboardNotifications() {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+        
+        Logger.dev("✅ 키보드 노티피케이션 해제 완료")
+    }
+    
+    /// 키보드가 나타날 때 처리
+    @objc func keyboardWillShow(notification: NSNotification) {
+        guard let webView = webView,
+              let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else {
+            return
+        }
+        
+        let keyboardHeight = keyboardFrame.cgRectValue.height
+        
+        // ✅ 중복 호출 방지: 이미 같은 높이로 키보드가 표시 중이면 무시
+        if isKeyboardVisible && currentKeyboardHeight == keyboardHeight {
+            Logger.dev("⌨️ 키보드 이미 표시 중 - 중복 호출 무시")
+            webView.scrollView.contentInset = .zero
+            webView.scrollView.scrollIndicatorInsets = .zero
+            return
+        }
+        
+        Logger.dev("⌨️ 키보드 표시: 높이 = \(keyboardHeight)")
+        
+        // ✅ contentInset 조정 (음수로 설정)
+        webView.scrollView.contentInset = UIEdgeInsets(
+            top: 0,
+            left: 0,
+            bottom: -keyboardHeight,
+            right: 0
+        )
+        
+        // ✅ scrollIndicatorInsets도 함께 조정
+        webView.scrollView.scrollIndicatorInsets = webView.scrollView.contentInset
+        
+        // ✅ 키보드 상태 업데이트
+        isKeyboardVisible = true
+        currentKeyboardHeight = keyboardHeight
+    }
+    
+    /// 키보드가 사라질 때 처리
+    @objc func keyboardWillHide(notification: NSNotification) {
+        guard let webView = webView else {
+            return
+        }
+        
+        // ✅ 중복 호출 방지: 키보드가 이미 숨겨진 상태면 무시
+        if !isKeyboardVisible {
+            Logger.dev("⌨️ 키보드 이미 숨김 - 중복 호출 무시")
+            return
+        }
+        
+        Logger.dev("⌨️ 키보드 숨김")
+        
+        // ✅ contentInset 초기화
+        webView.scrollView.contentInset = .zero
+        webView.scrollView.scrollIndicatorInsets = .zero
+        
+        // ✅ 키보드 상태 업데이트
+        isKeyboardVisible = false
+        currentKeyboardHeight = 0
+    }
+    
     deinit {
+        // 노티피케이션 제거
+        unregisterKeyboardNotifications()
+        
         // Script Message Handler 제거
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "uclass")
         Logger.dev("RegisterWebViewManager deinit")
