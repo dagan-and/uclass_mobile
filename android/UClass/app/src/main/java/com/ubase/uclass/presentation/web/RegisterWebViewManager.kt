@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import com.ubase.uclass.presentation.ui.CustomLoadingManager
 import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
+import com.ubase.uclass.util.PreferenceManager
 
 class RegisterWebViewManager(private val context: Context) {
 
@@ -25,6 +26,18 @@ class RegisterWebViewManager(private val context: Context) {
     val scriptMessage = mutableStateOf<String?>(null)
 
     private val mainHandler = Handler(Looper.getMainLooper())
+
+
+    // JavaScript 안전 문자열 변환 함수
+    fun escapeJavaScriptString(str: String): String {
+        return str
+            .replace("\\", "\\\\")   // \ -> \\
+            .replace("\"", "\\\"")   // " -> \"
+            .replace("\'", "\\'")    // ' -> \'
+            .replace("\n", "\\n")    // 개행
+            .replace("\r", "\\r")    // 캐리지 리턴
+            .replace("\t", "\\t")    // 탭
+    }
 
     fun preloadWebView(url: String) {
         Logger.info("## RegisterWebView preload 시작: $url")
@@ -50,6 +63,21 @@ class RegisterWebViewManager(private val context: Context) {
                         isWebViewLoading.value = false
                         isWebViewLoaded.value = true
                         CustomLoadingManager.hideLoading()
+                    }
+
+                    // 사용 코드
+                    val jsonObject = PreferenceManager.getLoginInfoAsJson(context)
+                    val jsonString = jsonObject.toString()
+                    val escapedJson = escapeJavaScriptString(jsonString)
+                    val script = "javascript:nativeBinding('$escapedJson')"
+
+                    mainHandler.post {
+                        Logger.info("전송 전: $jsonString")
+                        Logger.info("전송 스크립트: $script")
+
+                        preloadedWebView?.evaluateJavascript(script) { result ->
+                            Logger.dev("JavaScript 실행 결과: $result")
+                        }
                     }
                 }
 

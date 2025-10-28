@@ -62,7 +62,7 @@ class WebViewManager: NSObject, ObservableObject, WKUIDelegate {
         webView?.backgroundColor = UIColor.white
         webView?.scrollView.backgroundColor = UIColor.white
         webView?.isOpaque = false
-        webView?.allowsBackForwardNavigationGestures = true
+        webView?.allowsBackForwardNavigationGestures = false
         webView?.uiDelegate = self
         
         if Constants.isDebug {

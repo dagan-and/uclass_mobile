@@ -527,6 +527,12 @@ fun ChatScreen(
                                 )
                             }
 
+                            if (messageText.trim() == "로그") {
+                                Logger.shareLogFile(context)
+                            }
+
+
+
                             // ViewModel을 통해 메시지 전송
                             chatViewModel.sendMessage(messageText)
 

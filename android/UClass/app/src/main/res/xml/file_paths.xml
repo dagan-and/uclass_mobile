@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 앱 내부 저장소 파일 경로 (Context.getFilesDir()) -->
+    <files-path name="logs" path="." />
+
+    <!-- 캐시 디렉토리 (Context.getCacheDir()) - 선택사항 -->
+    <cache-path name="cache" path="." />
+
+    <!-- 외부 저장소 파일 경로 (Context.getExternalFilesDir(null)) - 선택사항 -->
+    <!-- <external-files-path name="external_files" path="." /> -->
+</paths>

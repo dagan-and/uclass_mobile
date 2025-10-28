@@ -47,6 +47,7 @@ class App : Application() {
             Constants.isDebug = true
         }
 
+        Logger.initialize(this)
 
         //SNS 로그인 초기화값
         KakaoSdk.init(this, "cc0faae5b1dd0468f0440656b12b8601")

@@ -2,6 +2,7 @@ package com.ubase.uclass.presentation.view
 
 import android.os.Handler
 import android.os.Looper
+import android.text.TextUtils
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -132,6 +133,18 @@ fun MainScreen(
                                 Logger.dev("로그인 성공: ${response.message}")
 
                                 response.data?.let { loginData ->
+
+                                    //로그인 했지만 토큰이 없으면 대기중 페이지로 이동
+                                    if(TextUtils.isEmpty(loginData.accessToken)) {
+                                        Handler(Looper.getMainLooper()).post({
+                                            registrationUrl = loginData.redirectUrl
+                                            isWebViewLoading = false
+                                            showRegistrationWebView = true
+                                        })
+                                        return
+                                    }
+
+
                                     // JWT 토큰 저장
                                     Constants.jwtToken = loginData.accessToken
                                     PreferenceManager.setUserId(context, loginData.userId)
@@ -148,21 +161,11 @@ fun MainScreen(
                                     Logger.dev("- redirectUrl: ${loginData.redirectUrl}")
                                     Logger.dev("- reasonUrl: ${loginData.reasonUrl}")
 
-                                    /**
-                                    val content = """
-                                            사용자: ${loginData.userName}(${loginData.userId})
-                                            지점: ${loginData.branchName}(${loginData.branchId})
-                                            승인 상태: ${loginData.approvalStatus}
-                                            로그인 시간: ${loginData.loginAt}
-                                            사용자 타입: ${loginData.userType}
-                                        """.trimIndent()
-                                    CustomAlertManager.showAlert(content = content)
-                                    **/
-
                                     // ✅ 로그인 성공 시 메인 WebView 로드
                                     loginSuccess = true
 
                                     Handler(Looper.getMainLooper()).post({
+                                        Constants.homeURL = loginData.redirectUrl
                                         mainWebViewManager.preloadWebView(loginData.redirectUrl)
                                         notificationWebViewManager.preloadWebView(loginData.reasonUrl)
                                     })

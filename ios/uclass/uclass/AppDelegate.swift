@@ -26,23 +26,27 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // FCM 설정
         FirebaseApp.configure()
 
-
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
-
         
         // FCM 토큰 받기 위해서는 remote notification 등록
         application.registerForRemoteNotifications()
         
         // 푸시 알림으로 앱이 실행된 경우
-         if let notification = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
-             Logger.dev("🚀 앱이 푸시 알림으로 실행됨")
-             
-             // 약간의 지연 후 처리 (앱 초기화 완료 후)
-             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                 PushNotificationManager.shared.handlePushNotification(userInfo: notification , fromAction: true)
-             }
-         }
+        if let notification = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
+            Logger.dev("🚀 앱이 푸시 알림으로 실행됨")
+            
+            // ✅ 푸시로 시작했음을 설정 (재로그인 예외처리)
+            AppLifecycleManager.shared.setLaunchedFromPush(true)
+            
+            // 약간의 지연 후 처리 (앱 초기화 완료 후)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                PushNotificationManager.shared.handlePushNotification(userInfo: notification, fromAction: true)
+            }
+        }
+        
+        // ✅ 백그라운드/포그라운드 전환 감지 등록
+        registerAppLifecycleNotifications()
         
         return true
     }
@@ -72,6 +76,31 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         }
         return false
     }
+    
+    // MARK: - App Lifecycle Notifications
+    
+    /**
+     * 앱 생명주기 알림 등록
+     */
+    private func registerAppLifecycleNotifications() {
+        // 백그라운드 진입 감지
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        
+        Logger.dev("✅ 앱 생명주기 알림 등록 완료")
+    }
+    
+    /**
+     * 앱이 백그라운드로 진입할 때
+     */
+    @objc private func appDidEnterBackground() {
+        Logger.dev("🌙 앱이 백그라운드로 진입")
+        AppLifecycleManager.shared.didEnterBackground()
+    }
 }
 
 extension UIApplication {
@@ -100,9 +129,7 @@ extension AppDelegate: MessagingDelegate {
         Logger.dev("FCM Token:: \(fcmToken ?? "nil")")
         Constants.fcmToken = fcmToken
     }
-
 }
-
 
 extension AppDelegate: UNUserNotificationCenterDelegate {
     
@@ -127,12 +154,14 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         Logger.dev("📱 사용자가 알림을 탭함")
         Logger.dev("📩 didReceive 페이로드: \(userInfo)")
         
-        //벳지 초기화
+        // ✅ 푸시로 시작했음을 설정 (재로그인 예외처리)
+        AppLifecycleManager.shared.setLaunchedFromPush(true)
+        
+        // 뱃지 초기화
         PushNotificationManager.shared.displayResetBadge()
-
         
         // 푸시 처리
-        PushNotificationManager.shared.handlePushNotification(userInfo: userInfo , fromAction : true)
+        PushNotificationManager.shared.handlePushNotification(userInfo: userInfo, fromAction: true)
         
         completionHandler()
     }

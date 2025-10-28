@@ -9,6 +9,7 @@ object Constants {
     var fcmToken : String = ""
     var refreshToken : String = ""
     var tokenExpired : String = ""
+    var homeURL = ""
 
     fun getUserId() : Int {
         return PreferenceManager.getUserId(App.context())

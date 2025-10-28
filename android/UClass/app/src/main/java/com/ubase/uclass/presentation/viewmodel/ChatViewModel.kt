@@ -234,7 +234,6 @@ class ChatViewModel : ViewModel() {
 
             // 사용자가 최하단에 있으면 자동 스크롤 트리거
             if (_isAtBottom.value) {
-                kotlinx.coroutines.delay(50) // 메시지 추가 후 잠깐 대기
                 _shouldScrollToBottom.value = System.currentTimeMillis()
                 Logger.dev("최하단에 있어서 자동 스크롤 트리거")
             } else {
@@ -398,6 +397,16 @@ class ChatViewModel : ViewModel() {
             onDmMessage = { chatMessage ->
                 // WebSocket으로 받은 메시지 처리
                 handleNewWebSocketMessage(chatMessage)
+            },
+            onFailed = {
+                // 연결 실패 시 Alert 표시
+                Logger.error("WebSocket 연결 실패 - Alert 표시")
+                CustomAlertManager.showAlert(
+                    content = "채팅 서버에 연결하지 못했습니다.",
+                    onConfirm = {
+                        _shouldExitChat.value = true
+                    }
+                )
             }
         )
 

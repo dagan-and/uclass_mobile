@@ -553,14 +553,30 @@ struct ChatScreen: View {
     
     /// 사용자 액션으로 스크롤을 하단으로 이동
     private func scrollToBottomAsUserAction() {
-        
-        guard let tableView = tableViewRef, !messages.isEmpty else { return }
+        // ✅ 안전성 체크 추가
+        guard let tableView = tableViewRef, !messages.isEmpty else {
+            Logger.dev("⚠️ [SCROLL] 스크롤 불가 - 테이블뷰 또는 메시지 없음")
+            return
+        }
         
         // isScrollAtBottom을 먼저 true로 설정
         isScrollAtBottom = true
         
-        let indexPath = IndexPath(row: 0, section: 0)
         DispatchQueue.main.async {
+            // ✅ async 블록 내부에서 다시 한 번 체크
+            guard !self.messages.isEmpty else {
+                Logger.dev("⚠️ [SCROLL] 스크롤 불가 - 메시지가 비어있음 (async)")
+                return
+            }
+            
+            // ✅ tableView의 실제 row 개수도 확인
+            let rowCount = tableView.numberOfRows(inSection: 0)
+            guard rowCount > 0 else {
+                Logger.dev("⚠️ [SCROLL] 스크롤 불가 - tableView row 개수: 0")
+                return
+            }
+            
+            let indexPath = IndexPath(row: 0, section: 0)
             // 프로그래매틱 스크롤이지만 사용자 액션으로 처리하기 위해
             // willStartProgrammaticScroll을 호출하지 않음
             tableView.scrollToRow(at: indexPath, at: .top, animated: true)
@@ -726,12 +742,29 @@ struct ChatScreen: View {
         self.scrollToBottom()
     }
     
+    /// ✅ 안전한 스크롤 함수 - 크래시 방지
     private func scrollToBottom() {
+        // 첫 번째 체크: tableView와 messages 존재 여부
+        guard let tableView = tableViewRef, !messages.isEmpty else {
+            Logger.dev("⚠️ [SCROLL] 스크롤 불가 - 테이블뷰 또는 메시지 없음")
+            return
+        }
         
-        guard let tableView = tableViewRef, !messages.isEmpty else { return }
-        
-        let indexPath = IndexPath(row: 0, section: 0)
         DispatchQueue.main.async {
+            // ✅ async 블록 내부에서 다시 한 번 체크
+            guard !self.messages.isEmpty else {
+                Logger.dev("⚠️ [SCROLL] 스크롤 불가 - 메시지가 비어있음 (async)")
+                return
+            }
+            
+            // ✅ tableView의 실제 row 개수도 확인
+            let rowCount = tableView.numberOfRows(inSection: 0)
+            guard rowCount > 0 else {
+                Logger.dev("⚠️ [SCROLL] 스크롤 불가 - tableView row 개수: 0")
+                return
+            }
+            
+            let indexPath = IndexPath(row: 0, section: 0)
             tableView.scrollToRow(at: indexPath, at: .top, animated: true)
         }
     }

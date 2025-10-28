@@ -8,6 +8,9 @@ class UserDefaultsManager {
         static let userEmail = "user_email"
         static let userName = "user_name"
         static let isLoggedIn = "is_logged_in"
+        static let phoneNumber = "user_phone_number"
+        static let userId = "user_id_v1"
+        static let branchId = "branch_id_v1"
     }
     
     // MARK: - SNS 로그인 정보 저장/조회
@@ -72,6 +75,36 @@ class UserDefaultsManager {
         return UserDefaults.standard.bool(forKey: Keys.isLoggedIn)
     }
     
+    /// 사용자 ID 저장 (Int)
+    static func setUserId(_ userId: Int) {
+        UserDefaults.standard.set(userId, forKey: Keys.userId)
+    }
+    
+    /// 사용자 ID 조회 (Int)
+    static func getUserId() -> Int {
+        return UserDefaults.standard.integer(forKey: Keys.userId)
+    }
+    
+    /// 전화번호 저장
+    static func setPhoneNumber(_ phone: String) {
+        UserDefaults.standard.set(phone, forKey: Keys.phoneNumber)
+    }
+    
+    /// 전화번호 조회
+    static func getPhoneNumber() -> String {
+        return UserDefaults.standard.string(forKey: Keys.phoneNumber) ?? ""
+    }
+    
+    /// 지점 ID 저장
+    static func setBranchId(_ branchId: Int) {
+        UserDefaults.standard.set(branchId, forKey: Keys.branchId)
+    }
+    
+    /// 지점 ID 조회
+    static func getBranchId() -> Int {
+        return UserDefaults.standard.integer(forKey: Keys.branchId)
+    }
+    
     // MARK: - 전체 로그인 정보 저장
     
     /// 모든 로그인 정보를 한번에 저장
@@ -82,6 +115,7 @@ class UserDefaultsManager {
         setUserEmail(email)
         setUserName(name)
         setLoggedIn(true)
+        setLoginTime()
     }
     
     /// 모든 로그인 정보 삭제 (로그아웃)
@@ -91,6 +125,7 @@ class UserDefaultsManager {
         UserDefaults.standard.removeObject(forKey: Keys.snsId)
         UserDefaults.standard.removeObject(forKey: Keys.userEmail)
         UserDefaults.standard.removeObject(forKey: Keys.userName)
+        UserDefaults.standard.removeObject(forKey: "login_time")
         setLoggedIn(false)
     }
     
@@ -110,14 +145,47 @@ class UserDefaultsManager {
     
     /// 현재 저장된 로그인 정보를 딕셔너리로 반환
     static func getLoginInfoAsDictionary() -> [String: Any] {
-        return [
-            "snsType": getSNSType(),
-            "snsToken": getSNSToken(),
-            "userId": getSNSId(),
-            "email": getUserEmail(),
-            "name": getUserName(),
-            "isLoggedIn": isLoggedIn()
+        var dict: [String: Any] = [
+            "platform": "IOS",
+            "provider": getSNSType(),
+            "snsId": getSNSId()
         ]
+        
+        // fcmToken이 있다면 추가 (Constants에서 가져온다고 가정)
+        if let fcmToken = Constants.fcmToken, !fcmToken.isEmpty {
+            dict["appToken"] = fcmToken
+        }
+        
+        // 선택적 필드들 추가
+        let userName = getUserName()
+        if !userName.isEmpty {
+            dict["name"] = userName
+        }
+        
+        let userEmail = getUserEmail()
+        if !userEmail.isEmpty {
+            dict["email"] = userEmail
+        }
+        
+        let phoneNumber = getPhoneNumber()
+        if !phoneNumber.isEmpty {
+            dict["phoneNumber"] = phoneNumber
+        }
+        
+        return dict
+    }
+    
+    /// 현재 저장된 로그인 정보를 JSON 문자열로 반환
+    static func getLoginInfoAsJson() -> String? {
+        let dict = getLoginInfoAsDictionary()
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: dict, options: []),
+              let jsonString = String(data: jsonData, encoding: .utf8) else {
+            Logger.error("로그인 정보를 JSON으로 변환 실패")
+            return nil
+        }
+        
+        return jsonString
     }
     
     /// 특정 SNS 타입인지 확인
@@ -132,7 +200,7 @@ class UserDefaultsManager {
     
     /// 사용자 정보가 완전한지 확인
     static func hasCompleteUserInfo() -> Bool {
-        return !getSNSId().isEmpty && !getUserEmail().isEmpty
+        return !getSNSId().isEmpty
     }
     
     /// 로그인 시간 저장 (선택사항)
@@ -148,5 +216,22 @@ class UserDefaultsManager {
     /// 자동 로그인 가능한지 확인 (모든 조건 체크)
     static func canAutoLogin() -> Bool {
         return isLoggedIn() && hasValidToken() && hasCompleteUserInfo()
+    }
+    
+    // MARK: - Generic Methods
+    
+    /// Boolean 값 저장
+    static func putBoolean(key: String, value: Bool) {
+        UserDefaults.standard.set(value, forKey: key)
+    }
+    
+    /// Boolean 값 조회
+    static func getBoolean(key: String, defaultValue: Bool = false) -> Bool {
+        return UserDefaults.standard.bool(forKey: key)
+    }
+    
+    /// 특정 키의 값 삭제
+    static func remove(key: String) {
+        UserDefaults.standard.removeObject(forKey: key)
     }
 }

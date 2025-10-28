@@ -85,6 +85,7 @@ object SocketManager {
 
     // 콜백
     private var onMessageReceived: ((ChatMessage) -> Unit)? = null
+    private var onConnectionFailed: (() -> Unit)? = null // 연결 실패 콜백 추가
 
     /**
      * STOMP 메시지 데이터 클래스
@@ -120,14 +121,17 @@ object SocketManager {
      * WebSocket 연결
      */
     fun connect(
-        onDmMessage: ((ChatMessage) -> Unit)? = null
+        onDmMessage: ((ChatMessage) -> Unit)? = null,
+        onFailed: (() -> Unit)? = null
     ) {
         if (!isInitialized) {
             Logger.error("SocketManager not initialized. Call initialize() first.")
+            onFailed?.invoke()
             return
         }
 
         this.onMessageReceived = onDmMessage
+        this.onConnectionFailed = onFailed
 
         if (connectionState.value == ConnectionState.CONNECTED ||
             connectionState.value == ConnectionState.CONNECTING) {
@@ -136,6 +140,7 @@ object SocketManager {
         }
 
         shouldReconnect.set(true)
+        currentReconnectAttempts = 0 // 재연결 카운터 초기화
         connectInternal()
     }
 
@@ -245,33 +250,36 @@ object SocketManager {
             put("branchId", branchId)
         }
 
-        sendJsonMessage("/app/dm/native/join", joinMessage)
-        Logger.dev("DM room join request sent - userId: $userId, branchId: $branchId")
+        send(
+            destination = "/app/dm/join",
+            body = joinMessage.toString()
+        )
+        Logger.dev("DM 방 참가 메시지 전송: $joinMessage")
     }
 
     /**
      * DM 메시지 전송
      */
     fun sendDmMessage(content: String) {
-        val messageJson = JSONObject().apply {
-            put("userId", userId)
-            put("branchId", branchId)
+        val dmMessage = JSONObject().apply {
+            put("senderId", userId)
+            put("senderType", "STUDENT")
+            put("receiverId", branchId)
+            put("receiverType", "admin")
             put("content", content)
         }
 
-        sendJsonMessage("/app/dm/native/send", messageJson)
-        Logger.dev("DM message sent: $content")
+        send(
+            destination = "/app/dm/send",
+            body = dmMessage.toString()
+        )
+        Logger.dev("DM 메시지 전송: $dmMessage")
     }
 
     /**
-     * 구독
+     * 구독 (토픽/큐 구독)
      */
-    fun subscribe(destination: String, onMessage: (String) -> Unit = {}): String? {
-        if (connectionState.value != ConnectionState.CONNECTED) {
-            Logger.error("Cannot subscribe - WebSocket not connected")
-            return null
-        }
-
+    private fun subscribe(destination: String, callback: (String) -> Unit) {
         val subscriptionId = "sub-${messageSubjectId.incrementAndGet()}"
         subscriptionMap[subscriptionId] = destination
 
@@ -285,34 +293,23 @@ object SocketManager {
         )
 
         webSocket?.send(subscribeFrame)
-        Logger.dev("Subscribed to $destination with id: $subscriptionId")
+        Logger.dev("Subscribed to: $destination (ID: $subscriptionId)")
 
-        // 특정 구독에 대한 메시지 처리
+        // 메시지 수신 처리
         coroutineScope.launch {
-            try {
-                messageFlow
-                    .filter { it.command == StompCommand.MESSAGE }
-                    .filter { it.headers["subscription"] == subscriptionId }
-                    .collect { message ->
-                        onMessage(message.body)
-                    }
-            } catch (e: Exception) {
-                Logger.error("구독 메시지 처리 실패: ${e.message}")
+            messageFlow.collect { stompMessage ->
+                if (stompMessage.command == StompCommand.MESSAGE &&
+                    stompMessage.headers["subscription"] == subscriptionId) {
+                    callback(stompMessage.body)
+                }
             }
         }
-
-        return subscriptionId
     }
 
     /**
-     * 구독 해제
+     * 구독 취소
      */
-    fun unsubscribe(subscriptionId: String) {
-        if (connectionState.value != ConnectionState.CONNECTED) {
-            Logger.error("Cannot unsubscribe - WebSocket not connected")
-            return
-        }
-
+    private fun unsubscribe(subscriptionId: String) {
         val unsubscribeFrame = buildStompFrame(
             command = StompCommand.UNSUBSCRIBE,
             headers = mapOf("id" to subscriptionId),
@@ -321,46 +318,28 @@ object SocketManager {
 
         webSocket?.send(unsubscribeFrame)
         subscriptionMap.remove(subscriptionId)
-        Logger.dev("Unsubscribed from subscription: $subscriptionId")
+        Logger.dev("Unsubscribed from: $subscriptionId")
     }
 
     /**
      * 메시지 전송
      */
-    fun sendMessage(destination: String, message: String, headers: Map<String, String> = emptyMap()) {
-        if (connectionState.value != ConnectionState.CONNECTED) {
-            Logger.error("Cannot send message - WebSocket not connected")
-            return
-        }
-
-        val sendHeaders = mutableMapOf<String, String>().apply {
-            put("destination", destination)
-            putAll(headers)
-        }
-
+    private fun send(destination: String, body: String) {
         val sendFrame = buildStompFrame(
             command = StompCommand.SEND,
-            headers = sendHeaders,
-            body = message
+            headers = mapOf(
+                "destination" to destination,
+                "content-type" to "application/json"
+            ),
+            body = body
         )
 
         webSocket?.send(sendFrame)
-        Logger.dev("Message sent to $destination")
+        Logger.dev("Message sent to: $destination")
     }
 
     /**
-     * JSON 메시지 전송
-     */
-    fun sendJsonMessage(destination: String, jsonObject: JSONObject, headers: Map<String, String> = emptyMap()) {
-        val jsonHeaders = mutableMapOf<String, String>().apply {
-            put("content-type", "application/json")
-            putAll(headers)
-        }
-        sendMessage(destination, jsonObject.toString(), jsonHeaders)
-    }
-
-    /**
-     * STOMP 프레임 생성
+     * STOMP 프레임 빌드
      */
     private fun buildStompFrame(command: String, headers: Map<String, String>, body: String): String {
         val frame = StringBuilder()
@@ -370,7 +349,10 @@ object SocketManager {
             frame.append("$key:$value\n")
         }
 
-        frame.append("\n").append(body).append("\u0000")
+        frame.append("\n")
+        frame.append(body)
+        frame.append("\u0000") // null terminator
+
         return frame.toString()
     }
 
@@ -384,12 +366,11 @@ object SocketManager {
 
             val command = lines[0].trim()
             val headers = mutableMapOf<String, String>()
-            var bodyStartIndex = 1
+            var bodyStartIndex = -1
 
-            // 헤더 파싱
             for (i in 1 until lines.size) {
                 val line = lines[i]
-                if (line.trim().isEmpty()) {
+                if (line.isEmpty()) {
                     bodyStartIndex = i + 1
                     break
                 }
@@ -402,58 +383,69 @@ object SocketManager {
                 }
             }
 
-            // 바디 파싱
-            val body = if (bodyStartIndex < lines.size) {
-                lines.subList(bodyStartIndex, lines.size).joinToString("\n")
+            val body = if (bodyStartIndex >= 0 && bodyStartIndex < lines.size) {
+                lines.subList(bodyStartIndex, lines.size)
+                    .joinToString("\n")
                     .replace("\u0000", "")
+                    .trim()
             } else {
                 ""
             }
 
             return StompMessage(command, headers, body)
         } catch (e: Exception) {
-            Logger.error("Failed to parse STOMP frame: ${e.message}")
+            Logger.error("STOMP frame parsing error: ${e.message}")
             return null
         }
     }
 
     /**
-     * 연결 해제 - 재연결 방지 추가
+     * 연결 해제
      */
     fun disconnect() {
+        Logger.dev("Disconnecting WebSocket")
+
+        // 재연결 차단
+        shouldReconnect.set(false)
+
+        // 재연결 작업 취소
+        reconnectJob?.cancel()
+        reconnectJob = null
+        isReconnecting.set(false)
+
+        // 하트비트 중지
+        stopHeartbeat()
+
+        // 연결 상태 업데이트
+        connectionState.value = ConnectionState.DISCONNECTING
+
         try {
-            Logger.dev("SocketManager disconnect 호출")
-
-            shouldReconnect.set(false)
-            isReconnecting.set(false)
-            reconnectJob?.cancel()
-            currentReconnectAttempts = 0
-
-            // 하트비트 중지
-            stopHeartbeat()
-
-            connectionState.value = ConnectionState.DISCONNECTING
-
-            // STOMP DISCONNECT 프레임 전송
-            if (webSocket != null && connectionState.value == ConnectionState.CONNECTED) {
-                val disconnectFrame = buildStompFrame(
-                    command = StompCommand.DISCONNECT,
-                    headers = emptyMap(),
-                    body = ""
-                )
-                webSocket?.send(disconnectFrame)
-                Logger.dev("STOMP DISCONNECT 프레임 전송")
+            // 모든 구독 취소
+            subscriptionMap.keys.toList().forEach { subscriptionId ->
+                unsubscribe(subscriptionId)
             }
 
-            // WebSocket 연결 종료
-            webSocket?.close(1000, "User disconnected")
+            // DISCONNECT 프레임 전송
+            val disconnectFrame = buildStompFrame(
+                command = StompCommand.DISCONNECT,
+                headers = mapOf("receipt" to "disconnect-${System.currentTimeMillis()}"),
+                body = ""
+            )
+            webSocket?.send(disconnectFrame)
+
+            // 짧은 지연 후 WebSocket 종료
+            coroutineScope.launch {
+                delay(100)
+                webSocket?.close(1000, "Normal closure")
+                webSocket = null
+                connectionState.value = ConnectionState.DISCONNECTED
+                Logger.dev("WebSocket disconnected")
+            }
+        } catch (e: Exception) {
+            Logger.error("Error during disconnect: ${e.message}")
+            webSocket?.close(1000, "Error during disconnect")
             webSocket = null
             connectionState.value = ConnectionState.DISCONNECTED
-            subscriptionMap.clear()
-
-            Logger.dev("WebSocket 연결 해제 완료")
-        } catch (e: Exception) {
-            Logger.error("Error disconnecting WebSocket: ${e.message}")
         }
     }
 
@@ -462,31 +454,25 @@ object SocketManager {
      */
     private fun parseHeartbeatHeader(heartbeatHeader: String) {
         try {
-            Logger.dev("서버 하트비트 설정: $heartbeatHeader")
-
-            val parts = heartbeatHeader.split(",")
-            if (parts.size == 2) {
-                val serverSend = parts[0].toLongOrNull() ?: 0L
-                val serverExpect = parts[1].toLongOrNull() ?: 0L
+            val values = heartbeatHeader.split(",")
+            if (values.size == 2) {
+                val serverSendInterval = values[0].toLongOrNull() ?: 0
+                val serverReceiveInterval = values[1].toLongOrNull() ?: 0
 
                 // 실제 사용할 하트비트 간격 계산
-                if (serverExpect > 0 && clientHeartbeatInterval > 0) {
-                    clientHeartbeatInterval = maxOf(clientHeartbeatInterval, serverExpect)
-                } else if (serverExpect > 0) {
-                    clientHeartbeatInterval = serverExpect
-                } else {
-                    clientHeartbeatInterval = 0
-                }
-
-                serverHeartbeatInterval = if (serverSend > 0 && serverHeartbeatInterval > 0) {
-                    maxOf(serverSend, serverHeartbeatInterval)
-                } else if (serverSend > 0) {
-                    serverSend
+                clientHeartbeatInterval = if (serverReceiveInterval > 0) {
+                    maxOf(clientHeartbeatInterval, serverReceiveInterval)
                 } else {
                     0
                 }
 
-                Logger.dev("하트비트 협상 완료 - 클라이언트 송신: ${clientHeartbeatInterval}ms, 서버 송신: ${serverHeartbeatInterval}ms")
+                serverHeartbeatInterval = if (serverSendInterval > 0) {
+                    maxOf(serverHeartbeatInterval, serverSendInterval)
+                } else {
+                    0
+                }
+
+                Logger.dev("하트비트 협상 완료 - Client: $clientHeartbeatInterval ms, Server: $serverHeartbeatInterval ms")
             }
         } catch (e: Exception) {
             Logger.error("하트비트 헤더 파싱 실패: ${e.message}")
@@ -494,56 +480,54 @@ object SocketManager {
     }
 
     /**
-     * 하트비트 시작 - 안전성 및 동기화 개선
+     * 하트비트 시작 - 개선된 버전
      */
     private fun startHeartbeat() {
-        coroutineScope.launch {
+        // 기존 하트비트 중지
+        stopHeartbeat()
+
+        // 하트비트가 필요한 경우에만 시작
+        if (clientHeartbeatInterval <= 0 && serverHeartbeatInterval <= 0) {
+            Logger.dev("하트비트가 비활성화되어 있음")
+            return
+        }
+
+        heartbeatJob = coroutineScope.launch {
             heartbeatMutex.withLock {
                 try {
-                    stopHeartbeat() // 기존 하트비트 중지
-
-                    // 클라이언트가 서버에게 보내는 하트비트
+                    // 클라이언트 -> 서버 하트비트 전송
                     if (clientHeartbeatInterval > 0) {
-                        heartbeatJob = coroutineScope.launch {
+                        launch {
                             try {
                                 while (isActive && connectionState.value == ConnectionState.CONNECTED) {
                                     delay(clientHeartbeatInterval)
-
-                                    // 연결 상태 재확인
-                                    if (connectionState.value == ConnectionState.CONNECTED && webSocket != null) {
-                                        try {
-                                            webSocket?.send("\n")
-                                            Logger.dev("Client heartbeat sent")
-                                        } catch (e: Exception) {
-                                            Logger.error("하트비트 전송 실패: ${e.message}")
-                                            // 전송 실패 시 루프 중단
-                                            break
-                                        }
-                                    } else {
-                                        Logger.dev("연결이 끊어져 하트비트 중단")
-                                        break
+                                    if (connectionState.value == ConnectionState.CONNECTED) {
+                                        webSocket?.send("\n")
+                                        Logger.dev("Client heartbeat sent")
                                     }
                                 }
                             } catch (e: CancellationException) {
-                                Logger.dev("하트비트 작업이 취소됨")
+                                Logger.dev("하트비트 전송이 취소됨")
                             } catch (e: Exception) {
-                                Logger.error("하트비트 루프 예외: ${e.message}")
+                                Logger.error("하트비트 전송 예외: ${e.message}")
                             }
                         }
                     }
 
-                    // 서버 하트비트 타임아웃 감지
+                    // 서버 -> 클라이언트 하트비트 타임아웃 감지
                     if (serverHeartbeatInterval > 0) {
+                        // 초기 하트비트 수신 시간 설정
                         lastHeartbeatReceived = System.currentTimeMillis()
-                        val timeoutInterval = serverHeartbeatInterval * 2 + 1000L // 여유 시간 1초 추가
 
-                        heartbeatTimeoutJob = coroutineScope.launch {
+                        heartbeatTimeoutJob = launch {
                             try {
-                                while (isActive && connectionState.value == ConnectionState.CONNECTED) {
-                                    delay(timeoutInterval)
+                                val checkInterval = serverHeartbeatInterval / 2 // 절반 간격으로 체크
+                                val timeoutInterval = serverHeartbeatInterval * 2 // 2배를 타임아웃으로 설정
 
-                                    val now = System.currentTimeMillis()
-                                    val timeSinceLastHeartbeat = now - lastHeartbeatReceived
+                                while (isActive && connectionState.value == ConnectionState.CONNECTED) {
+                                    delay(checkInterval)
+
+                                    val timeSinceLastHeartbeat = System.currentTimeMillis() - lastHeartbeatReceived
 
                                     if (timeSinceLastHeartbeat > timeoutInterval &&
                                         connectionState.value == ConnectionState.CONNECTED) {
@@ -604,8 +588,17 @@ object SocketManager {
             return
         }
 
-        if (isReconnecting.get() || currentReconnectAttempts >= maxReconnectAttempts) {
-            Logger.error("Max reconnect attempts reached or already reconnecting")
+        if (isReconnecting.get()) {
+            Logger.dev("이미 재연결 중입니다")
+            return
+        }
+
+        if (currentReconnectAttempts >= maxReconnectAttempts) {
+            Logger.error("최대 재연결 시도 횟수 초과 (${currentReconnectAttempts}/$maxReconnectAttempts)")
+            // 연결 실패 콜백 호출
+            coroutineScope.launch(Dispatchers.Main) {
+                onConnectionFailed?.invoke()
+            }
             return
         }
 
@@ -680,6 +673,7 @@ object SocketManager {
 
         // 콜백 정리
         onMessageReceived = null
+        onConnectionFailed = null
 
         Logger.dev("SocketManager 완전 정리 완료")
     }
@@ -780,10 +774,22 @@ object SocketManager {
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             Logger.error("WebSocket failure: ${t.message}")
+            Logger.error("Response code: ${response?.code}")
             SocketManager.webSocket = null
             SocketManager.connectionState.value = ConnectionState.DISCONNECTED
 
-            if (SocketManager.shouldReconnect.get()) {
+            // 재연결이 불가능한 에러 코드 체크 (404, 401, 403 등)
+            val shouldNotRetry = response?.code in listOf(400, 401, 403, 404, 405)
+
+            if (shouldNotRetry) {
+                Logger.error("재연결이 불가능한 에러 코드 (${response?.code}) - 즉시 연결 실패 처리")
+                // 재연결 차단
+                SocketManager.shouldReconnect.set(false)
+                // 연결 실패 콜백 호출
+                SocketManager.coroutineScope.launch(Dispatchers.Main) {
+                    SocketManager.onConnectionFailed?.invoke()
+                }
+            } else if (SocketManager.shouldReconnect.get()) {
                 SocketManager.scheduleReconnect()
             } else {
                 Logger.dev("재연결이 차단되어 있어 실패 시 재연결하지 않음")

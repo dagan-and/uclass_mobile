@@ -4,9 +4,12 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
+import android.webkit.ConsoleMessage
+import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings.LOAD_NO_CACHE
+import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebView.setWebContentsDebuggingEnabled
 import android.webkit.WebViewClient
@@ -83,6 +86,15 @@ class WebViewManager(private val context: Context) {
             webChromeClient = object : android.webkit.WebChromeClient() {
                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
                     super.onProgressChanged(view, newProgress)
+                }
+
+                /**
+                 * 웹 콘솔 로그를 캡처하여 Logger로 출력
+                 */
+                override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                    // Logger.web()를 사용하여 웹 콘솔 로그 출력
+                    Logger.web(consoleMessage)
+                    return true
                 }
             }
 

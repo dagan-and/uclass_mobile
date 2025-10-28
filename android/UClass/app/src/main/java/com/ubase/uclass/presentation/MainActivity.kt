@@ -1,5 +1,7 @@
 package com.ubase.uclass.presentation
 
+import android.content.Context
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.os.Handler
@@ -53,6 +55,13 @@ class MainActivity : ComponentActivity() {
 
     // FCM에서 전달받은 URL (WebView 로딩 완료 후 이동)
     private var pendingFCMUrl: String? = null
+
+    // 백그라운드 전환 시간 관리
+    private var backgroundTimestamp: Long = 0L
+    private val SESSION_TIMEOUT_MS = 10 * 60 * 1000L // 10분 (밀리초)
+
+    // 푸시로 시작되었는지 플래그
+    private var isStartedFromPush = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -177,8 +186,84 @@ class MainActivity : ComponentActivity() {
         checkIntentForFCMData(intent)
     }
 
+    override fun onPause() {
+        super.onPause()
+
+        // 백그라운드로 전환되는 시점 저장
+        backgroundTimestamp = System.currentTimeMillis()
+        saveBackgroundTimestamp(backgroundTimestamp)
+
+        Logger.info("## 앱 백그라운드 전환 - 시간 저장: $backgroundTimestamp")
+    }
+
     override fun onResume() {
         super.onResume()
+
+        // 푸시로 시작된 경우 세션 체크 예외 처리
+        if (isStartedFromPush) {
+            Logger.info("## 푸시로 시작됨 - 세션 체크 건너뜀")
+            isStartedFromPush = false
+            return
+        }
+
+        // 앱이 처음 시작되는 경우 (backgroundTimestamp가 0) 체크 건너뜀
+        if (backgroundTimestamp == 0L) {
+            backgroundTimestamp = getSavedBackgroundTimestamp()
+            if (backgroundTimestamp == 0L) {
+                Logger.info("## 앱 첫 시작 - 세션 체크 건너뜀")
+                return
+            }
+        }
+
+        // 포그라운드로 복귀한 시점
+        val currentTime = System.currentTimeMillis()
+        val elapsedTime = currentTime - backgroundTimestamp
+
+        Logger.info("## 앱 포그라운드 복귀 - 경과 시간: ${elapsedTime / 1000}초")
+
+        // 세션 타임아웃 체크 (10분)
+        if (elapsedTime > SESSION_TIMEOUT_MS) {
+            Logger.info("## 세션 타임아웃 감지 (${elapsedTime / 1000}초 경과) - 재로그인 필요")
+            triggerRelogin()
+        } else {
+            Logger.info("## 세션 유지 중 (${elapsedTime / 1000}초 경과)")
+        }
+    }
+
+    /**
+     * 재로그인 트리거
+     */
+    private fun triggerRelogin() {
+        val mainIntent = Intent(this, MainActivity::class.java)
+        startActivity(mainIntent)
+    }
+
+    /**
+     * 백그라운드 타임스탬프 저장
+     */
+    private fun saveBackgroundTimestamp(timestamp: Long) {
+        try {
+            val prefs = getSharedPreferences("SESSION_PREF", Context.MODE_PRIVATE)
+            prefs.edit().apply {
+                putLong("BACKGROUND_TIMESTAMP", timestamp)
+                apply()
+            }
+        } catch (e: Exception) {
+            Logger.error("백그라운드 타임스탬프 저장 실패: ${e.message}")
+        }
+    }
+
+    /**
+     * 저장된 백그라운드 타임스탬프 조회
+     */
+    private fun getSavedBackgroundTimestamp(): Long {
+        return try {
+            val prefs = getSharedPreferences("SESSION_PREF", Context.MODE_PRIVATE)
+            prefs.getLong("BACKGROUND_TIMESTAMP", 0L)
+        } catch (e: Exception) {
+            Logger.error("백그라운드 타임스탬프 조회 실패: ${e.message}")
+            0L
+        }
     }
 
     /**
@@ -244,7 +329,6 @@ class MainActivity : ComponentActivity() {
         val userId = PreferenceManager.getSNSId(this)
         //val userId = System.currentTimeMillis().toString()
 
-        Logger.dev(PreferenceManager.getLoginInfoAsJson(this).toString())
 
         if (snsType.isEmpty() || userId.isEmpty()) {
             Logger.info("## SNS 로그인 정보 없음 - API 호출 실패")
@@ -284,6 +368,9 @@ class MainActivity : ComponentActivity() {
         if (bundle != null) {
             Logger.info("## FCM 데이터 수신 : ${bundle.keySet().joinToString { "$it=${bundle.getString(it)}" }}")
 
+            // 푸시로 시작된 것으로 표시 (세션 체크 예외 처리용)
+            isStartedFromPush = true
+
             if (bundle.containsKey("type") && bundle.getString("type").equals("CHAT", true)) {
                 ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
             }
@@ -306,6 +393,9 @@ class MainActivity : ComponentActivity() {
     private fun checkIntentForFCMData(intent: android.content.Intent?) {
         intent?.extras?.let { bundle ->
             Logger.info("## Intent에서 FCM 데이터 수신: ${bundle.keySet().joinToString { "$it=${bundle.getString(it)}" }}")
+
+            // 푸시로 시작된 것으로 표시 (세션 체크 예외 처리용)
+            isStartedFromPush = true
 
             if (bundle.containsKey("type") && bundle.getString("type").equals("CHAT", true)) {
                 initialNavigationTarget = CHAT

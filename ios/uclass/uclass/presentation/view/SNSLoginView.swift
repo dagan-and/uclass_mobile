@@ -74,26 +74,43 @@ struct SNSLoginView: View {
             onSuccess: { result in
                 if let resultData = result as? BaseData<SNSLoginData> {
                     
-                    Constants.jwtToken = resultData.data?.accessToken
-                    Constants.setUserId(resultData.data?.userId ?? 0)
-                    Constants.setBranchId(resultData.data?.branchId ?? 0)
-                    Constants.setBranchName(resultData.data?.branchName ?? "")
-                    
-                    // ✅ redirectUrl과 reasonUrl 저장
-                    if let redirectUrl = resultData.data?.redirectUrl {
-                        Constants.mainUrl = redirectUrl
-                        Logger.dev("메인 URL 저장: \(redirectUrl)")
+                    // ✅ 로그인 했지만 토큰이 없으면 대기중 페이지로 이동
+                    if let accessToken = resultData.data?.accessToken, !accessToken.isEmpty {
+                        // 토큰이 있는 경우 - 정상 로그인 처리
+                        Constants.jwtToken = accessToken
+                        Constants.setUserId(resultData.data?.userId ?? 0)
+                        Constants.setBranchId(resultData.data?.branchId ?? 0)
+                        Constants.setBranchName(resultData.data?.branchName ?? "")
+                        
+                        // ✅ redirectUrl과 reasonUrl 저장
+                        if let redirectUrl = resultData.data?.redirectUrl {
+                            Constants.mainUrl = redirectUrl
+                            Logger.dev("메인 URL 저장: \(redirectUrl)")
+                        }
+                        
+                        if let reasonUrl = resultData.data?.reasonUrl {
+                            Constants.noticeUrl = reasonUrl
+                            Logger.dev("공지사항 URL 저장: \(reasonUrl)")
+                        }
+                        
+                        Logger.dev("로그인 성공")
+                        
+                        // ✅ 로그인 성공 후 WebView 미리 로딩 시작
+                        preloadMainWebView()
+                    } else {
+                        // 토큰이 없는 경우 - 승인 대기중 페이지로 이동
+                        Logger.dev("승인 대기중 - 대기 페이지로 이동")
+                        
+                        if let redirectUrl = resultData.data?.redirectUrl, !redirectUrl.isEmpty {
+                            DispatchQueue.main.async {
+                                self.registrationUrl = redirectUrl
+                                self.showLoadingView = false
+                                self.showRegistrationWebView = true
+                            }
+                        } else {
+                            apiError(error: "대기 페이지 URL을 찾을 수 없습니다")
+                        }
                     }
-                    
-                    if let reasonUrl = resultData.data?.reasonUrl {
-                        Constants.noticeUrl = reasonUrl
-                        Logger.dev("공지사항 URL 저장: \(reasonUrl)")
-                    }
-                    
-                    Logger.dev("로그인 성공")
-                    
-                    // ✅ 로그인 성공 후 WebView 미리 로딩 시작
-                    preloadMainWebView()
                 } else {
                     apiError(error: "데이터 형식 Error")
                 }

@@ -36,6 +36,16 @@ struct MainScreen: View {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             showChatScreen = true
                         }
+                    },
+                    onHomeRefresh: {
+                        // 홈 탭 새로고침
+                        Logger.dev("🔄 홈 화면 새로고침 요청")
+                        refreshHomeScreen()
+                    },
+                    onNoticeRefresh: {
+                        // 공지사항 탭 새로고침
+                        Logger.dev("🔄 공지사항 화면 새로고침 요청")
+                        refreshNoticeScreen()
                     }
                 )
             }
@@ -128,6 +138,55 @@ struct MainScreen: View {
         ) { notification in
             Logger.dev("🔴 채팅 뱃지 숨기기")
             chatBadgeViewModel.hideBadge()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: UIApplication.willEnterForegroundNotification
+            )
+        ) { _ in
+            // ✅ 포그라운드 복귀 시 재로그인 체크
+            handleForegroundEnter()
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    /**
+     * 홈 화면 새로고침
+     */
+    private func refreshHomeScreen() {
+        if !Constants.mainUrl.isEmpty {
+            Logger.dev("🔄 메인 URL로 재로딩: \(Constants.mainUrl)")
+            webViewManager.preloadWebView(url: Constants.mainUrl)
+        } else {
+            Logger.dev("🔄 현재 페이지 새로고침")
+            webViewManager.reload()
+        }
+    }
+    
+    /**
+     * 공지사항 화면 새로고침
+     */
+    private func refreshNoticeScreen() {
+        Logger.dev("📋 공지사항 화면 새로고침 알림 발송")
+        NotificationCenter.default.post(
+            name: Notification.Name("RefreshNoticeScreen"),
+            object: nil
+        )
+    }
+    
+    /**
+     * 포그라운드 진입 시 재로그인 체크
+     */
+    private func handleForegroundEnter() {
+        Logger.dev("☀️ 포그라운드 진입 - 재로그인 체크")
+        
+        // 재로그인이 필요한지 확인
+        let needsRelogin = AppLifecycleManager.shared.willEnterForeground()
+        
+        if needsRelogin {
+            Logger.dev("🔒 재로그인 필요 - 앱 재시작 처리")
+            AppLifecycleManager.shared.performRelogin()
         }
     }
 }

@@ -3,6 +3,7 @@ package com.ubase.uclass.util
 import android.content.Context
 import android.content.SharedPreferences
 import android.text.TextUtils
+import androidx.compose.ui.unit.Constraints
 import org.json.JSONObject
 import java.util.*
 
@@ -144,6 +145,8 @@ object PreferenceManager {
     /** 현재 저장된 로그인 정보를 JSON으로 반환 */
     fun getLoginInfoAsJson(context: Context): JSONObject {
         val json = JSONObject()
+        json.put("platform", "ANDROID")
+        json.put("appToken", Constants.fcmToken)
         json.put("provider", getSNSType(context))
         json.put("snsId", getSNSId(context))
         if(!TextUtils.isEmpty(getUserName(context))) {

@@ -32,10 +32,10 @@ struct RegisterWebViewScreen: View {
         .onAppear {
             Logger.dev("회원가입 웹뷰 로드: \(registrationUrl)")
             webViewManager.preloadWebView(url: registrationUrl)
-            webViewManager.registerKeyboardNotifications() // ✅ 키보드 노티피케이션 등록
+            webViewManager.registerKeyboardNotifications()
         }
         .onDisappear {
-            webViewManager.unregisterKeyboardNotifications() // ✅ 키보드 노티피케이션 해제
+            webViewManager.unregisterKeyboardNotifications()
         }
         .onChange(of: webViewManager.registrationCompleted) { completed in
             if completed {
@@ -44,7 +44,6 @@ struct RegisterWebViewScreen: View {
             }
         }
         .onReceive(webViewManager.$scriptMessage) { scriptMessage in
-            // null, 공백 체크
             guard let message = scriptMessage,
                   !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             else {
@@ -82,6 +81,12 @@ struct RegisterWebViewScreen: View {
                             webViewManager.registrationCompleted = true
                         },
                         onError: { error in
+                            // ✅ 키보드 내리기
+                            if let webView = webViewManager.getWebView() {
+                                webView.endEditing(true)
+                                Logger.dev("⌨️ 키보드 내리기 완료")
+                            }
+                            
                             CustomAlertManager.shared.showErrorAlert(
                                 message: error
                             )
@@ -98,6 +103,12 @@ struct RegisterWebViewScreen: View {
                     let alertMessage = json["message"] as? String ?? ""
                     let callback = json["callback"] as? String ?? ""
                     
+                    // ✅ 키보드 내리기
+                    if let webView = webViewManager.getWebView() {
+                        webView.endEditing(true)
+                        Logger.dev("⌨️ 키보드 내리기 완료")
+                    }
+                    
                     CustomAlertManager.shared.showAlert(
                         title: alertTitle,
                         message: alertMessage,
@@ -110,6 +121,12 @@ struct RegisterWebViewScreen: View {
                     let alertTitle = json["title"] as? String ?? ""
                     let alertMessage = json["message"] as? String ?? ""
                     let callback = json["callback"] as? String ?? ""
+                    
+                    // ✅ 키보드 내리기
+                    if let webView = webViewManager.getWebView() {
+                        webView.endEditing(true)
+                        Logger.dev("⌨️ 키보드 내리기 완료")
+                    }
                     
                     CustomAlertManager.shared.showConfirmAlert(
                         title: alertTitle,
@@ -143,7 +160,6 @@ struct RegisterWebViewScreen: View {
             return
         }
         
-        // JavaScript 콜백 실행
         if callback.hasPrefix("javascript:") {
             let jsCode = callback.replacingOccurrences(of: "javascript:", with: "")
             webView.evaluateJavaScript(jsCode) { result, error in
@@ -163,8 +179,22 @@ struct RegisterWebViewScreen: View {
     }
 }
 
+// MARK: - String Extension for JavaScript Escaping
+extension String {
+    /// JavaScript 문자열로 안전하게 escape
+    func escapedForJavaScript() -> String {
+        return self
+            .replacingOccurrences(of: "\\", with: "\\\\")  // \ -> \\
+            .replacingOccurrences(of: "\"", with: "\\\"")  // " -> \"
+            .replacingOccurrences(of: "\'", with: "\\'")   // ' -> \'
+            .replacingOccurrences(of: "\n", with: "\\n")   // 개행
+            .replacingOccurrences(of: "\r", with: "\\r")   // 캐리지 리턴
+            .replacingOccurrences(of: "\t", with: "\\t")   // 탭
+    }
+}
+
 // MARK: - RegisterWebViewManager
-class RegisterWebViewManager: NSObject, ObservableObject {
+class RegisterWebViewManager: NSObject, ObservableObject, WKUIDelegate {
     @Published var isLoaded = false
     @Published var isLoading = false
     @Published var currentURL: String = ""
@@ -174,7 +204,7 @@ class RegisterWebViewManager: NSObject, ObservableObject {
     private var webView: WKWebView?
     private var jsInterface: UclassJsInterface?
     
-    // ✅ 키보드 상태 추적 (중복 호출 방지)
+    // 키보드 상태 추적
     private var isKeyboardVisible = false
     private var currentKeyboardHeight: CGFloat = 0
     
@@ -191,7 +221,10 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         jsInterface = UclassJsInterface { [weak self] message in
             DispatchQueue.main.async {
                 self?.scriptMessage = message
-                self?.scriptMessage = nil
+                // 1초 후 메시지 초기화
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self?.scriptMessage = nil
+                }
             }
         }
         
@@ -209,26 +242,18 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView?.navigationDelegate = self
         
-        // ✅ 키보드 대응을 위한 ScrollView 설정
-        webView?.scrollView.keyboardDismissMode = .interactive
-        webView?.scrollView.contentInsetAdjustmentBehavior = .never // ✅ 자동 조정 비활성화
+        // ✅ UIDelegate 설정 추가 - JavaScript alert 처리를 위해 필수
+        webView?.uiDelegate = self
         
-        // ✅ 스크롤 바운스 제거
+        // 키보드 대응을 위한 ScrollView 설정
+        webView?.scrollView.keyboardDismissMode = .interactive
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never
+        
+        // 스크롤 바운스 제거
         webView?.scrollView.bounces = false
         webView?.scrollView.alwaysBounceVertical = false
-        webView?.scrollView.alwaysBounceHorizontal = false
         
-        // 웹뷰 기본 설정
-        webView?.backgroundColor = UIColor.white
-        webView?.scrollView.backgroundColor = UIColor.white
-        webView?.isOpaque = false
-        webView?.allowsBackForwardNavigationGestures = true
-        
-        if Constants.isDebug {
-            if #available(iOS 16.4, *) {
-                webView?.isInspectable = true
-            }
-        }
+        Logger.dev("✅ RegisterWebView 초기화 완료")
     }
     
     func preloadWebView(url: String) {
@@ -252,9 +277,37 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         return webView
     }
     
+    // MARK: - Native Binding
+    
+    /// 로그인 정보를 웹뷰로 전달
+    private func sendNativeBinding() {
+        guard let webView = webView else { return }
+        
+        // UserDefaultsManager에서 로그인 정보 JSON 가져오기
+        guard let jsonString = UserDefaultsManager.getLoginInfoAsJson() else {
+            Logger.error("로그인 정보 JSON 생성 실패")
+            return
+        }
+        
+        // JavaScript로 안전하게 escape
+        let escapedJson = jsonString.escapedForJavaScript()
+        let script = "javascript:nativeBinding('\(escapedJson)')"
+        
+        Logger.info("전송 전: \(jsonString)")
+        Logger.info("전송 스크립트: \(script)")
+        
+        // JavaScript 실행
+        webView.evaluateJavaScript(script) { result, error in
+            if let error = error {
+                Logger.error("JavaScript 실행 오류: \(error.localizedDescription)")
+            } else {
+                Logger.dev("JavaScript 실행 결과: \(String(describing: result))")
+            }
+        }
+    }
+    
     // MARK: - Keyboard Notifications
     
-    /// 키보드 노티피케이션 등록
     func registerKeyboardNotifications() {
         NotificationCenter.default.addObserver(
             self,
@@ -273,7 +326,6 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         Logger.dev("✅ 키보드 노티피케이션 등록 완료")
     }
     
-    /// 키보드 노티피케이션 해제
     func unregisterKeyboardNotifications() {
         NotificationCenter.default.removeObserver(
             self,
@@ -290,7 +342,6 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         Logger.dev("✅ 키보드 노티피케이션 해제 완료")
     }
     
-    /// 키보드가 나타날 때 처리
     @objc func keyboardWillShow(notification: NSNotification) {
         guard let webView = webView,
               let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else {
@@ -299,7 +350,7 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         
         let keyboardHeight = keyboardFrame.cgRectValue.height
         
-        // ✅ 중복 호출 방지: 이미 같은 높이로 키보드가 표시 중이면 무시
+        // 중복 호출 방지
         if isKeyboardVisible && currentKeyboardHeight == keyboardHeight {
             Logger.dev("⌨️ 키보드 이미 표시 중 - 중복 호출 무시")
             webView.scrollView.contentInset = .zero
@@ -309,7 +360,7 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         
         Logger.dev("⌨️ 키보드 표시: 높이 = \(keyboardHeight)")
         
-        // ✅ contentInset 조정 (음수로 설정)
+        // contentInset 조정
         webView.scrollView.contentInset = UIEdgeInsets(
             top: 0,
             left: 0,
@@ -317,21 +368,18 @@ class RegisterWebViewManager: NSObject, ObservableObject {
             right: 0
         )
         
-        // ✅ scrollIndicatorInsets도 함께 조정
         webView.scrollView.scrollIndicatorInsets = webView.scrollView.contentInset
         
-        // ✅ 키보드 상태 업데이트
         isKeyboardVisible = true
         currentKeyboardHeight = keyboardHeight
     }
     
-    /// 키보드가 사라질 때 처리
     @objc func keyboardWillHide(notification: NSNotification) {
         guard let webView = webView else {
             return
         }
         
-        // ✅ 중복 호출 방지: 키보드가 이미 숨겨진 상태면 무시
+        // 중복 호출 방지
         if !isKeyboardVisible {
             Logger.dev("⌨️ 키보드 이미 숨김 - 중복 호출 무시")
             return
@@ -339,20 +387,15 @@ class RegisterWebViewManager: NSObject, ObservableObject {
         
         Logger.dev("⌨️ 키보드 숨김")
         
-        // ✅ contentInset 초기화
         webView.scrollView.contentInset = .zero
         webView.scrollView.scrollIndicatorInsets = .zero
         
-        // ✅ 키보드 상태 업데이트
         isKeyboardVisible = false
         currentKeyboardHeight = 0
     }
     
     deinit {
-        // 노티피케이션 제거
         unregisterKeyboardNotifications()
-        
-        // Script Message Handler 제거
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "uclass")
         Logger.dev("RegisterWebViewManager deinit")
     }
@@ -373,12 +416,18 @@ extension RegisterWebViewManager: WKNavigationDelegate {
             self.isLoading = false
             self.isLoaded = true
             CustomLoadingManager.shared.hideLoading()
+            
+            Logger.info("## RegisterWebView onPageFinished: \(webView.url?.absoluteString ?? "")")
+            
+            // 🔥 nativeBinding 호출 - 로그인 정보를 웹뷰로 전달
+            self.sendNativeBinding()
         }
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         DispatchQueue.main.async {
             self.isLoading = false
+            self.isLoaded = true  // 에러가 발생해도 로딩 완료로 처리
             CustomLoadingManager.shared.hideLoading()
             Logger.error("회원가입 웹뷰 로딩 실패: \(error.localizedDescription)")
         }
@@ -390,6 +439,164 @@ extension RegisterWebViewManager: WKNavigationDelegate {
         }
         
         decisionHandler(.allow)
+    }
+}
+
+// MARK: - WKUIDelegate Extension
+extension RegisterWebViewManager {
+    /// JavaScript alert() 처리
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptAlertPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping () -> Void
+    ) {
+        Logger.dev("🔔 JavaScript alert 호출: \(message)")
+        
+        // ✅ completionHandler가 반드시 호출되도록 보장
+        var handlerCalled = false
+        let safeCompletionHandler = {
+            guard !handlerCalled else {
+                Logger.warning("⚠️ completionHandler 중복 호출 방지")
+                return
+            }
+            handlerCalled = true
+            completionHandler()
+        }
+        
+        DispatchQueue.main.async {
+            
+            CustomAlertManager.shared.showAlert(
+                message: message,
+                completion: {
+                    Logger.dev("✅ Alert 완료 - completionHandler 호출")
+                    safeCompletionHandler()
+                }
+            )
+            
+            // ✅ 안전장치: 5초 후에도 completionHandler가 호출되지 않으면 강제 호출
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                if !handlerCalled {
+                    Logger.warning("⚠️ Alert completionHandler 타임아웃 - 강제 호출")
+                    safeCompletionHandler()
+                }
+            }
+        }
+    }
+    
+    /// JavaScript confirm() 처리
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        Logger.dev("🔔 JavaScript confirm 호출: \(message)")
+        
+        // ✅ completionHandler가 반드시 호출되도록 보장
+        var handlerCalled = false
+        let safeCompletionHandler: (Bool) -> Void = { result in
+            guard !handlerCalled else {
+                Logger.warning("⚠️ completionHandler 중복 호출 방지")
+                return
+            }
+            handlerCalled = true
+            completionHandler(result)
+        }
+        
+        DispatchQueue.main.async {
+            
+            CustomAlertManager.shared.showConfirmAlert(
+                message: message,
+                onConfirm: {
+                    Logger.dev("✅ Confirm 확인 - completionHandler 호출")
+                    safeCompletionHandler(true)
+                },
+                onCancel: {
+                    Logger.dev("✅ Confirm 취소 - completionHandler 호출")
+                    safeCompletionHandler(false)
+                }
+            )
+            
+            // ✅ 안전장치: 5초 후에도 completionHandler가 호출되지 않으면 강제 호출
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                if !handlerCalled {
+                    Logger.warning("⚠️ Confirm completionHandler 타임아웃 - 강제 호출 (취소로 처리)")
+                    safeCompletionHandler(false)
+                }
+            }
+        }
+    }
+    
+    /// JavaScript prompt() 처리
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptTextInputPanelWithPrompt prompt: String,
+        defaultText: String?,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (String?) -> Void
+    ) {
+        Logger.dev("🔔 JavaScript prompt 호출: \(prompt)")
+        
+        // ✅ completionHandler가 반드시 호출되도록 보장
+        var handlerCalled = false
+        let safeCompletionHandler: (String?) -> Void = { result in
+            guard !handlerCalled else {
+                Logger.warning("⚠️ completionHandler 중복 호출 방지")
+                return
+            }
+            handlerCalled = true
+            completionHandler(result)
+        }
+        
+        DispatchQueue.main.async {
+            
+            // UIAlertController로 prompt 구현
+            let alertController = UIAlertController(
+                title: prompt,
+                message: nil,
+                preferredStyle: .alert
+            )
+            
+            alertController.addTextField { textField in
+                textField.text = defaultText
+            }
+            
+            alertController.addAction(UIAlertAction(
+                title: "확인",
+                style: .default,
+                handler: { _ in
+                    let text = alertController.textFields?.first?.text
+                    Logger.dev("✅ Prompt 확인 - completionHandler 호출: \(text ?? "nil")")
+                    safeCompletionHandler(text)
+                }
+            ))
+            
+            alertController.addAction(UIAlertAction(
+                title: "취소",
+                style: .cancel,
+                handler: { _ in
+                    Logger.dev("✅ Prompt 취소 - completionHandler 호출")
+                    safeCompletionHandler(nil)
+                }
+            ))
+            
+            // ✅ 최상위 ViewController 찾아서 present
+            if let topVC = UIApplication.shared.topViewController() {
+                topVC.present(alertController, animated: true, completion: nil)
+            } else {
+                Logger.error("topViewController를 찾을 수 없음")
+                safeCompletionHandler(nil)
+            }
+            
+            // ✅ 안전장치: 5초 후에도 completionHandler가 호출되지 않으면 강제 호출
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                if !handlerCalled {
+                    Logger.warning("⚠️ Prompt completionHandler 타임아웃 - 강제 호출 (취소로 처리)")
+                    safeCompletionHandler(nil)
+                }
+            }
+        }
     }
 }
 
