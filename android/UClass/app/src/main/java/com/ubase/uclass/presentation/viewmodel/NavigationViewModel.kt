@@ -30,6 +30,5 @@ class NavigationViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
-        ViewCallbackManager.unregisterCallback(callbackKey)
     }
 }

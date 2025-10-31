@@ -2,6 +2,7 @@ import Foundation
 import WebKit
 import Combine
 import UIKit
+import PhotosUI
 
 class WebViewManager: NSObject, ObservableObject, WKUIDelegate {
     @Published var isLoaded = false
@@ -9,6 +10,9 @@ class WebViewManager: NSObject, ObservableObject, WKUIDelegate {
     @Published var loadingProgress = 0
     @Published var currentURL: String = ""
     @Published var scriptMessage: String? = nil
+    
+    // 파일 선택 관련
+    @Published var shouldShowFilePicker = false
     
     private var webView: WKWebView?
     private var jsInterface: UclassJsInterface?
@@ -37,6 +41,9 @@ class WebViewManager: NSObject, ObservableObject, WKUIDelegate {
         
         // ✅ Script Message Handler 등록
         configuration.userContentController.add(jsInterface!, name: "uclass")
+        
+        // ✅ 파일 업로드용 메시지 핸들러 등록 (한 번만)
+        configuration.userContentController.add(self, name: "fileUpload")
         
         // ✅ JavaScript 인터페이스 코드 주입
         let userScript = WKUserScript(
@@ -81,7 +88,7 @@ class WebViewManager: NSObject, ObservableObject, WKUIDelegate {
         // ✅ JWT 토큰이 있으면 헤더에 추가
         if let jwtToken = Constants.jwtToken, !jwtToken.isEmpty {
             request.setValue(jwtToken, forHTTPHeaderField: "JWT-TOKEN")
-            Logger.dev("🔐 JWT-TOKEN 헤더 추가: \(jwtToken)")
+            Logger.dev("🔑 JWT-TOKEN 헤더 추가: \(jwtToken)")
         }
         
         return request
@@ -129,6 +136,91 @@ class WebViewManager: NSObject, ObservableObject, WKUIDelegate {
     
     func getWebView() -> WKWebView? {
         return webView
+    }
+    
+    // MARK: - File Upload Handling
+    
+    /// 파일 선택 결과 처리 (이미지만 허용) - base64로 변환하여 JavaScript에 전달
+    func handleFileSelection(urls: [URL]?) {
+        Logger.info("## 파일 선택 결과 처리: \(urls?.count ?? 0)개")
+        
+        guard let urls = urls, !urls.isEmpty else {
+            // 취소된 경우
+            Logger.info("## 파일 선택 취소됨")
+            return
+        }
+        
+        // 이미지 파일만 필터링
+        let imageURLs = urls.filter { url in
+            let pathExtension = url.pathExtension.lowercased()
+            let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "heif"]
+            return imageExtensions.contains(pathExtension)
+        }
+        
+        if imageURLs.isEmpty {
+            Logger.warning("## 이미지 파일이 아님 - 업로드 취소")
+            // 토스트 메시지 표시
+            NotificationCenter.default.post(
+                name: Notification.Name("ShowToast"),
+                object: nil,
+                userInfo: ["message": "이미지 파일만 업로드할 수 있습니다. (jpg, jpeg, png)"]
+            )
+            return
+        }
+        
+        // 첫 번째 이미지만 처리 (단일 선택)
+        guard let imageURL = imageURLs.first else { return }
+        
+        do {
+            // 이미지 데이터 읽기
+            let imageData = try Data(contentsOf: imageURL)
+            
+            // base64 인코딩
+            let base64String = imageData.base64EncodedString()
+            
+            // MIME 타입 결정
+            let mimeType: String
+            switch imageURL.pathExtension.lowercased() {
+            case "jpg", "jpeg":
+                mimeType = "image/jpeg"
+            case "png":
+                mimeType = "image/png"
+            case "gif":
+                mimeType = "image/gif"
+            case "heic", "heif":
+                mimeType = "image/heic"
+            default:
+                mimeType = "image/jpeg"
+            }
+            
+            let dataURL = "data:\(mimeType);base64,\(base64String)"
+            let fileName = imageURL.lastPathComponent
+            
+            // JavaScript로 전달
+            let jsCode = """
+            if (window.handleFileSelected) {
+                window.handleFileSelected('\(dataURL)', '\(fileName)', '\(mimeType)');
+            }
+            """
+            
+            DispatchQueue.main.async {
+                self.webView?.evaluateJavaScript(jsCode) { result, error in
+                    if let error = error {
+                        Logger.error("JavaScript 실행 오류: \(error.localizedDescription)")
+                    } else {
+                        Logger.info("✅ 파일 업로드 완료: \(fileName)")
+                    }
+                }
+            }
+            
+        } catch {
+            Logger.error("## 이미지 읽기 실패: \(error.localizedDescription)")
+        }
+    }
+    
+    /// 파일 선택 취소 처리
+    func cancelFileSelection() {
+        Logger.info("## 파일 선택 명시적 취소")
     }
     
     // MARK: - Keyboard Notifications
@@ -233,7 +325,153 @@ class WebViewManager: NSObject, ObservableObject, WKUIDelegate {
         
         // Script Message Handler 제거
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "uclass")
+        webView?.configuration.userContentController.removeScriptMessageHandler(forName: "fileUpload")
         Logger.dev("WebViewManager deinit")
+    }
+}
+
+// MARK: - WKUIDelegate
+extension WebViewManager {
+    
+    /// JavaScript Alert 처리
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptAlertPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping () -> Void
+    ) {
+        DispatchQueue.main.async {
+            let alertController = UIAlertController(
+                title: message,
+                message: nil,
+                preferredStyle: .alert
+            )
+            
+            alertController.addAction(UIAlertAction(
+                title: "확인",
+                style: .cancel,
+                handler: { _ in
+                    completionHandler()
+                }
+            ))
+            
+            // ✅ 최상위 ViewController 찾아서 present
+            if let topVC = UIApplication.shared.topViewController() {
+                topVC.present(alertController, animated: true, completion: nil)
+            } else {
+                Logger.error("topViewController를 찾을 수 없음")
+                completionHandler()
+            }
+        }
+    }
+    
+    /// 파일 업로드 JavaScript 코드 주입
+    func injectFileUploadScript() {
+        guard let webView = webView else { return }
+        
+        let script = """
+        (function() {
+            // 모든 file input을 감지
+            function setupFileInputs() {
+                const inputs = document.querySelectorAll('input[type="file"]');
+                inputs.forEach(function(input) {
+                    if (!input.dataset.nativeHandlerAdded) {
+                        input.dataset.nativeHandlerAdded = 'true';
+                        
+                        input.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            // Native로 파일 선택 요청
+                            window.webkit.messageHandlers.fileUpload.postMessage({
+                                action: 'openFilePicker',
+                                inputId: input.id || 'file_input_' + Date.now()
+                            });
+                            
+                            // input ID 저장
+                            window._currentFileInput = input;
+                        }, true);
+                    }
+                });
+            }
+            
+            // 페이지 로드 시 실행
+            setupFileInputs();
+            
+            // 동적으로 추가되는 input도 감지
+            const observer = new MutationObserver(function(mutations) {
+                setupFileInputs();
+            });
+            
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            // Native에서 호출할 함수 - 선택된 파일 처리
+            window.handleFileSelected = function(base64Data, fileName, fileType) {
+                const input = window._currentFileInput;
+                if (!input) return;
+                
+                // base64를 Blob으로 변환
+                const byteString = atob(base64Data.split(',')[1]);
+                const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], { type: mimeString });
+                
+                // File 객체 생성
+                const file = new File([blob], fileName, { type: fileType });
+                
+                // DataTransfer를 사용하여 input에 파일 설정
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                input.files = dataTransfer.files;
+                
+                // change 이벤트 발생
+                const event = new Event('change', { bubbles: true });
+                input.dispatchEvent(event);
+                
+                console.log('✅ 파일 설정 완료:', fileName);
+            };
+            
+            console.log('✅ 파일 업로드 스크립트 주입 완료');
+        })();
+        """
+        
+        // JavaScript 실행 (evaluateJavaScript 사용)
+        webView.evaluateJavaScript(script) { result, error in
+            if let error = error {
+                Logger.error("파일 업로드 스크립트 주입 실패: \(error.localizedDescription)")
+            } else {
+                Logger.dev("✅ 파일 업로드 스크립트 주입 완료")
+            }
+        }
+    }
+}
+
+// MARK: - WKScriptMessageHandler
+extension WebViewManager: WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        // fileUpload 메시지 처리
+        if message.name == "fileUpload" {
+            guard let body = message.body as? [String: Any],
+                  let action = body["action"] as? String else {
+                return
+            }
+            
+            if action == "openFilePicker" {
+                Logger.info("## 웹에서 파일 선택 요청")
+                
+                // SwiftUI에서 PHPicker 표시하도록 트리거
+                DispatchQueue.main.async {
+                    self.shouldShowFilePicker = true
+                }
+            }
+        }
     }
 }
 
@@ -257,33 +495,6 @@ extension WebViewManager: WKNavigationDelegate {
         DispatchQueue.main.async {
             self.isLoading = false
             Logger.dev("WebView failed to load: \(error.localizedDescription)")
-        }
-    }
-    
-    func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
-                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
-        DispatchQueue.main.async {
-            let alertController = UIAlertController(
-                title: message,
-                message: nil,
-                preferredStyle: .alert
-            )
-            
-            alertController.addAction(UIAlertAction(
-                title: "확인",
-                style: .cancel,
-                handler: { _ in
-                    completionHandler()
-                }
-            ))
-            
-            // ✅ 최상위 ViewController 찾아서 present
-            if let topVC = UIApplication.shared.topViewController() {
-                topVC.present(alertController, animated: true, completion: nil)
-            } else {
-                Logger.error("topViewController를 찾을 수 없음")
-                completionHandler()
-            }
         }
     }
     

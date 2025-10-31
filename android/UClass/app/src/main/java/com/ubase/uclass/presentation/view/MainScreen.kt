@@ -27,7 +27,9 @@ import com.ubase.uclass.network.response.ErrorData
 import com.ubase.uclass.network.response.SNSCheckData
 import com.ubase.uclass.network.response.SNSLoginData
 import com.ubase.uclass.presentation.ui.CustomAlertManager
+import com.ubase.uclass.presentation.viewmodel.ChatBadgeViewModel
 import com.ubase.uclass.presentation.viewmodel.LogoutViewModel
+import com.ubase.uclass.presentation.viewmodel.NavigationViewModel
 import com.ubase.uclass.presentation.viewmodel.ReloadViewModel
 import com.ubase.uclass.presentation.web.NotificationScreen
 import com.ubase.uclass.presentation.web.WebViewManager
@@ -50,6 +52,10 @@ inline fun <reified T> Any?.asBaseData(): BaseData<T>? {
 
 @Composable
 fun MainScreen(
+    chatBadgeViewModel : ChatBadgeViewModel,
+    navigationViewModel: NavigationViewModel,
+    logoutViewModel: LogoutViewModel,
+    reloadViewModel : ReloadViewModel,
     onKakaoLogin: (successCallback: () -> Unit, failureCallback: () -> Unit) -> Unit,
     onNaverLogin: (successCallback: () -> Unit, failureCallback: () -> Unit) -> Unit,
     onGoogleLogin: (successCallback: () -> Unit, failureCallback: () -> Unit) -> Unit,
@@ -60,9 +66,6 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
 
-    // LogoutViewModel 추가
-    val logoutViewModel: LogoutViewModel = viewModel()
-    val reloadViewModel : ReloadViewModel = viewModel()
 
     // 상태 관리
     var isLoggedIn by remember { mutableStateOf(false) }
@@ -166,7 +169,10 @@ fun MainScreen(
 
                                     Handler(Looper.getMainLooper()).post({
                                         Constants.homeURL = loginData.redirectUrl
+                                        Constants.noticeURL = loginData.reasonUrl
                                         mainWebViewManager.preloadWebView(loginData.redirectUrl)
+                                        //mainWebViewManager.preloadWebView("https://www.w3schools.com/tags/tryit.asp?filename=tryhtml5_input_type_file")
+
                                         notificationWebViewManager.preloadWebView(loginData.reasonUrl)
                                     })
 
@@ -401,6 +407,8 @@ fun MainScreen(
         else -> {
             Logger.info("## 메인 화면 렌더링")
             MainContent(
+                chatBadgeViewModel = chatBadgeViewModel,
+                navigationViewModel = navigationViewModel,
                 mainWebViewManager = mainWebViewManager,
                 notificationWebViewManager = notificationWebViewManager,
                 initialNavigationTarget = initialNavigationTarget
@@ -411,10 +419,11 @@ fun MainScreen(
 
 @Composable
 private fun MainContent(
+    chatBadgeViewModel : ChatBadgeViewModel,
+    navigationViewModel: NavigationViewModel,
     mainWebViewManager: WebViewManager,
     notificationWebViewManager: WebViewManager,
-    initialNavigationTarget: Int? = null,
-    reasonUrl: String? = null
+    initialNavigationTarget: Int? = null
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var previousTab by remember { mutableStateOf(0) }
@@ -432,6 +441,27 @@ private fun MainContent(
     val onTabSelected: (Int) -> Unit = { newTab ->
         previousTab = selectedTab
         selectedTab = newTab
+    }
+
+    // 탭 재로딩 처리
+    val onTabReload: (Int) -> Unit = { tab ->
+        Logger.info("## 탭 재로딩: $tab")
+        when (tab) {
+            0 -> {
+                // 홈 탭 재로딩
+                if (!TextUtils.isEmpty(Constants.homeURL)) {
+                    Logger.dev("홈 URL로 재로딩: ${Constants.homeURL}")
+                    mainWebViewManager.loadUrl(Constants.homeURL)
+                }
+            }
+            2 -> {
+                // 사유 탭 재로딩
+                if (!TextUtils.isEmpty(Constants.noticeURL)) {
+                    Logger.dev("사유 URL로 재로딩: ${Constants.noticeURL}")
+                    notificationWebViewManager.loadUrl(Constants.noticeURL)
+                }
+            }
+        }
     }
 
     // 채팅 화면일 때는 전체 화면으로 표시
@@ -461,8 +491,11 @@ private fun MainContent(
 
             // 하단 네비게이션 바
             MainBottomNavigationBar(
+                chatBadgeViewModel = chatBadgeViewModel,
+                navigationViewModel = navigationViewModel,
                 selectedTab = selectedTab,
                 onTabSelected = onTabSelected,
+                onTabReload = onTabReload
             )
         }
     }

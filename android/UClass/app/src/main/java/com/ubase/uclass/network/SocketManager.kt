@@ -251,7 +251,7 @@ object SocketManager {
         }
 
         send(
-            destination = "/app/dm/join",
+            destination = "/app/dm/native/join",
             body = joinMessage.toString()
         )
         Logger.dev("DM 방 참가 메시지 전송: $joinMessage")
@@ -270,7 +270,7 @@ object SocketManager {
         }
 
         send(
-            destination = "/app/dm/send",
+            destination = "/app/dm/native/send",
             body = dmMessage.toString()
         )
         Logger.dev("DM 메시지 전송: $dmMessage")
@@ -366,11 +366,11 @@ object SocketManager {
 
             val command = lines[0].trim()
             val headers = mutableMapOf<String, String>()
-            var bodyStartIndex = -1
+            var bodyStartIndex = 1
 
             for (i in 1 until lines.size) {
                 val line = lines[i]
-                if (line.isEmpty()) {
+                if (line.trim().isEmpty()) {
                     bodyStartIndex = i + 1
                     break
                 }
@@ -736,8 +736,9 @@ object SocketManager {
                     StompCommand.ERROR -> {
                         Logger.error("STOMP error: ${stompMessage.body}")
                         SocketManager.connectionState.value = ConnectionState.DISCONNECTED
-                        if (SocketManager.shouldReconnect.get()) {
-                            SocketManager.scheduleReconnect()
+                        // 연결 실패 콜백 호출
+                        SocketManager.coroutineScope.launch(Dispatchers.Main) {
+                            SocketManager.onConnectionFailed?.invoke()
                         }
                     }
 

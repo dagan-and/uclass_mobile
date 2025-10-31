@@ -32,6 +32,5 @@ class LogoutViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
-        ViewCallbackManager.unregisterCallback(callbackKey)
     }
 }

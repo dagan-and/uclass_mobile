@@ -10,6 +10,7 @@ object Constants {
     var refreshToken : String = ""
     var tokenExpired : String = ""
     var homeURL = ""
+    var noticeURL = ""
 
     fun getUserId() : Int {
         return PreferenceManager.getUserId(App.context())

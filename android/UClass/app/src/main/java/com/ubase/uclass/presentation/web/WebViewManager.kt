@@ -2,10 +2,13 @@ package com.ubase.uclass.presentation.web
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings.LOAD_NO_CACHE
@@ -29,6 +32,13 @@ class WebViewManager(private val context: Context) {
 
     // JS Alert 메시지 전달용 상태
     val scriptMessage = mutableStateOf<String?>(null)
+
+    // 파일 선택 콜백
+    var filePathCallback: ValueCallback<Array<Uri>>? = null
+        private set
+
+    // 파일 선택 트리거 상태
+    val shouldOpenFileChooser = mutableStateOf(false)
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -96,6 +106,28 @@ class WebViewManager(private val context: Context) {
                     Logger.web(consoleMessage)
                     return true
                 }
+
+                /**
+                 * 파일 선택 처리
+                 */
+                override fun onShowFileChooser(
+                    webView: WebView?,
+                    filePathCallback: ValueCallback<Array<Uri>>?,
+                    fileChooserParams: FileChooserParams?
+                ): Boolean {
+                    Logger.info("## WebView 파일 선택 요청")
+
+                    // 기존 콜백이 있으면 취소
+                    this@WebViewManager.filePathCallback?.onReceiveValue(null)
+
+                    // 새 콜백 저장
+                    this@WebViewManager.filePathCallback = filePathCallback
+
+                    // Compose에서 파일 선택 다이얼로그를 열도록 트리거
+                    shouldOpenFileChooser.value = true
+
+                    return true
+                }
             }
 
             settings.apply {
@@ -130,6 +162,35 @@ class WebViewManager(private val context: Context) {
             val headers = mapOf("JWT-TOKEN" to Constants.jwtToken)
             loadUrl(url, headers)
         }
+    }
+
+    /**
+     * 파일 선택 결과 처리
+     */
+    fun handleFileChooserResult(uri: Uri?, contentType: String?) {
+        Logger.info("## 파일 선택 결과 처리: $uri, type: $contentType")
+
+        if (uri != null && contentType?.contains("image/") == true) {
+            // 이미지 파일인 경우 WebView에 전달
+            filePathCallback?.onReceiveValue(arrayOf(uri))
+            Logger.info("## 이미지 파일 업로드 성공")
+        } else {
+            // 이미지가 아닌 경우 취소
+            filePathCallback?.onReceiveValue(null)
+            Logger.warning("## 이미지 파일이 아님 - 업로드 취소")
+        }
+
+        // 콜백 초기화
+        filePathCallback = null
+    }
+
+    /**
+     * 파일 선택 취소 처리
+     */
+    fun cancelFileChooser() {
+        Logger.info("## 파일 선택 취소")
+        filePathCallback?.onReceiveValue(null)
+        filePathCallback = null
     }
 
     /**
@@ -169,5 +230,6 @@ class WebViewManager(private val context: Context) {
         preloadedWebView = null
         isWebViewLoaded.value = false
         isWebViewLoading.value = false
+        filePathCallback = null
     }
 }

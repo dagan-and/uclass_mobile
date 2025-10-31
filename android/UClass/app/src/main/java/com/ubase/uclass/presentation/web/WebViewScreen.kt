@@ -2,13 +2,18 @@ package com.ubase.uclass.presentation.web
 
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.text.TextUtils
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -27,6 +32,52 @@ fun WebViewScreen(webViewManager: WebViewManager) {
     val context = LocalContext.current
     val message = webViewManager.scriptMessage.value
     val mainHandler = Handler(Looper.getMainLooper())
+
+    // 파일 선택 Launcher 설정
+    val fileChooserLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val uri = result.data?.data
+            val contentType = uri?.let { context.contentResolver.getType(it) }
+
+            Logger.info("## 파일 선택 완료: $uri, type: $contentType")
+
+            if (contentType?.contains("image/") == true) {
+                // 이미지 파일인 경우 WebViewManager에 전달
+                webViewManager.handleFileChooserResult(uri, contentType)
+            } else {
+                // 이미지가 아닌 경우 토스트 메시지 표시
+                Toast.makeText(
+                    context,
+                    "이미지 파일만 업로드할 수 있습니다. (jpg, jpeg, png)",
+                    Toast.LENGTH_SHORT
+                ).show()
+                webViewManager.cancelFileChooser()
+            }
+        } else {
+            // 파일 선택 취소
+            Logger.info("## 파일 선택 취소됨")
+            webViewManager.cancelFileChooser()
+        }
+    }
+
+    // 파일 선택 트리거 감지
+    LaunchedEffect(webViewManager.shouldOpenFileChooser.value) {
+        if (webViewManager.shouldOpenFileChooser.value) {
+            Logger.info("## 파일 선택 다이얼로그 열기")
+
+            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                type = "*/*"
+                addCategory(Intent.CATEGORY_OPENABLE)
+            }
+
+            fileChooserLauncher.launch(intent)
+
+            // 트리거 초기화
+            webViewManager.shouldOpenFileChooser.value = false
+        }
+    }
 
     // 뒤로가기 처리
     BackHandler {

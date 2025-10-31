@@ -41,17 +41,16 @@ import com.ubase.uclass.util.Logger
 
 @Composable
 fun MainBottomNavigationBar(
+    chatBadgeViewModel : ChatBadgeViewModel,
+    navigationViewModel : NavigationViewModel,
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
-    chatBadgeViewModel: ChatBadgeViewModel = viewModel(),
-    navigaionViewModel: NavigationViewModel = viewModel()
+    onTabReload: (Int) -> Unit, // 재로딩 콜백 추가
 ) {
-    val chatBadgeVisible = chatBadgeViewModel.chatBadgeVisible
-    val navigation = navigaionViewModel.navigation
 
     // navigation 값이 변경될 때 onTabSelected 호출
-    LaunchedEffect(navigation) {
-        onTabSelected(navigation)
+    LaunchedEffect(navigationViewModel.navigation) {
+        onTabSelected(navigationViewModel.navigation)
     }
 
     Column(
@@ -86,7 +85,15 @@ fun MainBottomNavigationBar(
                 },
                 label = { Text("홈") },
                 selected = selectedTab == 0,
-                onClick = { ViewCallbackManager.notifyResult(NAVIGATION, HOME) },
+                onClick = {
+                    if (selectedTab == 0) {
+                        // 같은 탭을 다시 클릭하면 재로딩
+                        Logger.dev("홈 탭 재클릭 - 재로딩")
+                        onTabReload(0)
+                    } else {
+                        ViewCallbackManager.notifyResult(NAVIGATION, HOME)
+                    }
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedTextColor = colorResource(id = R.color.mainColor),
                     unselectedTextColor = Color.Gray,
@@ -107,7 +114,7 @@ fun MainBottomNavigationBar(
                         )
 
                         // 뱃지 표시
-                        if (chatBadgeVisible) {
+                        if (chatBadgeViewModel.chatBadgeVisible) {
                             Icon(
                                 painter = painterResource(id = R.drawable.navi_icon_new),
                                 contentDescription = "새 메시지",
@@ -146,7 +153,15 @@ fun MainBottomNavigationBar(
                 },
                 label = { Text("사유") },
                 selected = selectedTab == 2,
-                onClick = { ViewCallbackManager.notifyResult(NAVIGATION, NOTICE) },
+                onClick = {
+                    if (selectedTab == 2) {
+                        // 같은 탭을 다시 클릭하면 재로딩
+                        Logger.dev("사유 탭 재클릭 - 재로딩")
+                        onTabReload(2)
+                    } else {
+                        ViewCallbackManager.notifyResult(NAVIGATION, NOTICE)
+                    }
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedTextColor = colorResource(id = R.color.mainColor),
                     unselectedTextColor = Color.Gray,

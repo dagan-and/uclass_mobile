@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ubase.uclass.network.NetworkAPI
 import com.ubase.uclass.network.NetworkAPIManager
 import com.ubase.uclass.network.SocketManager
@@ -27,6 +28,10 @@ import com.ubase.uclass.presentation.ui.CustomAlert
 import com.ubase.uclass.presentation.ui.CustomLoading
 import com.ubase.uclass.presentation.view.MainScreen
 import com.ubase.uclass.presentation.view.PermissionScreen
+import com.ubase.uclass.presentation.viewmodel.ChatBadgeViewModel
+import com.ubase.uclass.presentation.viewmodel.LogoutViewModel
+import com.ubase.uclass.presentation.viewmodel.NavigationViewModel
+import com.ubase.uclass.presentation.viewmodel.ReloadViewModel
 import com.ubase.uclass.presentation.web.WebViewManager
 import com.ubase.uclass.util.AppUtil
 import com.ubase.uclass.util.BadgeManager
@@ -103,6 +108,11 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
+            val chatBadgeViewModel : ChatBadgeViewModel = viewModel()
+            val navigationViewModel: NavigationViewModel = viewModel()
+            val logoutViewModel: LogoutViewModel = viewModel()
+            val reloadViewModel : ReloadViewModel = viewModel()
+
             // 권한 화면 표시 여부를 관리하는 State (초기값을 미리 체크한 값으로 설정)
             var shouldShowPermissions by remember { mutableStateOf(shouldShowPermissionRequest) }
 
@@ -121,6 +131,10 @@ class MainActivity : ComponentActivity() {
                 } else {
                     // 권한 화면을 이미 보여줬거나 필요 없는 경우 MainScreen 표시
                     MainScreen(
+                        chatBadgeViewModel,
+                        navigationViewModel,
+                        logoutViewModel,
+                        reloadViewModel,
                         onKakaoLogin = { successCallback, failureCallback ->
                             loginSuccessCallback = successCallback
                             loginFailureCallback = failureCallback
