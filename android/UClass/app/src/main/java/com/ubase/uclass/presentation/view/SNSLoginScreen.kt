@@ -111,20 +111,20 @@ private fun LoginButtonSection(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 카카오 로그인 버튼
-        LoginButton(
-            onClick = onKakaoLogin,
-            backgroundColor = Color(0xFFFEE500),
-            textColor = Color.Black,
-            text = "카카오 로그인"
-        )
-
-        // 네이버 로그인 버튼
-        LoginButton(
-            onClick = onNaverLogin,
-            backgroundColor = Color(0xFF03C75A),
-            textColor = Color.White,
-            text = "네이버 로그인"
-        )
+//        LoginButton(
+//            onClick = onKakaoLogin,
+//            backgroundColor = Color(0xFFFEE500),
+//            textColor = Color.Black,
+//            text = "카카오 로그인"
+//        )
+//
+//        // 네이버 로그인 버튼
+//        LoginButton(
+//            onClick = onNaverLogin,
+//            backgroundColor = Color(0xFF03C75A),
+//            textColor = Color.White,
+//            text = "네이버 로그인"
+//        )
 
         // Google 로그인 버튼
         LoginButton(

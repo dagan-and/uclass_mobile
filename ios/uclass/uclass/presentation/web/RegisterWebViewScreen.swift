@@ -143,6 +143,20 @@ struct RegisterWebViewScreen: View {
                     Logger.dev("웹뷰 닫기 요청")
                     onClose()
                     
+                case "gobrowser":
+                    let urlString = json["title"] as? String ?? ""
+                    if let url = URL(string: urlString) {
+                        if UIApplication.shared.canOpenURL(url) {
+                            UIApplication.shared.open(url, options: [:]) { success in
+                                if success {
+                                    print("URL이 성공적으로 열렸습니다")
+                                } else {
+                                    print("URL 열기 실패")
+                                }
+                            }
+                        }
+                    }
+                    
                 default:
                     Logger.dev("⚠️ Unknown action: \(action)")
                 }

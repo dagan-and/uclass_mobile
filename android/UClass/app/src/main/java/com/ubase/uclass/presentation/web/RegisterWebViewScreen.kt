@@ -1,26 +1,27 @@
 package com.ubase.uclass.presentation.view
 
+import android.content.Intent
+import android.net.Uri
 import android.text.TextUtils
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat.startActivity
+import com.ubase.uclass.App
 import com.ubase.uclass.presentation.ui.CustomAlertManager
 import com.ubase.uclass.presentation.ui.CustomLoadingManager
 import com.ubase.uclass.presentation.web.RegisterWebViewManager
 import com.ubase.uclass.util.Logger
 import org.json.JSONObject
+import androidx.core.net.toUri
+
 
 @Composable
 fun RegisterWebViewScreen(
@@ -169,6 +170,14 @@ private fun parseAndHandleScriptMessage(
                     // 웹뷰 닫기
                     Logger.dev("웹뷰 닫기 요청")
                     onClose()
+                }
+
+                "gobrowser" -> {
+                    val url = json.optString("title", "")
+                    val browserIntent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(App.context(), browserIntent, null)
                 }
 
                 else -> {

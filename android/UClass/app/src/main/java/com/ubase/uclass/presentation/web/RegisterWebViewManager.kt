@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
+import android.webkit.CookieManager
+import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebView.setWebContentsDebuggingEnabled
 import android.webkit.WebViewClient
@@ -40,6 +42,7 @@ class RegisterWebViewManager(private val context: Context) {
     }
 
     fun preloadWebView(url: String) {
+        clearWebViewData()
         Logger.info("## RegisterWebView preload 시작: $url")
         isWebViewLoading.value = true
         isWebViewLoaded.value = false
@@ -171,5 +174,34 @@ class RegisterWebViewManager(private val context: Context) {
         isWebViewLoaded.value = false
         isWebViewLoading.value = false
         registrationCompleted.value = false
+    }
+
+    fun clearWebViewData() {
+        mainHandler.post {
+            preloadedWebView?.apply {
+                // 히스토리 클리어
+                clearHistory()
+
+                // 캐시 클리어
+                clearCache(true)
+
+                // Form 데이터 클리어
+                clearFormData()
+            }
+
+            // 쿠키 클리어
+            CookieManager.getInstance().removeAllCookies(null)
+            CookieManager.getInstance().flush()
+
+            // 로컬 스토리지 클리어
+            WebStorage.getInstance().deleteAllData()
+
+            Logger.info("## WebView 데이터 전체 클리어 완료")
+        }
+    }
+
+    fun clearHistoryOnly() {
+        preloadedWebView?.clearHistory()
+        Logger.info("## WebView 히스토리만 클리어")
     }
 }

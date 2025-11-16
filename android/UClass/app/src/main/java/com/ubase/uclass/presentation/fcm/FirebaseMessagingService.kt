@@ -124,9 +124,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 body = message.notification!!.body!!
             }
 
-            if(BuildConfig.DEBUG) {
-                Logger.dev(mapToString(message.data))
-            }
+            Logger.dev(mapToString(message.data))
 
             val intentForPushActionActivity = Intent(this, PushRelayActivity::class.java)
             intentForPushActionActivity.addFlags(Intent.FLAG_FROM_BACKGROUND)

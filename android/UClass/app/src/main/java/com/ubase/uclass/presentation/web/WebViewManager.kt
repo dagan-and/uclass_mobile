@@ -232,4 +232,33 @@ class WebViewManager(private val context: Context) {
         isWebViewLoading.value = false
         filePathCallback = null
     }
+
+    fun clearWebViewData() {
+        mainHandler.post {
+            preloadedWebView?.apply {
+                // 히스토리 클리어
+                clearHistory()
+
+                // 캐시 클리어
+                clearCache(true)
+
+                // Form 데이터 클리어
+                clearFormData()
+            }
+
+            // 쿠키 클리어
+            CookieManager.getInstance().removeAllCookies(null)
+            CookieManager.getInstance().flush()
+
+            // 로컬 스토리지 클리어
+            WebStorage.getInstance().deleteAllData()
+
+            Logger.info("## WebView 데이터 전체 클리어 완료")
+        }
+    }
+
+    fun clearHistoryOnly() {
+        preloadedWebView?.clearHistory()
+        Logger.info("## WebView 히스토리만 클리어")
+    }
 }

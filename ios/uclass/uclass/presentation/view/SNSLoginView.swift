@@ -308,34 +308,34 @@ struct SNSLoginView: View {
                     // 로그인 버튼들
                     VStack(spacing: 16) {
                         // 카카오 로그인 버튼
-                        SNSLoginButton(
-                            title: "카카오 로그인",
-                            backgroundColor: Color(
-                                red: 254.0 / 255.0,
-                                green: 229.0 / 255.0,
-                                blue: 0.0 / 255.0
-                            ),
-                            textColor: .black,
-                            isLoading: kakaoLoginManager.isLoading
-                        ) {
-                            Logger.dev("카카오 로그인 버튼 클릭")
-                            kakaoLoginManager.startKakaoLogin()
-                        }
-
-                        // 네이버 로그인 버튼
-                        SNSLoginButton(
-                            title: "네이버 로그인",
-                            backgroundColor: Color(
-                                red: 3.0 / 255.0,
-                                green: 199.0 / 255.0,
-                                blue: 90.0 / 255.0
-                            ),
-                            textColor: .white,
-                            isLoading: naverLoginManager.isLoading
-                        ) {
-                            Logger.dev("네이버 로그인 버튼 클릭")
-                            naverLoginManager.startNaverLogin()
-                        }
+//                        SNSLoginButton(
+//                            title: "카카오 로그인",
+//                            backgroundColor: Color(
+//                                red: 254.0 / 255.0,
+//                                green: 229.0 / 255.0,
+//                                blue: 0.0 / 255.0
+//                            ),
+//                            textColor: .black,
+//                            isLoading: kakaoLoginManager.isLoading
+//                        ) {
+//                            Logger.dev("카카오 로그인 버튼 클릭")
+//                            kakaoLoginManager.startKakaoLogin()
+//                        }
+//
+//                        // 네이버 로그인 버튼
+//                        SNSLoginButton(
+//                            title: "네이버 로그인",
+//                            backgroundColor: Color(
+//                                red: 3.0 / 255.0,
+//                                green: 199.0 / 255.0,
+//                                blue: 90.0 / 255.0
+//                            ),
+//                            textColor: .white,
+//                            isLoading: naverLoginManager.isLoading
+//                        ) {
+//                            Logger.dev("네이버 로그인 버튼 클릭")
+//                            naverLoginManager.startNaverLogin()
+//                        }
 
                         // 애플 로그인 버튼
                         SNSLoginButton(

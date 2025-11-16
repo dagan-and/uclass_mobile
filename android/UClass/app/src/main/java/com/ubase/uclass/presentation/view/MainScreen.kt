@@ -137,6 +137,9 @@ fun MainScreen(
 
                                 response.data?.let { loginData ->
 
+                                    mainWebViewManager.clearWebViewData()
+                                    notificationWebViewManager.clearWebViewData()
+
                                     //로그인 했지만 토큰이 없으면 대기중 페이지로 이동
                                     if(TextUtils.isEmpty(loginData.accessToken)) {
                                         Handler(Looper.getMainLooper()).post({

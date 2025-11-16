@@ -42,10 +42,8 @@ class App : Application() {
         setupLifecycleObserver()
 
         //앱 빌드 설정
-        if(BuildConfig.FLAVOR.contains("dev")) {
-            Logger.setEnable(true)
-            Constants.isDebug = true
-        }
+        Logger.setEnable(true)
+        Constants.isDebug = true
 
         Logger.initialize(this)
 
