@@ -74,6 +74,7 @@ import com.ubase.uclass.util.BadgeManager
 import com.ubase.uclass.util.DateUtils
 import com.ubase.uclass.util.Logger
 import com.ubase.uclass.util.PreferenceManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
@@ -104,14 +105,19 @@ fun ChatScreen(
     val shouldScrollToBottom by chatViewModel.shouldScrollToBottom.collectAsState()
     val shouldExitChat by chatViewModel.shouldExitChat.collectAsState()
 
-    // 🔄 Lifecycle 이벤트 관찰 (onResume, onPause)
+    // 🔄 Lifecycle 이벤트 관찰 (onResume, onStop)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
-                    Logger.dev("▶️ [LIFECYCLE] onResume - 화면 복귀")
+                    Logger.dev("▶️ [LIFECYCLE] onResume - 화면 복귀, 소켓 재연결 시도")
                     // 소켓 연결 상태 확인 후 재연결
                     chatViewModel.reconnectSocketIfNeeded()
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    Logger.dev("⏸️ [LIFECYCLE] onStop - 화면 이탈, 소켓 연결 종료")
+                    // 소켓 연결 종료
+                    chatViewModel.disconnectSocket()
                 }
                 else -> {}
             }
@@ -124,17 +130,18 @@ fun ChatScreen(
         }
     }
 
-    // 화면 진입 시 채팅 초기화 및 소켓 연결
+    // 화면 진입 시 채팅 초기화 (최초 1회만)
+    // onCreate에서만 실행되고 onResume에서는 실행되지 않음
     LaunchedEffect(Unit) {
         ViewCallbackManager.notifyResult(CHAT_BADGE, false)
 
         // 사용자 ID 가져와서 채팅 초기화
         val userId = PreferenceManager.getUserId(context)
         if (userId != 0) {
-            Logger.dev("ChatScreen 진입 - 채팅 초기화 시작")
+            Logger.dev("📱 [onCreate] ChatScreen 진입 - 채팅 초기화 시작")
             chatViewModel.initializeChat(userId.toString())
         } else {
-            Logger.error("사용자 ID가 없어 채팅 초기화를 건너뜁니다")
+            Logger.error("❌ 사용자 ID가 없어 채팅 초기화를 건너뜁니다")
         }
 
         // 채팅방 진입시 뱃지 초기화
@@ -144,7 +151,7 @@ fun ChatScreen(
     // 화면에서 나갈 때 리소스 정리
     DisposableEffect(Unit) {
         onDispose {
-            Logger.dev("ChatScreen 종료 - 리소스 정리")
+            Logger.dev("🗑️ ChatScreen 종료 - 리소스 정리")
             chatViewModel.cleanup() // ViewModel을 통한 정리
         }
     }
@@ -158,7 +165,7 @@ fun ChatScreen(
 
     // 뒤로가기 처리
     BackHandler {
-        Logger.dev("ChatScreen 뒤로가기 - 리소스 정리 후 종료")
+        Logger.dev("⬅️ ChatScreen 뒤로가기 - 리소스 정리 후 종료")
         chatViewModel.initShouldExitChat()
         onBack()
     }
@@ -173,11 +180,14 @@ fun ChatScreen(
     LaunchedEffect(shouldScrollToBottom) {
         if (shouldScrollToBottom > 0) {
             try {
+                Logger.dev("📜 자동 스크롤 시작 - timestamp: $shouldScrollToBottom")
+                // Composition이 안정화될 때까지 대기
+                delay(100)
                 listState.animateScrollToItem(0)
                 chatViewModel.hideNewMessageAlert()
-                Logger.dev("WebSocket 메시지 수신으로 자동 스크롤 완료")
+                Logger.dev("✅ WebSocket 메시지 수신으로 자동 스크롤 완료")
             } catch (e: Exception) {
-                Logger.error("WebSocket 메시지 자동 스크롤 중 오류 발생: ${e.message}")
+                Logger.error("❌ WebSocket 메시지 자동 스크롤 중 오류 발생: ${e.message}")
             }
         }
     }

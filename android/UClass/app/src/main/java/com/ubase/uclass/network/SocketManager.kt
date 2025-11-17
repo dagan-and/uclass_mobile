@@ -7,8 +7,6 @@ import com.ubase.uclass.util.Constants
 import com.ubase.uclass.util.Logger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import okhttp3.*
 import okio.ByteString
 import org.json.JSONObject
@@ -66,7 +64,6 @@ object SocketManager {
     private var serverHeartbeatInterval = 20000L
     private var lastHeartbeatReceived = 0L
     private var heartbeatTimeoutJob: Job? = null
-    private val heartbeatMutex = Mutex() // 하트비트 동기화를 위한 뮤텍스
 
     // JSON 파싱을 위한 Gson 인스턴스
     private val gson = Gson()
@@ -107,7 +104,7 @@ object SocketManager {
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
-                .pingInterval(30, TimeUnit.SECONDS)
+                .pingInterval(0, TimeUnit.SECONDS) // STOMP 하트비트 사용하므로 OkHttp ping 비활성화
                 .retryOnConnectionFailure(true)
                 .build()
 
@@ -492,66 +489,58 @@ object SocketManager {
             return
         }
 
-        heartbeatJob = coroutineScope.launch {
-            heartbeatMutex.withLock {
+        // 초기 하트비트 수신 시간 설정
+        lastHeartbeatReceived = System.currentTimeMillis()
+
+        // 클라이언트 -> 서버 하트비트 전송
+        if (clientHeartbeatInterval > 0) {
+            heartbeatJob = coroutineScope.launch {
                 try {
-                    // 클라이언트 -> 서버 하트비트 전송
-                    if (clientHeartbeatInterval > 0) {
-                        launch {
-                            try {
-                                while (isActive && connectionState.value == ConnectionState.CONNECTED) {
-                                    delay(clientHeartbeatInterval)
-                                    if (connectionState.value == ConnectionState.CONNECTED) {
-                                        webSocket?.send("\n")
-                                        Logger.dev("Client heartbeat sent")
-                                    }
-                                }
-                            } catch (e: CancellationException) {
-                                Logger.dev("하트비트 전송이 취소됨")
-                            } catch (e: Exception) {
-                                Logger.error("하트비트 전송 예외: ${e.message}")
-                            }
+                    while (isActive && connectionState.value == ConnectionState.CONNECTED) {
+                        delay(clientHeartbeatInterval)
+                        if (connectionState.value == ConnectionState.CONNECTED) {
+                            webSocket?.send("\n")
+                            Logger.dev("Client heartbeat sent")
                         }
                     }
-
-                    // 서버 -> 클라이언트 하트비트 타임아웃 감지
-                    if (serverHeartbeatInterval > 0) {
-                        // 초기 하트비트 수신 시간 설정
-                        lastHeartbeatReceived = System.currentTimeMillis()
-
-                        heartbeatTimeoutJob = launch {
-                            try {
-                                val checkInterval = serverHeartbeatInterval / 2 // 절반 간격으로 체크
-                                val timeoutInterval = serverHeartbeatInterval * 2 // 2배를 타임아웃으로 설정
-
-                                while (isActive && connectionState.value == ConnectionState.CONNECTED) {
-                                    delay(checkInterval)
-
-                                    val timeSinceLastHeartbeat = System.currentTimeMillis() - lastHeartbeatReceived
-
-                                    if (timeSinceLastHeartbeat > timeoutInterval &&
-                                        connectionState.value == ConnectionState.CONNECTED) {
-                                        Logger.error("서버 하트비트 타임아웃 감지 - 연결 재시작 (${timeSinceLastHeartbeat}ms)")
-
-                                        // WebSocket 안전하게 종료
-                                        webSocket?.close(1000, "Heartbeat timeout")
-                                        break
-                                    }
-                                }
-                            } catch (e: CancellationException) {
-                                Logger.dev("하트비트 타임아웃 감지 작업이 취소됨")
-                            } catch (e: Exception) {
-                                Logger.error("하트비트 타임아웃 감지 예외: ${e.message}")
-                            }
-                        }
-                    }
-
-                    Logger.dev("하트비트 시작 완료")
+                } catch (e: CancellationException) {
+                    Logger.dev("클라이언트 하트비트 전송이 취소됨")
                 } catch (e: Exception) {
-                    Logger.error("하트비트 시작 실패: ${e.message}")
+                    Logger.error("클라이언트 하트비트 전송 예외: ${e.message}")
                 }
             }
         }
+
+        // 서버 -> 클라이언트 하트비트 타임아웃 감지
+        if (serverHeartbeatInterval > 0) {
+            heartbeatTimeoutJob = coroutineScope.launch {
+                try {
+                    val checkInterval = serverHeartbeatInterval / 2 // 절반 간격으로 체크
+                    val timeoutInterval = serverHeartbeatInterval * 3 // 3배를 타임아웃으로 설정 (여유 있게)
+
+                    while (isActive && connectionState.value == ConnectionState.CONNECTED) {
+                        delay(checkInterval)
+
+                        val timeSinceLastHeartbeat = System.currentTimeMillis() - lastHeartbeatReceived
+
+                        if (timeSinceLastHeartbeat > timeoutInterval &&
+                            connectionState.value == ConnectionState.CONNECTED) {
+                            Logger.error("서버 하트비트 타임아웃 감지 - 연결 재시작 (${timeSinceLastHeartbeat}ms)")
+
+                            // WebSocket 안전하게 종료
+                            webSocket?.close(1000, "Heartbeat timeout")
+                            break
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    Logger.dev("서버 하트비트 타임아웃 감지 작업이 취소됨")
+                } catch (e: Exception) {
+                    Logger.error("서버 하트비트 타임아웃 감지 예외: ${e.message}")
+                }
+            }
+        }
+
+        Logger.dev("하트비트 시작 완료 - Client: ${clientHeartbeatInterval}ms, Server: ${serverHeartbeatInterval}ms")
     }
 
     /**

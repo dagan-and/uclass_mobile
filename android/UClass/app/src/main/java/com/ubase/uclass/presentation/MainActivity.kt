@@ -236,12 +236,12 @@ class MainActivity : ComponentActivity() {
         Logger.info("## 앱 포그라운드 복귀 - 경과 시간: ${elapsedTime / 1000}초")
 
         // 세션 타임아웃 체크 (10분)
-        if (elapsedTime > SESSION_TIMEOUT_MS) {
-            Logger.info("## 세션 타임아웃 감지 (${elapsedTime / 1000}초 경과) - 재로그인 필요")
-            triggerRelogin()
-        } else {
-            Logger.info("## 세션 유지 중 (${elapsedTime / 1000}초 경과)")
-        }
+//        if (elapsedTime > SESSION_TIMEOUT_MS) {
+//            Logger.info("## 세션 타임아웃 감지 (${elapsedTime / 1000}초 경과) - 재로그인 필요")
+//            triggerRelogin()
+//        } else {
+//            Logger.info("## 세션 유지 중 (${elapsedTime / 1000}초 경과)")
+//        }
     }
 
     /**
