@@ -104,7 +104,7 @@ object SocketManager {
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
-                .pingInterval(0, TimeUnit.SECONDS) // STOMP 하트비트 사용하므로 OkHttp ping 비활성화
+                .pingInterval(30, TimeUnit.SECONDS) // STOMP 하트비트 사용하므로 OkHttp ping 비활성화
                 .retryOnConnectionFailure(true)
                 .build()
 

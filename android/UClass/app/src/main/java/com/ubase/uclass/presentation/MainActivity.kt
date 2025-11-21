@@ -463,7 +463,6 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         NetworkAPI.shutdown()
         NetworkAPIManager.clearAllCallbacks()
-        SocketManager.cleanup()
 
         // 두 개의 WebViewManager 모두 destroy
         mainWebViewManager.destroy()

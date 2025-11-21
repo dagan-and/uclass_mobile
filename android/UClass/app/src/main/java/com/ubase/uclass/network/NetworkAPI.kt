@@ -3,6 +3,8 @@ package com.ubase.uclass.network
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import com.ubase.uclass.network.NetworkAPIManager.Endpoint.API_DM_NATIVE_INIT
+import com.ubase.uclass.network.NetworkAPIManager.Endpoint.API_DM_NATIVE_MESSAGES
 import com.ubase.uclass.network.request.ChatInit
 import com.ubase.uclass.network.request.ChatMessage
 import com.ubase.uclass.network.request.SNSLogin
@@ -162,7 +164,12 @@ object NetworkAPI {
 
                 try {
                     val responseString = response.body.string() ?: ""
-                    logResponse(responseString)
+
+                    if(endpoint == API_DM_NATIVE_MESSAGES || endpoint == API_DM_NATIVE_INIT) {
+
+                    } else {
+                        logResponse(responseString)
+                    }
 
                     if (response.isSuccessful) {
                         if (responseString.isNotEmpty()) {

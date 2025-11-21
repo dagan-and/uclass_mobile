@@ -107,11 +107,6 @@ class ChatViewModel : ViewModel() {
             Logger.dev("📱 [onCreate] 채팅 초기화 시작 - userId: $userId")
 
             try {
-                // SocketManager 초기화 (한 번만)
-                if (!isSocketConnected) {
-                    SocketManager.initialize(Constants.getUserId(), Constants.getBranchId())
-                }
-
                 // NetworkAPI의 chatInit 호출
                 NetworkAPI.chatInit(userId)
             } catch (e: Exception) {
@@ -155,38 +150,7 @@ class ChatViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 Logger.dev("▶️ [onResume] 소켓 연결 상태 확인 시작")
-
-                // 채팅이 초기화되지 않았으면 재연결 불필요
-                if (!_isChatInitialized.value) {
-                    Logger.dev("⚠️ 채팅이 초기화되지 않아 재연결 불필요")
-                    return@launch
-                }
-
-                // 소켓이 이미 연결되어 있으면 재연결 불필요
-                if (isSocketConnected) {
-                    // 실제 SocketManager의 연결 상태도 확인
-                    val isActuallyConnected = SocketManager.isConnected()
-                    if (isActuallyConnected) {
-                        Logger.dev("✅ 소켓이 이미 연결되어 있음 - 재연결 생략")
-                        return@launch
-                    } else {
-                        Logger.dev("⚠️ 플래그는 연결 상태이나 실제로는 끊김 - 플래그 수정")
-                        isSocketConnected = false
-                    }
-                }
-
-                Logger.dev("🔄 소켓 재연결 시도")
-
-                // 기존 소켓 정리 (혹시 모를 연결 잔여 처리)
-                SocketManager.disconnect()
-
-                // 잠시 대기 후 재연결
-                delay(300)
-
-                // WebSocket 재연결 및 메시지 수신 콜백 재설정
                 connectWebSocket()
-
-                Logger.dev("✅ 소켓 재연결 완료")
             } catch (e: Exception) {
                 Logger.error("❌ 소켓 재연결 중 오류 발생: ${e.message}")
             }
@@ -400,8 +364,6 @@ class ChatViewModel : ViewModel() {
                                                 }
                                             }
 
-                                            // WebSocket 연결 및 메시지 수신 콜백 설정
-                                            connectWebSocket()
                                             _isChatInitialized.value = true
                                             _isInitializingChat.value = false
                                             pageCount = 0
@@ -478,7 +440,7 @@ class ChatViewModel : ViewModel() {
             Logger.dev("⚠️ WebSocket 이미 연결됨 - 연결 건너뜀")
             return
         }
-
+        SocketManager.initialize(Constants.getUserId(), Constants.getBranchId())
         SocketManager.connect(
             onDmMessage = { chatMessage ->
                 // WebSocket으로 받은 메시지 처리

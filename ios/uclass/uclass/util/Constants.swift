@@ -4,9 +4,9 @@ import Foundation
  * 앱 상수 관리 클래스
  */
 struct Constants {
-    static var uclassURL = "https://dev-uclass.ubase.kr"
-    static var umanagerURL = "https://dev-umanager.ubase.kr"
-    static var webURL = "http://dev-uclass.ubase.kr"
+    static var uclassURL = "https://uclass.ubase.kr"
+    static var umanagerURL = "https://umanager.ubase.kr"
+    static var webURL = "https://uclass.ubase.kr"
     static var isDebug = false
     static var jwtToken: String? = nil
     static var fcmToken: String? = nil

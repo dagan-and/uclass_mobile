@@ -3,8 +3,8 @@ package com.ubase.uclass.util
 import com.ubase.uclass.App
 
 object Constants {
-    var uclassURL = "https://dev-uclass.ubase.kr"
-    var umanagerURL = "https://dev-umanager.ubase.kr"
+    var uclassURL = "https://uclass.ubase.kr"
+    var umanagerURL = "https://umanager.ubase.kr"
     var jwtToken : String = ""
     var fcmToken : String = ""
     var refreshToken : String = ""

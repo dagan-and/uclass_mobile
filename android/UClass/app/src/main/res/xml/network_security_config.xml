@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">210.178.43.205</domain>
-        <domain includeSubdomains="true">m.naver.com</domain>
+        <domain includeSubdomains="true">dev-uclass.ubase.kr</domain>
         <domain includeSubdomains="true">dev-umanager.ubase.kr</domain>
+        <domain includeSubdomains="true">uclass.ubase.kr</domain>
+        <domain includeSubdomains="true">umanager.ubase.kr</domain>
     </domain-config>
 </network-security-config>
 
