@@ -21,7 +21,7 @@
 			<string>naver-login</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.ubase.uclass.prod</string>
+				<string>com.ubase.uclass.store</string>
 			</array>
 		</dict>
 	</array>
@@ -37,6 +37,8 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>중요한 공지사항과 채팅 메시지 알림을 받기 위해 알림 권한이 필요합니다.</string>
 	<key>NidAppName</key>
 	<string>UClass</string>
 	<key>NidClientID</key>
@@ -44,7 +46,7 @@
 	<key>NidClientSecret</key>
 	<string>tykNG6qXDa</string>
 	<key>NidUrlScheme</key>
-	<string>com.ubase.uclass.prod</string>
+	<string>com.ubase.uclass.store</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
@@ -60,11 +62,5 @@
 		<key>UIImageName</key>
 		<string></string>
 	</dict>
-    <!-- 📸 사진 라이브러리 접근 권한 (iOS 14+) -->
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>프로필 이미지 등록 및 사진 업로드를 위해 사진 라이브러리에 접근합니다.</string>
-    <!-- 🔔 알림 권한 설명 (선택사항이지만 권장) -->
-    <key>NSUserNotificationUsageDescription</key>
-    <string>중요한 공지사항과 채팅 메시지 알림을 받기 위해 알림 권한이 필요합니다.</string>
 </dict>
 </plist>
