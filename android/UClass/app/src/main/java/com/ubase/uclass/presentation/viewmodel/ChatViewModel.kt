@@ -96,10 +96,12 @@ class ChatViewModel : ViewModel() {
      * 채팅 초기화 (API 호출 + WebSocket 연결)
      * onCreate에서 한 번만 호출됨
      */
-    fun initializeChat(userId: String) {
-        if (_isInitializingChat.value || _isChatInitialized.value) {
-            Logger.dev("⚠️ 채팅 초기화 건너뜀 - 이미 진행중이거나 완료됨")
-            return
+    fun initializeChat(userId: String,  force : Boolean = false) {
+        if(!force) {
+            if (_isInitializingChat.value || _isChatInitialized.value) {
+                Logger.dev("⚠️ 채팅 초기화 건너뜀 - 이미 진행중이거나 완료됨")
+                return
+            }
         }
 
         viewModelScope.launch {
@@ -369,6 +371,7 @@ class ChatViewModel : ViewModel() {
                                             pageCount = 0
 
                                             Logger.dev("✅ 채팅 초기화 완료")
+                                            _shouldScrollToBottom.value = System.currentTimeMillis()
                                         }
                                     }
                                 }

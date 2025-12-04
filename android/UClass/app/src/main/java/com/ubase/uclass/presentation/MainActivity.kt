@@ -386,6 +386,9 @@ class MainActivity : ComponentActivity() {
             isStartedFromPush = true
 
             if (bundle.containsKey("type") && bundle.getString("type").equals("CHAT", true)) {
+                if(PreferenceManager.getInt(this@MainActivity, "TAB", 0) == CHAT) {
+                    PreferenceManager.putBoolean(this@MainActivity, "CHAT_INIT", true)
+                }
                 ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
             }
 

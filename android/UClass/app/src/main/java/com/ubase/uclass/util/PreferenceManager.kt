@@ -200,6 +200,23 @@ object PreferenceManager {
     }
 
     /**
+     * Int 값을 저장
+     */
+    fun putInt(context: Context, key: String, value: Int) {
+        val sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        sharedPreferences.edit().putInt(key, value).apply()
+    }
+
+    /**
+     * Int 값을 가져옴
+     */
+    fun getInt(context: Context, key: String, defaultValue: Int = 0): Int {
+        val sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getInt(key, defaultValue)
+    }
+
+
+    /**
      * 특정 키의 값을 삭제
      */
     fun remove(context: Context, key: String) {

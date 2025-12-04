@@ -111,6 +111,21 @@ fun ChatScreen(
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     Logger.dev("▶️ [LIFECYCLE] onResume - 화면 복귀, 소켓 재연결 시도")
+
+                    if(PreferenceManager.getBoolean(context, "CHAT_INIT", false)) {
+                        PreferenceManager.putBoolean(context, "CHAT_INIT", false)
+                        ViewCallbackManager.notifyResult(CHAT_BADGE, false)
+                        // 사용자 ID 가져와서 채팅 초기화
+                        val userId = PreferenceManager.getUserId(context)
+                        if (userId != 0) {
+                            Logger.dev("📱 [onCreate] ChatScreen 진입 - 채팅 초기화 시작")
+                            chatViewModel.initializeChat(userId.toString() ,true)
+                        } else {
+                            Logger.error("❌ 사용자 ID가 없어 채팅 초기화를 건너뜁니다")
+                        }
+                        // 채팅방 진입시 뱃지 초기화
+                        BadgeManager.getInstance().clearBadgeCount(context)
+                    }
                     // 소켓 연결 상태 확인 후 재연결
                     chatViewModel.reconnectSocketIfNeeded()
                 }

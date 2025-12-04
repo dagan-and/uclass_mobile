@@ -428,6 +428,8 @@ private fun MainContent(
     notificationWebViewManager: WebViewManager,
     initialNavigationTarget: Int? = null
 ) {
+    val context = LocalContext.current
+
     var selectedTab by remember { mutableStateOf(0) }
     var previousTab by remember { mutableStateOf(0) }
 
@@ -444,6 +446,7 @@ private fun MainContent(
     val onTabSelected: (Int) -> Unit = { newTab ->
         previousTab = selectedTab
         selectedTab = newTab
+        PreferenceManager.putInt(context, "TAB", selectedTab)
     }
 
     // 탭 재로딩 처리
