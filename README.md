@@ -1,948 +1,434 @@
-# UClass Android 앱 인수인계 문서
+# uclass 앱 인수인계 문서
 
-## 목차
-1. [프로젝트 개요](#1-프로젝트-개요)
-2. [프로젝트 구조](#2-프로젝트-구조)
-3. [아키텍처 상세](#3-아키텍처-상세)
-4. [핵심 컴포넌트 상세](#4-핵심-컴포넌트-상세)
-5. [화면별 상세](#5-화면별-상세)
-6. [상태 관리](#6-상태-관리)
-7. [권한 및 설정](#7-권한-및-설정)
-8. [외부 라이브러리](#8-외부-라이브러리)
-9. [주요 상수](#9-주요-상수)
-10. [디버그 기능](#10-디버그-기능)
-11. [알려진 이슈 및 주의사항](#11-알려진-이슈-및-주의사항)
-12. [빌드 및 배포](#12-빌드-및-배포)
+> **앱 이름**: uclass  
+> **플랫폼**: Android / iOS
 
 ---
 
 ## 1. 프로젝트 개요
 
-### 1.1 앱 정보
+uclass는 교육 서비스를 위한 하이브리드 앱으로, WebView 기반의 콘텐츠 표시와 네이티브 채팅 기능을 제공합니다.
 
-| 항목 | 내용 |
-|------|------|
-| 앱 이름 | UClass |
-| 패키지명 | `com.ubase.uclass` |
-| 최소 SDK | API 23 (Android 6.0) |
-| 타겟 SDK | API 32+ |
-| UI 프레임워크 | Jetpack Compose |
-| 아키텍처 | MVVM |
-
-### 1.2 주요 기능
-
+### 1.1 주요 기능
 | 기능 | 설명 |
 |------|------|
-| SNS 로그인 | 카카오, 네이버, 구글 소셜 로그인 |
-| WebView 기반 메인 콘텐츠 | 하이브리드 앱 구조 |
-| 실시간 채팅(DM) | WebSocket(STOMP) 기반 1:1 채팅 |
-| 푸시 알림 | FCM 기반 알림 |
-| 회원가입 | WebView 기반 회원가입 플로우 |
+| SNS 로그인 |구글,애플 로그인 지원 |
+| WebView | 메인 콘텐츠를 WebView로 표시 |
+| 네이티브 채팅 | STOMP/WebSocket 기반 실시간 채팅 |
+| 푸시 알림 | FCM 기반 푸시 알림 |
+| 공지사항 | 별도 WebView로 공지사항 표시 |
 
----
-
-## 2. 프로젝트 구조
+### 1.2 앱 구조
 
 ```
-com.ubase.uclass/
-├── App.kt                          # Application 클래스
-├── network/                        # 네트워크 레이어
-│   ├── HttpClient.kt              # OkHttp 클라이언트 빌더
-│   ├── NetworkAPI.kt              # API 호출 싱글톤
-│   ├── NetworkAPIManager.kt       # 네트워크 콜백 관리자
-│   ├── SocketManager.kt           # WebSocket/STOMP 관리자
-│   └── ViewCallbackManager.kt     # View 상태 콜백 관리자
-├── presentation/                   # UI 레이어
-│   ├── MainActivity.kt            # 메인 액티비티
-│   ├── view/                      # 화면 컴포저블
-│   │   ├── MainScreen.kt          # 메인 화면 (탭 구조)
-│   │   ├── ChatScreen.kt          # 채팅 화면
-│   │   ├── SNSLoginScreen.kt      # 로그인 화면
-│   │   ├── PermissionScreen.kt    # 권한 요청 화면
-│   │   ├── MainBottomNavigationBar.kt # 하단 네비게이션
-│   │   └── RegisterWebViewScreen.kt # 회원가입 웹뷰
-│   ├── viewmodel/                 # ViewModel
-│   │   ├── ChatViewModel.kt       # 채팅 비즈니스 로직
-│   │   ├── ChatBadgeViewModel.kt  # 채팅 뱃지 상태
-│   │   ├── NavigationViewModel.kt # 네비게이션 상태
-│   │   ├── LogoutViewModel.kt     # 로그아웃 상태
-│   │   └── ReloadViewModel.kt     # 리로드 상태
-│   ├── ui/                        # 공통 UI 컴포넌트
-│   │   ├── ChatBubble.kt          # 채팅 버블
-│   │   ├── CustomAlert.kt         # 커스텀 알림 다이얼로그
-│   │   └── CustomLoading.kt       # 로딩 인디케이터
-│   ├── web/                       # WebView 관련
-│   │   ├── WebViewManager.kt      # 메인 웹뷰 관리자
-│   │   ├── WebViewScreen.kt       # 웹뷰 화면
-│   │   ├── NotificationScreen.kt  # 공지사항 웹뷰
-│   │   ├── RegisterWebViewManager.kt # 회원가입 웹뷰 관리자
-│   │   └── UclassJsInterface.kt   # JS 브릿지 인터페이스
-│   └── fcm/                       # FCM 관련
-│       ├── FirebaseMessagingService.kt
-│       └── PushRelayActivity.kt
-└── util/                          # 유틸리티
-    ├── Constants.kt               # 상수 정의
-    ├── Logger.kt                  # 로깅 유틸
-    ├── PreferenceManager.kt       # SharedPreferences 관리
-    ├── AppUtil.kt                 # 앱 유틸리티
-    ├── DateUtils.kt               # 날짜 유틸리티
-    ├── BadgeManager.kt            # 뱃지 관리
-    └── PermissionHelper.kt        # 권한 헬퍼
+┌─────────────────────────────────────┐
+│           MainScreen                │
+├─────────────────────────────────────┤
+│  ┌─────────┐ ┌─────────┐ ┌────────┐ │
+│  │ 홈(Web) │ │  채팅   │ │ 공지   │ │
+│  │ View    │ │ Screen  │ │ Screen │ │
+│  └─────────┘ └─────────┘ └────────┘ │
+├─────────────────────────────────────┤
+│         Bottom Navigation Bar       │
+│   [홈]      [채팅]      [공지사항]   │
+└─────────────────────────────────────┘
 ```
 
 ---
 
-## 3. 아키텍처 상세
+## 2. 개발 환경
 
-### 3.1 앱 흐름도
+### 2.1 Android
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        App Launch                                │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    MainActivity.onCreate()                       │
-│  • NetworkAPI 초기화                                             │
-│  • 자동 로그인 체크                                              │
-│  • FCM 데이터 확인                                               │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              ▼                               ▼
-┌─────────────────────┐         ┌─────────────────────┐
-│   PermissionScreen  │         │  자동 로그인 시도    │
-│   (최초 실행 시)     │         │                     │
-└─────────────────────┘         └─────────────────────┘
-              │                               │
-              └───────────────┬───────────────┘
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      SNSLoginScreen                              │
-│  • 카카오/네이버/구글 로그인                                      │
-│  • API: /api/auth/sns/check → /api/auth/sns/login               │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              ▼                               ▼
-┌─────────────────────┐         ┌─────────────────────┐
-│  신규 사용자         │         │  기존 사용자         │
-│  RegisterWebView    │         │  MainScreen         │
-└─────────────────────┘         └─────────────────────┘
-                                              │
-                              ┌───────────────┼───────────────┐
-                              ▼               ▼               ▼
-                        ┌─────────┐     ┌─────────┐     ┌─────────┐
-                        │   홈    │     │   DM    │     │  사유   │
-                        │(WebView)│     │ (Chat)  │     │(WebView)│
-                        └─────────┘     └─────────┘     └─────────┘
+| 항목 | 버전/설정 |
+|------|----------|
+| 패키지명 | `com.ubase.uclass` |
+| Min SDK | API 23 (Android 6.0) |
+| Target SDK | API 34 (Android 14) |
+| Gradle | 8.9 |
+| Java | 11 |
+| Kotlin | 최신 |
+| UI | Jetpack Compose |
+
+#### 주요 의존성
+```kotlin
+// 네트워크
+implementation("com.squareup.okhttp3:okhttp:4.x")
+implementation("com.google.code.gson:gson:2.x")
+
+// SNS 로그인
+implementation("com.kakao.sdk:v2-user:2.x")
+implementation("com.navercorp.nid:oauth:5.x")
+implementation("com.google.android.gms:play-services-auth:x.x")
+
+// Firebase
+implementation("com.google.firebase:firebase-messaging:x.x")
+
+// RxJava
+implementation("io.reactivex.rxjava3:rxjava:3.x")
 ```
 
-### 3.2 네비게이션 구조
+### 2.2 iOS
 
-| 탭 인덱스 | 화면 | 컴포넌트 | 설명 |
-|-----------|------|----------|------|
-| 0 | 홈 | `WebViewScreen` | 메인 콘텐츠 (WebView) |
-| 1 | DM | `ChatScreen` | 실시간 채팅 (Native) |
-| 2 | 사유 | `NotificationScreen` | 공지사항 (WebView) |
+| 항목 | 버전/설정 |
+|------|----------|
+| Bundle ID | (Info.plist 참조) |
+| Deployment Target | iOS 15.0+ |
+| Swift | 5.9+ |
+| Xcode | 최신 버전 |
+| UI | SwiftUI |
 
-### 3.3 MVVM 아키텍처
+#### 주요 의존성 (SPM)
+```swift
+// 네트워크
+Alamofire
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                          View Layer                              │
-│  (Compose UI: Screen, UI Components)                            │
-└─────────────────────────────────────────────────────────────────┘
-                              │ collectAsState()
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       ViewModel Layer                            │
-│  (ChatViewModel, NavigationViewModel, etc.)                     │
-│  • StateFlow로 UI 상태 관리                                      │
-│  • viewModelScope로 비동기 처리                                  │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       Network Layer                              │
-│  (NetworkAPI, SocketManager)                                    │
-│  • HTTP: OkHttp + Gson                                          │
-│  • WebSocket: STOMP 프로토콜                                     │
-└─────────────────────────────────────────────────────────────────┘
+// SNS 로그인
+KakaoSDK
+NidThirdPartyLogin (네이버)
+
+// Firebase
+FirebaseMessaging
+FirebaseCrashlytics
 ```
 
 ---
 
-## 4. 핵심 컴포넌트 상세
+## 3. 아키텍처
 
-### 4.1 네트워크 레이어
+### 3.1 전체 아키텍처
+- **패턴**: MVVM (Model-View-ViewModel)
+- **네트워크**: REST API + WebSocket (STOMP)
+- **상태 관리**: 
+  - Android: StateFlow, MutableState (Compose)
+  - iOS: @Published, Combine
 
-#### NetworkAPI.kt (싱글톤)
+### 3.2 레이어 구조
 
-API 호출을 담당하는 싱글톤 클래스입니다.
-
-```kotlin
-object NetworkAPI {
-    fun initialize()           // 앱 시작 시 초기화
-    fun snsCheck(...)          // SNS 계정 확인
-    fun snsLogin(...)          // SNS 로그인
-    fun snsRegister(...)       // SNS 회원가입
-    fun chatInit(...)          // 채팅 초기화
-    fun chatMessage(...)       // 채팅 메시지 조회
-    fun shutdown()             // 종료 시 정리
-}
+```
+┌────────────────────────────────────────────┐
+│                 View Layer                  │
+│  (Compose UI / SwiftUI)                    │
+├────────────────────────────────────────────┤
+│              ViewModel Layer                │
+│  - ChatViewModel                            │
+│  - ChatBadgeViewModel                       │
+│  - NavigationViewModel                      │
+│  - LogoutViewModel                          │
+│  - ReloadViewModel                          │
+├────────────────────────────────────────────┤
+│              Network Layer                  │
+│  - NetworkAPI (REST)                        │
+│  - SocketManager (WebSocket/STOMP)         │
+│  - NetworkAPIManager (콜백 관리)            │
+│  - ViewCallbackManager (View 콜백)         │
+├────────────────────────────────────────────┤
+│               Utility Layer                 │
+│  - Constants, Logger, AppUtil              │
+│  - PreferenceManager, LoginUserInfo        │
+└────────────────────────────────────────────┘
 ```
 
-#### NetworkAPIManager.kt (콜백 관리)
+---
 
-네트워크 콜백 등록/제거/알림을 담당하는 중앙 관리 클래스입니다.
+## 4. 주요 컴포넌트 상세
 
-```kotlin
-object NetworkAPIManager {
-    fun registerCallback(key: String, callback: NetworkCallback)
-    fun unregisterCallback(key: String)
-    fun notifyResult(code: Int, result: Any?)  // 모든 콜백에 결과 전달
-}
-```
+### 4.1 네트워크 통신
 
-#### API 엔드포인트
+#### 4.1.1 REST API (NetworkAPI)
 
-| 엔드포인트 | 응답 코드 | 도메인 | 설명 |
-|------------|-----------|--------|------|
-| `/api/auth/sns/check` | 1001 | uclassURL | SNS 계정 확인 |
-| `/api/auth/sns/login` | 1002 | uclassURL | SNS 로그인 |
-| `/api/auth/sns/register` | 1003 | uclassURL | SNS 회원가입 |
-| `/api/dm/native/init` | 2001 | umanagerURL | 채팅 초기화 |
-| `/api/dm/native/messages` | 2002 | umanagerURL | 채팅 메시지 조회 |
-| `/api/dm/native/read` | 2003 | umanagerURL | 읽음 처리 |
-| `/api/dm/native/send` | 2004 | umanagerURL | 메시지 전송 |
-| `/api/dm/native/status` | 2005 | umanagerURL | 상태 조회 |
-| `/api/dm/native/unread` | 2006 | umanagerURL | 안읽은 메시지 |
+**서버 URL 구분**
+| 도메인 | 용도 |
+|--------|------|
+| `Constants.uclassURL` | 일반 API (인증, 사용자 정보 등) |
+| `Constants.umanagerURL` | 채팅 관련 API (`/api/dm/*`) |
 
-#### HttpClient.kt (빌더 패턴)
+**주요 API 엔드포인트**
 
-OkHttp 클라이언트를 빌더 패턴으로 생성합니다.
+| 엔드포인트 | 메서드 | 설명 |
+|-----------|--------|------|
+| `/api/auth/sns/check` | POST | SNS 로그인 체크 |
+| `/api/auth/sns/login` | POST | SNS 로그인 |
+| `/api/auth/sns/register` | POST | SNS 회원가입 |
+| `/api/dm/native/init` | POST | 채팅 초기화 |
+| `/api/dm/native/messages` | POST | 채팅 메시지 조회 |
 
-```kotlin
-val httpClient = HttpClient.Builder()
-    .setUrl(url)
-    .setCookie(getCookieJar())
-    .setJsonData(Gson().toJson(requestBody))
-    .isPost(true)
-    .enableLogging(true)
-    .setTimeout(15)
-    .build()
-```
-
-### 4.2 WebSocket (SocketManager.kt)
-
-#### STOMP 프로토콜 기반 실시간 채팅
-
-```kotlin
-object SocketManager {
-    // 연결 상태
-    enum class ConnectionState { 
-        DISCONNECTED, 
-        CONNECTING, 
-        CONNECTED, 
-        DISCONNECTING 
-    }
-    
-    // 주요 메서드
-    fun initialize(userId: Int, branchId: Int)
-    fun connect(onDmMessage: ((ChatMessage) -> Unit)?, onFailed: (() -> Unit)?)
-    fun disconnect()
-    fun sendDmMessage(content: String)
-    fun joinDmRoom()
-    fun cleanup()
-    
-    // 상태 Flow
-    fun getConnectionStateFlow(): StateFlow<ConnectionState>
-    fun getMessageFlow(): SharedFlow<StompMessage>
-}
-```
-
-#### STOMP 구독 토픽
-
-| 토픽 | 용도 |
-|------|------|
-| `/user/queue/dm/joined` | 입/퇴장 알림 |
-| `/user/{userId}/queue/messages` | DM 메시지 수신 |
-
-#### STOMP 발행 경로
-
-| 경로 | 용도 |
-|------|------|
-| `/app/dm/native/join` | 채팅방 입장 |
-| `/app/dm/native/send` | 메시지 전송 |
-
-#### 연결 설정
-
-| 설정 | 값 |
-|------|------|
-| 최대 재연결 시도 | 5회 |
-| 재연결 딜레이 | 3,000ms |
-| 클라이언트 하트비트 | 20,000ms |
-| 서버 하트비트 | 20,000ms |
-| 연결 타임아웃 | 10초 |
-| 쓰기 타임아웃 | 30초 |
-
-### 4.3 WebView 브릿지 (JavaScript Interface)
-
-#### JS → Native 통신
-
-```kotlin
-// UclassJsInterface.kt
-class UclassJsInterface(
-    private val context: Context, 
-    private val onMessage: (String) -> Unit
-) {
-    @JavascriptInterface
-    fun postMessage(message: String) {
-        onMessage(message)
-    }
-}
-```
-
-#### 지원 액션 (JS → Native)
-
-| 액션 | 설명 | 파라미터 |
-|------|------|----------|
-| `showLoading` | 로딩 표시 | - |
-| `hideLoading` | 로딩 숨김 | - |
-| `showAlert` | 알림 다이얼로그 | `title`, `message`, `callback` |
-| `showConfirm` | 확인 다이얼로그 | `title`, `message`, `callback` |
-| `goLogin` | 회원가입 완료 → 로그인 | - |
-| `goClose` | 화면 닫기 | - |
-| `goDm` | DM 화면으로 이동 | - |
-| `goBrowser` | 외부 브라우저 열기 | `title` (URL) |
-
-#### Native → JS 통신
-
-```kotlin
-// 웹뷰에 JWT 토큰 전달
-webView.evaluateJavascript("javascript:setToken('$token')") { result ->
-    Logger.info("setToken 실행 결과: $result")
-}
-
-// 뒤로가기 처리
-webView.evaluateJavascript("javascript:goBackPress()") { }
-
-// 회원가입 시 SNS 정보 전달
-val jsonString = PreferenceManager.getLoginInfoAsJson(context).toString()
-webView.evaluateJavascript("javascript:nativeBinding('$jsonString')") { }
-```
-
-#### JS 메시지 JSON 형식
-
+**요청/응답 구조**
 ```json
+// 요청
 {
-    "action": "showAlert",
-    "title": "알림",
-    "message": "메시지 내용",
-    "callback": "javascript:callbackFunction()"
+  "provider": "GOOGLE",
+  "snsId": "123456789",
+  "pushToken": "fcm_token_here"
+}
+
+// 응답
+{
+  "success": true,
+  "message": "Success",
+  "data": { ... }
 }
 ```
 
----
+#### 4.1.2 WebSocket/STOMP (SocketManager)
 
-## 5. 화면별 상세
+**연결 정보**
+- **URL**: `wss://{host}/ws/websocket`
+- **프로토콜**: STOMP over SockJS
+- **인증**: JWT-TOKEN 헤더
 
-### 5.1 MainActivity.kt
+**STOMP 프레임 타입**
+| 커맨드 | 설명 |
+|--------|------|
+| CONNECT | 연결 요청 |
+| CONNECTED | 연결 완료 |
+| SUBSCRIBE | 토픽 구독 |
+| SEND | 메시지 전송 |
+| MESSAGE | 메시지 수신 |
+| DISCONNECT | 연결 해제 |
 
-#### 주요 책임
+**구독 토픽**
+```
+/user/queue/dm/joined     - 입장/퇴장 알림
+/user/{userId}/queue/messages - DM 메시지 수신
+```
 
-- 앱 진입점
-- SNS 로그인 결과 처리 (`onActivityResult`)
-- FCM 데이터 처리
-- 세션 타임아웃 관리
-- WebViewManager 생명주기 관리
+**Heartbeat 설정**
+- 클라이언트 → 서버: 10~20초 간격
+- 서버 → 클라이언트: 10~20초 간격
+- 타임아웃: 서버 heartbeat 간격 × 2.5
 
-#### 생명주기 처리
+**재연결 로직**
+- 최대 재시도 횟수: 5회
+- 재연결 딜레이: 3초
+- HTTP 400, 401, 403, 404, 405 에러 시 재연결 중단
 
+### 4.2 콜백 관리 시스템
+
+#### NetworkAPIManager (REST API 콜백)
 ```kotlin
-onCreate() {
-    // NetworkAPI 초기화
-    if (!NetworkAPI.isInitialized()) {
-        NetworkAPI.initialize()
+// Android
+object NetworkAPIManager {
+    object ResponseCode {
+        const val API_ERROR = -1
+        const val API_AUTH_SNS_CHECK = 1001
+        const val API_AUTH_SNS_LOGIN = 1002
+        const val API_AUTH_SNS_REGISTER = 1003
+        const val API_DM_NATIVE_INIT = 2001
+        const val API_DM_NATIVE_MESSAGES = 2002
     }
-    
-    // 자동 로그인 체크
-    val autoLoginInfo = AppUtil.tryAutoLogin(this)
-    
-    // FCM 데이터 확인
-    checkIntentForFCMData(intent)
-    
-    // Compose UI 설정
-    setContent { ... }
-}
-
-onResume() {
-    // 세션 타임아웃 체크 (현재 주석 처리됨)
-}
-
-onPause() {
-    // 백그라운드 전환 시간 저장
-    backgroundTimestamp = System.currentTimeMillis()
-    saveBackgroundTimestamp(backgroundTimestamp)
-}
-
-onNewIntent() {
-    // 새로운 Intent에서 FCM 데이터 확인
-    checkIntentForFCMData(intent)
-}
-
-onDestroy() {
-    NetworkAPI.shutdown()
-    NetworkAPIManager.clearAllCallbacks()
-    mainWebViewManager.destroy()
-    notificationWebViewManager.destroy()
 }
 ```
 
-#### FCM 데이터 처리
-
+#### ViewCallbackManager (View 상태 콜백)
 ```kotlin
-fun setFCMIntent(bundle: Bundle?) {
-    // type이 "CHAT"이면 채팅 탭으로 이동
-    if (bundle?.getString("type").equals("CHAT", true)) {
-        ViewCallbackManager.notifyResult(NAVIGATION, CHAT)
+// Android
+object ViewCallbackManager {
+    object ResponseCode {
+        const val CHAT_BADGE = 1   // 채팅 뱃지 표시
+        const val NAVIGATION = 2   // 화면 이동
+        const val LOGOUT = 3       // 로그아웃
+        const val RELOAD = 4       // 재로그인
     }
     
-    // URL이 있으면 WebView 로딩 후 이동
-    bundle?.getString("url")?.let { url ->
-        pendingFCMUrl = url
-        observeWebViewLoadingState()
+    object PageCode {
+        const val HOME = 0
+        const val CHAT = 1
+        const val NOTICE = 2
     }
 }
 ```
 
-### 5.2 MainScreen.kt
+### 4.3 WebView 관리
+
+#### WebViewManager
+- **역할**: WebView 인스턴스 관리, URL 로딩, JavaScript 인터페이스
+- **주요 기능**:
+  - JWT 토큰 전달 (`setToken()` JavaScript 호출)
+  - 파일 업로드 처리
+  - 403 에러 시 홈으로 리다이렉트
+
+#### JavaScript Interface
+```javascript
+// 웹에서 네이티브 호출
+window.uclass.showMessage(msg)
+```
+
+### 4.4 SNS 로그인
 
 #### 로그인 플로우
-
 ```
-SNS 로그인 시작
-    ↓
-API: /api/auth/sns/check
-    ↓
-┌─────────────────┬─────────────────┐
-│  기존 사용자     │  신규 사용자     │
-│       ↓         │       ↓         │
-│ /api/auth/sns   │ RegisterWebView │
-│ /login          │ (회원가입)       │
-└─────────────────┴─────────────────┘
-    ↓
-로그인 성공
-    ↓
-JWT 토큰 저장 (Constants.jwtToken)
-    ↓
-WebView 프리로드 (homeURL, noticeURL)
-    ↓
-MainContent (탭 구조)
+1. SNS SDK 로그인 → 사용자 정보 획득
+2. /api/auth/sns/check API 호출
+3. 회원 여부에 따라:
+   - 기존 회원: /api/auth/sns/login → JWT 발급 → 메인 화면
+   - 신규 회원: 회원가입 WebView로 이동
 ```
 
-#### NetworkAPI 콜백 처리
+#### SNS 설정
 
+**카카오**
 ```kotlin
-NetworkAPIManager.registerCallback(callbackId, object : NetworkCallback {
-    override fun onResult(code: Int, result: Any?) {
-        when (code) {
-            API_AUTH_SNS_CHECK -> {
-                // 기존 사용자: snsLogin() 호출
-                // 신규 사용자: RegisterWebView 표시
-            }
-            API_AUTH_SNS_LOGIN -> {
-                // JWT 토큰 저장
-                // WebView 프리로드
-                // 메인 화면 전환
-            }
-            API_AUTH_SNS_REGISTER -> {
-                // 회원가입 완료 후 로그인 시도
-            }
-            API_ERROR -> {
-                // 에러 처리
-            }
-        }
-    }
-})
+// Android - App.kt
+KakaoSdk.init(this, "cc0faae5b1dd0468f0440656b12b8601")
+```
+```swift
+// iOS - AppDelegate.swift
+KakaoSDK.initSDK(appKey: "cc0faae5b1dd0468f0440656b12b8601")
 ```
 
-### 5.3 ChatScreen.kt + ChatViewModel.kt
-
-#### 채팅 생명주기
-
+**네이버**
 ```kotlin
-// Lifecycle 이벤트 관찰
-DisposableEffect(lifecycleOwner) {
-    val observer = LifecycleEventObserver { _, event ->
-        when (event) {
-            Lifecycle.Event.ON_RESUME -> {
-                // 소켓 재연결
-                chatViewModel.reconnectSocketIfNeeded()
-            }
-            Lifecycle.Event.ON_STOP -> {
-                // 소켓 연결 종료
-                chatViewModel.disconnectSocket()
-            }
-        }
-    }
-    lifecycleOwner.lifecycle.addObserver(observer)
-    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-}
-
-// 최초 진입 시
-LaunchedEffect(Unit) {
-    val userId = PreferenceManager.getUserId(context)
-    chatViewModel.initializeChat(userId.toString())
-    BadgeManager.getInstance().clearBadgeCount(context)
-}
-
-// 화면 종료 시
-DisposableEffect(Unit) {
-    onDispose {
-        chatViewModel.cleanup()
-    }
-}
+// Android - App.kt
+NaverIdLoginSDK.initialize(this,
+    getString(R.string.naver_client_id),
+    getString(R.string.naver_client_secret),
+    getString(R.string.app_name))
+```
+```swift
+// iOS - AppDelegate.swift
+NidOAuth.shared.initialize()
 ```
 
-#### ChatViewModel 상태
+### 4.5 푸시 알림 (FCM)
 
-| 상태 | 타입 | 설명 |
-|------|------|------|
-| `isChatInitialized` | `StateFlow<Boolean>` | 채팅 초기화 완료 |
-| `isInitializingChat` | `StateFlow<Boolean>` | 초기화 진행 중 |
-| `messages` | `StateFlow<List<ChatMessage>>` | 메시지 목록 |
-| `messageText` | `StateFlow<String>` | 입력 텍스트 |
-| `newlyAddedMessageIds` | `StateFlow<Set<String>>` | 새로 추가된 메시지 ID |
-| `showNewMessageAlert` | `StateFlow<Boolean>` | 새 메시지 알림 |
-| `isAtBottom` | `StateFlow<Boolean>` | 스크롤 최하단 여부 |
-| `isLoadingMore` | `StateFlow<Boolean>` | 이전 메시지 로딩 중 |
-| `hasMoreMessages` | `StateFlow<Boolean>` | 추가 메시지 존재 |
-| `branchName` | `StateFlow<String>` | 지점명 |
-| `shouldScrollToBottom` | `StateFlow<Long>` | 자동 스크롤 트리거 |
-| `shouldExitChat` | `StateFlow<Boolean>` | 채팅 종료 트리거 |
-
-#### 동시성 처리
-
+#### 토큰 저장
 ```kotlin
-// Mutex를 사용한 메시지 중복 방지
-private val messagesMutex = Mutex()
-private val processingMessageIds = mutableSetOf<String>()
+// Android
+Constants.fcmToken = task.result
+PreferenceManager.putString("FCM_TOKEN", token)
+```
+```swift
+// iOS
+Constants.fcmToken = fcmToken
+```
 
-private fun handleNewWebSocketMessage(newMessage: ChatMessage) {
-    viewModelScope.launch {
-        messagesMutex.withLock {
-            // 1차 체크: 처리 중인 메시지인지 확인
-            if (processingMessageIds.contains(newMessage.messageId)) return@launch
-            
-            // 2차 체크: 이미 추가된 메시지인지 확인
-            if (_messages.value.any { it.messageId == newMessage.messageId }) return@launch
-            
-            // 처리 중 목록에 추가
-            processingMessageIds.add(newMessage.messageId)
-            
-            // 메시지 추가
-            _messages.value += newMessage
-        }
-        
-        // UI 업데이트
-        _newlyAddedMessageIds.value += newMessage.messageId
-        
-        // 자동 스크롤 또는 알림 표시
-        if (_isAtBottom.value) {
-            _shouldScrollToBottom.value = System.currentTimeMillis()
-        } else {
-            _showNewMessageAlert.value = true
-        }
-        
-        // 애니메이션 완료 후 정리
-        delay(500)
-        _newlyAddedMessageIds.value -= newMessage.messageId
-        processingMessageIds.remove(newMessage.messageId)
-    }
+#### 푸시 페이로드 처리
+```json
+{
+  "type": "CHAT",
+  "url": "https://..."
 }
 ```
 
-#### 페이지네이션
-
-```kotlin
-// LazyColumn의 스크롤 위치 감지
-LaunchedEffect(listState) {
-    snapshotFlow {
-        val layoutInfo = listState.layoutInfo
-        val totalItemsCount = layoutInfo.totalItemsCount
-        val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-        // 마지막에서 5개 아이템 이내에 도달했을 때
-        totalItemsCount > 0 && lastVisibleItemIndex >= totalItemsCount - 5
-    }.collect { shouldLoadMore ->
-        if (shouldLoadMore && !isLoadingMore && hasMoreMessages) {
-            chatViewModel.loadMoreMessages()
-        }
-    }
-}
-```
-
-### 5.4 WebViewScreen.kt
-
-#### 파일 업로드 처리
-
-```kotlin
-// 파일 선택 Launcher
-val fileChooserLauncher = rememberLauncherForActivityResult(
-    contract = ActivityResultContracts.StartActivityForResult()
-) { result ->
-    if (result.resultCode == Activity.RESULT_OK) {
-        val uri = result.data?.data
-        val contentType = uri?.let { context.contentResolver.getType(it) }
-        
-        if (contentType?.contains("image/") == true) {
-            webViewManager.handleFileChooserResult(uri, contentType)
-        } else {
-            Toast.makeText(context, "이미지 파일만 업로드할 수 있습니다.", Toast.LENGTH_SHORT).show()
-            webViewManager.cancelFileChooser()
-        }
-    } else {
-        webViewManager.cancelFileChooser()
-    }
-}
-
-// 파일 선택 트리거 감지
-LaunchedEffect(webViewManager.shouldOpenFileChooser.value) {
-    if (webViewManager.shouldOpenFileChooser.value) {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "*/*"
-            addCategory(Intent.CATEGORY_OPENABLE)
-        }
-        fileChooserLauncher.launch(intent)
-        webViewManager.shouldOpenFileChooser.value = false
-    }
-}
-```
-
-#### 뒤로가기 처리
-
-```kotlin
-BackHandler {
-    // 홈 URL과 동일하면 앱 종료
-    if (webViewManager.preloadedWebView?.url == Constants.homeURL) {
-        (context as? Activity)?.finishAffinity()
-    } else {
-        // 웹뷰에 뒤로가기 이벤트 전달
-        webViewManager.preloadedWebView?.evaluateJavascript("javascript:goBackPress()") { }
-    }
-}
-```
+#### 처리 로직
+1. `type == "CHAT"`: 채팅 화면으로 이동
+2. `url` 존재: WebView에서 해당 URL 로드
 
 ---
 
-## 6. 상태 관리
+## 5. 화면 구성
 
-### 6.1 ViewCallbackManager (전역 상태 이벤트 버스)
+### 5.1 화면 목록
 
-#### 응답 코드
+| 화면 | Android | iOS | 설명 |
+|------|---------|-----|------|
+| 스플래시 | Splash Theme | SplashView | 앱 시작 화면 |
+| 권한 요청 | PermissionScreen | PermissionView | 알림 권한 요청 |
+| SNS 로그인 | SNSLoginScreen | SNSLoginView | 소셜 로그인 선택 |
+| 회원가입 | RegisterWebViewScreen | RegisterWebViewScreen | WebView 기반 회원가입 |
+| 메인 | MainScreen | MainScreen | 하단 탭 네비게이션 |
+| 홈 | WebViewScreen | WebViewScreen | 메인 WebView |
+| 채팅 | ChatScreen | ChatScreen | 네이티브 채팅 |
+| 공지사항 | NotificationScreen | NoticeScreen | 공지사항 WebView |
 
-| 코드 | 상수 | 설명 |
-|------|------|------|
-| 1 | `CHAT_BADGE` | 채팅 뱃지 표시/숨김 |
-| 2 | `NAVIGATION` | 탭 이동 |
-| 3 | `LOGOUT` | 로그아웃 |
-| 4 | `RELOAD` | 재로그인 |
-
-#### 페이지 코드
-
-| 코드 | 상수 | 설명 |
-|------|------|------|
-| 0 | `HOME` | 홈 탭 |
-| 1 | `CHAT` | DM 탭 |
-| 2 | `NOTICE` | 사유 탭 |
-
-#### 사용 예시
-
-```kotlin
-// 탭 이동
-ViewCallbackManager.notifyResult(NAVIGATION, HOME)
-
-// 채팅 뱃지 표시
-ViewCallbackManager.notifyResult(CHAT_BADGE, true)
-
-// 채팅 뱃지 숨김
-ViewCallbackManager.notifyResult(CHAT_BADGE, false)
-
-// 로그아웃 트리거
-ViewCallbackManager.notifyResult(LOGOUT, true)
-
-// 재로그인 트리거
-ViewCallbackManager.notifyResult(RELOAD, true)
-```
-
-### 6.2 ViewModel 패턴
+### 5.2 네비게이션 플로우
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ViewCallbackManager                           │
-│                   (전역 이벤트 버스)                              │
-└─────────────────────────────────────────────────────────────────┘
-                          │ notifyResult()
-                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  ChatBadgeViewModel  │  NavigationViewModel  │ LogoutViewModel  │
-│                      │                       │ ReloadViewModel  │
-│  (각 ViewModel이 init 블록에서 콜백 등록하여 상태 수신)           │
-└─────────────────────────────────────────────────────────────────┘
-                          │ State 변경
-                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                Compose UI (Recomposition)                        │
-└─────────────────────────────────────────────────────────────────┘
+앱 시작
+    │
+    ▼
+[스플래시] ─────────────────────────────┐
+    │                                   │
+    ▼                                   │
+[권한 요청] (최초 1회)                   │
+    │                                   │
+    ▼                                   │
+[자동 로그인 체크] ───────────────────────┤
+    │         │                         │
+    │ 실패    │ 성공                     │
+    ▼         ▼                         │
+[SNS 로그인] ──────────────────────────►│
+    │                                   │
+    │ 신규 회원                          │
+    ▼                                   │
+[회원가입 WebView] ─────────────────────►│
+                                        │
+                                        ▼
+                              [메인 화면 (MainScreen)]
+                                        │
+                    ┌───────────────────┼───────────────────┐
+                    ▼                   ▼                   ▼
+               [홈 탭]             [채팅 탭]           [공지사항 탭]
+              (WebView)           (Native)            (WebView)
 ```
 
-#### ViewModel 콜백 등록 예시
+### 5.3 세션 관리
 
-```kotlin
-class ChatBadgeViewModel : ViewModel() {
-    var chatBadgeVisible by mutableStateOf(false)
-        private set
+#### 백그라운드 타임아웃
+- **타임아웃**: 10분
+- **동작**: 백그라운드 → 포그라운드 전환 시 10분 초과하면 재로그인
 
-    init {
-        ViewCallbackManager.registerCallback("ChatBadge", object : ViewCallback {
-            override fun onResult(code: Int, result: Any?) {
-                if (code == CHAT_BADGE) {
-                    chatBadgeVisible = (result as? Boolean) == true
-                }
-            }
-        })
-    }
-}
-```
-
-### 6.3 전역 UI 컴포넌트
-
-#### CustomLoadingManager
-
-```kotlin
-object CustomLoadingManager {
-    private val _isPresented = MutableStateFlow(false)
-    val isPresented: StateFlow<Boolean> = _isPresented
-    
-    fun showLoading() { _isPresented.value = true }
-    fun hideLoading() { _isPresented.value = false }
-}
-```
-
-#### CustomAlertManager
-
-```kotlin
-object CustomAlertManager {
-    fun showAlert(title: String, content: String, onConfirm: (() -> Unit)? = null)
-    fun showConfirmAlert(title: String, content: String, onConfirm: (() -> Unit)? = null)
-    fun showErrorAlert(title: String, content: String, onConfirm: (() -> Unit)? = null)
-    fun hideAlert()
-}
-```
+#### 403 에러 처리
+- WebView에서 403 응답 수신 시 홈 화면으로 이동 및 새로고침
 
 ---
 
-## 7. 권한 및 설정
+## 6. 주요 클래스/파일 설명
 
-### 7.1 AndroidManifest.xml 권한
+### 6.1 Android
 
-| 권한 | 용도 | 필수 여부 |
-|------|------|-----------|
-| `INTERNET` | 네트워크 통신 | 필수 |
-| `POST_NOTIFICATIONS` | 푸시 알림 | 선택 |
-| `READ_EXTERNAL_STORAGE` | 파일 읽기 (API 32 이하) | 선택 |
-| `READ_MEDIA_IMAGES` | 이미지 읽기 (API 33+) | 선택 |
-| `READ_MEDIA_VIDEO` | 비디오 읽기 (API 33+) | 선택 |
-| `READ_MEDIA_VISUAL_USER_SELECTED` | 선택적 미디어 (API 34+) | 선택 |
-
-### 7.2 Application 설정
-
-```xml
-<application
-    android:name="com.ubase.uclass.App"
-    android:allowBackup="false"
-    android:largeHeap="true"
-    android:networkSecurityConfig="@xml/network_security_config"
-    android:usesCleartextTraffic="true"
-    ...>
-```
-
-### 7.3 Activity 설정
-
-```xml
-<activity
-    android:name=".presentation.MainActivity"
-    android:configChanges="keyboardHidden|screenSize|smallestScreenSize|screenLayout"
-    android:windowSoftInputMode="adjustResize"
-    android:exported="true"
-    android:theme="@style/Theme.App.Splash">
-    <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-    </intent-filter>
-</activity>
-```
-
----
-
-## 8. 외부 라이브러리
-
-| 라이브러리 | 용도 | 비고 |
-|------------|------|------|
-| OkHttp | HTTP 클라이언트 | 네트워크 통신 |
-| OkHttp Logging Interceptor | HTTP 로깅 | 디버그용 |
-| Gson | JSON 파싱 | Codable 대안 |
-| Firebase Messaging | FCM 푸시 알림 | |
-| Kakao SDK | 카카오 로그인 | `cc0faae5b1dd0468f0440656b12b8601` |
-| Naver SDK | 네이버 로그인 | |
-| Google Sign-In | 구글 로그인 | |
-| Jetpack Compose | UI 프레임워크 | |
-| Lottie | 애니메이션 | |
-| AndroidX Core SplashScreen | 스플래시 화면 | |
-
----
-
-## 9. 주요 상수
-
-### Constants.kt
-
-```kotlin
-object Constants {
-    var isDebug: Boolean = false       // 디버그 모드
-    var fcmToken: String = ""          // FCM 토큰
-    var jwtToken: String = ""          // JWT 인증 토큰
-    var uclassURL: String = ""         // 인증 API 도메인
-    var umanagerURL: String = ""       // 채팅 API 도메인
-    var homeURL: String = ""           // 홈 WebView URL
-    var noticeURL: String = ""         // 사유 WebView URL
-    
-    fun getUserId(): Int               // 사용자 ID
-    fun getBranchId(): Int             // 지점 ID
-}
-```
-
-### PreferenceManager 저장 키
-
-| 키 | 용도 |
+| 파일 | 설명 |
 |------|------|
-| `FCM_TOKEN` | FCM 토큰 |
-| `SNS_TYPE` | SNS 로그인 타입 (KAKAO, NAVER, GOOGLE) |
-| `SNS_ID` | SNS 사용자 ID |
-| `USER_ID` | 앱 사용자 ID |
-| `BRANCH_ID` | 지점 ID |
-| `TAB` | 현재 선택된 탭 |
-| `CHAT_INIT` | 채팅 초기화 필요 여부 |
+| `App.kt` | Application 클래스, SDK 초기화, FCM 토큰 관리 |
+| `MainActivity.kt` | 메인 액티비티, Compose 진입점, 로그인 처리 |
+| `NetworkAPI.kt` | REST API 통신 싱글톤 |
+| `NetworkAPIManager.kt` | API 콜백 관리 |
+| `SocketManager.kt` | WebSocket/STOMP 연결 관리 |
+| `ViewCallbackManager.kt` | View 상태 콜백 관리 |
+| `WebViewManager.kt` | WebView 인스턴스 관리 |
+| `ChatViewModel.kt` | 채팅 비즈니스 로직 |
+| `ChatScreen.kt` | 채팅 UI (Compose) |
+| `MainScreen.kt` | 메인 화면 (탭 네비게이션) |
 
----
+### 6.2 iOS
 
-## 10. 디버그 기능
-
-### 10.1 채팅 화면 특수 명령어
-
-| 입력 | 동작 |
+| 파일 | 설명 |
 |------|------|
-| `로그아웃` | 강제 로그아웃 |
-| `전화` | 전화 앱 실행 (01075761690) |
-| `리로드` | 앱 재시작 (재로그인) |
-| `로그` | 로그 파일 공유 |
-
-### 10.2 로깅
-
-```kotlin
-// App.kt에서 설정
-Logger.setEnable(true)
-Constants.isDebug = true
-
-// 사용 예시
-Logger.dev("개발용 로그")
-Logger.info("정보 로그")
-Logger.error("에러 로그")
-Logger.error(exception)
-Logger.web(consoleMessage)  // WebView 콘솔 로그
-```
-
-### 10.3 WebView 디버깅
-
-```kotlin
-if (Constants.isDebug) {
-    WebView.setWebContentsDebuggingEnabled(true)
-}
-```
-
-Chrome DevTools에서 `chrome://inspect`로 WebView 디버깅 가능
+| `AppDelegate.swift` | 앱 델리게이트, SDK 초기화, 푸시 처리 |
+| `uclassApp.swift` | SwiftUI App 진입점 |
+| `NetworkAPI.swift` | REST API 통신 싱글톤 (Alamofire) |
+| `NetworkAPIManager.swift` | API 콜백 관리 |
+| `SocketManager.swift` | WebSocket/STOMP 연결 관리 (URLSession) |
+| `WebViewManager.swift` | WebView 인스턴스 관리 |
+| `ChatScreen.swift` | 채팅 화면 (SwiftUI + UIKit) |
+| `MainScreen.swift` | 메인 화면 (탭 네비게이션) |
 
 ---
 
-## 11. 알려진 이슈 및 주의사항
+## 7. 플랫폼별 차이점
 
-### 11.1 세션 타임아웃
-
-```kotlin
-// MainActivity.kt - 현재 주석 처리됨
-// 10분 세션 타임아웃 로직 존재하나 비활성화 상태
-private val SESSION_TIMEOUT_MS = 10 * 60 * 1000L // 10분
-
-// onResume()에서 체크하는 코드가 주석 처리됨
-// if (elapsedTime > SESSION_TIMEOUT_MS) {
-//     triggerRelogin()
-// }
-```
-
-### 11.2 Google 로그인 테스트 코드
-
-```kotlin
-// MainActivity.kt - onActivityResult
-// 구글 로그인 실패 시 테스트 계정으로 우회 처리됨
-// TODO: 배포 전 제거 필요
-onFailure = { error ->
-    PreferenceManager.saveLoginInfo(
-        context = this,
-        snsType = "GOOGLE",
-        userId = "AAAAA1",      // 하드코딩된 테스트 계정
-        email = "AAA1@gmail.com",
-        name = "AAA1"
-    )
-    callSNSCheck()
-}
-```
-
-### 11.3 WebSocket 재연결
-
-- 최대 재연결 시도: 5회
-- 재연결 딜레이: 3초
-- 하트비트 간격: 20초
-- 연결 불가능한 에러 코드 (400, 401, 403, 404, 405)는 즉시 실패 처리
-- 연결 실패 시 `onConnectionFailed` 콜백 호출
-
-### 11.4 HTTP 403 에러 처리
-
-```kotlin
-// WebViewManager.kt
-override fun onReceivedHttpError(...) {
-    if (request?.isForMainFrame == true && errorResponse?.statusCode == 403) {
-        // 홈으로 이동 후 재로그인
-        ViewCallbackManager.notifyResult(NAVIGATION, HOME)
-        ViewCallbackManager.notifyResult(RELOAD, true)
-    }
-}
-```
-
-### 11.5 파일 업로드 제한
-
-- 이미지 파일만 업로드 가능 (`image/*`)
-- 다른 파일 형식 선택 시 Toast 메시지 표시 후 취소
+| 기능 | Android | iOS |
+|------|---------|-----|
+| HTTP 클라이언트 | OkHttp | Alamofire |
+| JSON 파싱 | Gson | Codable (JSONDecoder) |
+| WebSocket | OkHttp WebSocket | URLSessionWebSocketTask |
+| 상태 관리 | StateFlow, MutableState | @Published, Combine |
+| UI 프레임워크 | Jetpack Compose | SwiftUI |
+| 채팅 UI | Compose LazyColumn | UITableView (UIViewRepresentable) |
+| 화면 전환 알림 | ViewCallbackManager | NotificationCenter |
 
 ---
 
-## 12. 빌드 및 배포
+## 8. 빌드 및 배포
 
-### 12.1 빌드 환경
+### 8.1 Android
 
+#### 빌드 설정
 ```groovy
-// build.gradle.kts (예상)
+// build.gradle.kts (app)
 android {
+    namespace = "com.ubase.uclass"
     compileSdk = 34
     
     defaultConfig {
@@ -950,68 +436,90 @@ android {
         minSdk = 23
         targetSdk = 34
     }
-    
-    buildFeatures {
-        compose = true
-    }
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
-    }
 }
 ```
 
-### 12.2 서명 키
+#### 서명 설정
+- Release 빌드 시 서명 키 필요
+- `signingConfigs` 블록에서 설정
 
-- 릴리즈 빌드 시 별도 keystore 필요
-- SNS 로그인용 해시 키 등록 필요:
-  - 카카오: 키 해시 등록
-  - 네이버: 클라이언트 ID/Secret 설정
-  - 구글: OAuth 클라이언트 ID 설정
+### 8.2 iOS
 
-### 12.3 환경별 설정
+#### Capabilities 설정 (uclass.entitlements)
+- Push Notifications
+- Associated Domains (필요 시)
 
-| 환경 | 설정 |
+#### Info.plist 설정
+- URL Schemes (SNS 로그인 콜백)
+- Privacy 권한 설명
+
+---
+
+## 9. 상수 및 설정값
+
+### 9.1 Constants 클래스
+
+| 상수 | 설명 |
 |------|------|
-| Debug | `Logger.setEnable(true)`, `Constants.isDebug = true` |
-| Release | `Logger.setEnable(false)`, `Constants.isDebug = false` |
+| `isDebug` | 디버그 모드 여부 |
+| `uclassURL` | 메인 API 서버 URL |
+| `umanagerURL` | 채팅 API 서버 URL |
+| `mainUrl` | WebView 메인 URL |
+| `jwtToken` | JWT 인증 토큰 |
+| `fcmToken` | FCM 푸시 토큰 |
+
+### 9.2 SharedPreferences / UserDefaults 키
+
+| 키 | 설명 |
+|---|------|
+| `FCM_TOKEN` | FCM 토큰 |
+| `SNS_TYPE` | SNS 로그인 타입 (GOOGLE, APPLE) |
+| `SNS_ID` | SNS 사용자 ID |
+| `TAB` | 현재 선택된 탭 |
+| `CHAT_INIT` | 채팅 초기화 필요 여부 |
 
 ---
 
-## 13. 체크리스트
-
-### 배포 전 확인 사항
-
-- [ ] Google 로그인 테스트 코드 제거 (MainActivity.kt)
-- [ ] 디버그 로깅 비활성화
-- [ ] WebView 디버깅 비활성화
-- [ ] 하드코딩된 전화번호 확인 (01075761690)
-- [ ] 서버 URL 프로덕션 환경으로 변경
-- [ ] ProGuard/R8 난독화 설정 확인
-- [ ] 서명 키 설정 확인
-
-### 신규 개발자 온보딩
-
-1. 프로젝트 클론
-2. `local.properties` 설정 (SDK 경로)
-3. Firebase `google-services.json` 추가
-4. SNS SDK 키 설정 확인
-5. 빌드 및 실행
 
 ---
 
-## 14. 연락처
+## 11. 테스트 체크리스트
 
-| 역할 | 담당 | 연락처 |
-|------|------|--------|
-| 개발 | - | - |
-| 서버 API | - | - |
-| 기획 | - | - |
+### 11.1 로그인/인증
+- [ ] 구글/아이폰 로그인/로그아웃
+- [ ] 자동 로그인
+- [ ] 세션 만료 후 재로그인
+
+### 11.2 채팅
+- [ ] 소켓 연결/해제
+- [ ] 메시지 송신/수신
+- [ ] 재연결 (네트워크 전환)
+- [ ] 이미지 업로드
+- [ ] 채팅 뱃지 표시
+
+### 11.3 푸시 알림
+- [ ] 포그라운드 수신
+- [ ] 백그라운드 수신
+- [ ] 앱 종료 상태 수신
+- [ ] 딥링크 (채팅/URL)
+
+### 11.4 WebView
+- [ ] 초기 로딩
+- [ ] JWT 토큰 전달
+- [ ] 파일 업로드
+- [ ] 403 에러 처리
 
 ---
 
-*문서 작성일: 2024년*  
-*문서 버전: 1.0*  
-*기준 소스: 제공된 프로젝트 파일*
+## 12. 연락처 및 참고자료
+
+### 12.1 API 문서
+- 메인 API: `{Constants.uclassURL}/swagger-ui/`
+- 채팅 API: `{Constants.umanagerURL}/swagger-ui/`
+
+### 12.2 외부 SDK 문서
+- [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging)
+- [STOMP Protocol](https://stomp.github.io/stomp-specification-1.2.html)
+
+---
+
